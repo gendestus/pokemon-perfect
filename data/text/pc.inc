@@ -1,17 +1,17 @@
-Text_BootUpPC:
+Text_BootedUpPC::
 	.string "{PLAYER} booted up the PC.$"
 
-gText_WhichPCShouldBeAccessed::
+Text_AccessWhichPC::
 	.string "Which PC should be accessed?$"
 
-gText_AccessedSomeonesPC::
-	.string "Accessed SOMEONE'S PC.$"
+Text_AccessedSomeonesPC::
+	.string "Accessed Someone's PC.$"
 
-gText_StorageSystemOpened::
+Text_OpenedPkmnStorage::
 	.string "POKéMON Storage System opened.$"
 
-gText_AccessedPlayersPC::
+Text_AccessedPlayersPC::
 	.string "Accessed {PLAYER}'s PC.$"
 
-gText_AccessedLanettesPC::
-	.string "Accessed LANETTE's PC.$"
+Text_AccessedBillsPC::
+	.string "Accessed BILL's PC.$"

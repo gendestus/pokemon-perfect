@@ -206,6 +206,8 @@ enum CmdVarious
     VARIOUS_SAVE_BATTLER_ITEM,
     VARIOUS_RESTORE_BATTLER_ITEM,
     VARIOUS_BATTLER_ITEM_TO_LAST_USED_ITEM,
+    // pokefirered
+    VARIOUS_GET_BATTLERS_FOR_RECALL, // for battle tower
 };
 
 // Cmd_manipulatedamage
@@ -213,25 +215,21 @@ enum CmdVarious
 #define DMG_DOUBLED             2
 #define DMG_1_8_TARGET_HP       3
 #define DMG_FULL_ATTACKER_HP    4
-#define DMG_CURR_ATTACKER_HP    5
-#define DMG_BIG_ROOT            6
+#define DMG_BIG_ROOT            5
 
 // Cmd_jumpifcantswitch
 #define SWITCH_IGNORE_ESCAPE_PREVENTION   (1 << 7)
 
 // Cmd_statbuffchange
-#define STAT_CHANGE_ALLOW_PTR               (1 << 0)   // If set, allow use of jumpptr. Set in every use of statbuffchange
+#define STAT_CHANGE_ALLOW_PTR               (1 << 0)   // If set, allow use of jumpptr. If not set and unable to raise/lower stats, jump to failInstr.
 #define STAT_CHANGE_MIRROR_ARMOR            (1 << 1)   // Stat change redirection caused by Mirror Armor ability.
-#define STAT_CHANGE_NOT_PROTECT_AFFECTED    (1 << 5)
-#define STAT_CHANGE_UPDATE_MOVE_EFFECT      (1 << 6)
+#define STAT_CHANGE_ONLY_CHECKING           (1 << 2)   // Checks if the stat change can occur. Does not change stats or play stat change animation.
+#define STAT_CHANGE_NOT_PROTECT_AFFECTED    (1 << 3)
+#define STAT_CHANGE_UPDATE_MOVE_EFFECT      (1 << 4)
+#define STAT_CHANGE_CHECK_PREVENTION        (1 << 5)
+#define STAT_CHANGE_CERTAIN                 (1 << 6)
 
-// stat change flags for Cmd_playstatchangeanimation
-#define STAT_CHANGE_NEGATIVE             (1 << 0)
-#define STAT_CHANGE_BY_TWO               (1 << 1)
-#define STAT_CHANGE_MULTIPLE_STATS       (1 << 2)
-#define STAT_CHANGE_CANT_PREVENT         (1 << 3)
-
-// stat flags for Cmd_playstatchangeanimation
+// stat flags for TryPlayStatChangeAnimation
 #define BIT_HP                      (1 << 0)
 #define BIT_ATK                     (1 << 1)
 #define BIT_DEF                     (1 << 2)
@@ -243,7 +241,7 @@ enum CmdVarious
 
 #define PARTY_SCREEN_OPTIONAL (1 << 7) // Flag for first argument to openpartyscreen
 
-// cases for Cmd_moveend - Order matters!
+// cases for Cmd_moveend
 enum MoveEndEffects
 {
     MOVEEND_SUM_DAMAGE,
@@ -260,6 +258,7 @@ enum MoveEndEffects
     MOVEEND_ATTACKER_VISIBLE,
     MOVEEND_TARGET_VISIBLE,
     MOVEEND_ITEM_EFFECTS_TARGET,
+    MOVEEND_FIRST_MOVE_BLOCK,
     MOVEEND_ITEM_EFFECTS_ALL,
     MOVEEND_SYMBIOSIS,
     MOVEEND_KINGSROCK, // These item effects will occur each strike of a multi-hit move
@@ -270,20 +269,20 @@ enum MoveEndEffects
     MOVEEND_DEFROST,
     MOVEEND_NEXT_TARGET, // Everything up until here is handled for each strike of a spread move
     MOVEEND_MULTIHIT_MOVE,
-    MOVEEND_MOVE_BLOCK,
+    MOVEEND_SECOND_MOVE_BLOCK,
     MOVEEND_ITEM_EFFECTS_ATTACKER,
     MOVEEND_ABILITY_BLOCK,
     MOVEEND_SHEER_FORCE, // If move is Sheer Force affected, skip until Opportunist
     MOVEEND_RED_CARD, // Red Card triggers before Eject Pack
     MOVEEND_EJECT_BUTTON,
     MOVEEND_LIFEORB_SHELLBELL, // Includes shell bell, throat spray, etc
+    MOVEEND_FORM_CHANGE,
     MOVEEND_EMERGENCY_EXIT,
     MOVEEND_EJECT_PACK,
     MOVEEND_HIT_ESCAPE,
     MOVEEND_OPPORTUNIST, // Occurs after other stat change items/abilities to try and copy the boosts
     MOVEEND_PICKPOCKET,
     MOVEEND_WHITE_HERB,
-    MOVEEND_THIRD_MOVE_BLOCK,
     MOVEEND_CHANGED_ITEMS,
     MOVEEND_SAME_MOVE_TURNS,
     MOVEEND_CLEAR_BITS,
@@ -296,5 +295,24 @@ enum MoveEndEffects
 #define B_SWITCH_NORMAL     0
 #define B_SWITCH_HIT        1   // dragon tail, circle throw
 #define B_SWITCH_RED_CARD   2
+
+// Argument labels for EFFECT_HIT_SET_REMOVE_TERRAIN
+#define ARG_SET_PSYCHIC_TERRAIN        0
+#define ARG_TRY_REMOVE_TERRAIN_HIT     1
+#define ARG_TRY_REMOVE_TERRAIN_FAIL    2
+
+enum StatusTrigger
+{
+    TRIGGER_ON_MOVE,
+    TRIGGER_ON_ABILITY,
+    TRIGGER_ON_PROTECT,
+};
+
+enum TriggerOnFieldStatus
+{
+    ON_ANY,
+    ON_TERRAIN,
+    ON_WEATHER,
+};
 
 #endif // GUARD_CONSTANTS_BATTLE_SCRIPT_COMMANDS_H

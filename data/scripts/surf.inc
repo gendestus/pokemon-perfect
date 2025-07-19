@@ -1,14 +1,24 @@
 EventScript_UseSurf::
-	checkpartymove MOVE_SURF
-	goto_if_eq VAR_RESULT, PARTY_SIZE, EventScript_EndUseSurf
-	bufferpartymonnick STR_VAR_1, VAR_RESULT
-	setfieldeffectargument 0, VAR_RESULT
+	goto_if_questlog EventScript_UseSurfEnd
+	checkfieldmoveusable FIELD_MOVE_SURF
+	goto_if_eq VAR_RESULT, FALSE, EventScript_UseSurfEnd
+	playse SE_SELECT
 	lockall
-	msgbox gText_WantToUseSurf, MSGBOX_YESNO
-	goto_if_eq VAR_RESULT, NO, EventScript_ReleaseUseSurf
-	msgbox gText_PlayerUsedSurf, MSGBOX_DEFAULT
+	msgbox Text_WantToSurf, MSGBOX_YESNO
+	goto_if_eq VAR_RESULT, NO, EventScript_UseSurfRelease
+	msgbox Text_UsedSurf
 	dofieldeffect FLDEFF_USE_SURF
-EventScript_ReleaseUseSurf::
+EventScript_UseSurfRelease:
 	releaseall
-EventScript_EndUseSurf::
+EventScript_UseSurfEnd:
+	end
+
+EventScript_CurrentTooFast::
+	lockall
+	checkfieldmoveusable FIELD_MOVE_SURF
+	goto_if_eq VAR_RESULT, FALSE, EventScript_CurrentTooFastEndMsg
+	playse SE_SELECT
+	msgbox Text_CurrentTooFast
+EventScript_CurrentTooFastEndMsg::
+	releaseall
 	end

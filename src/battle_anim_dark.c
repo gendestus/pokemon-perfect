@@ -1,6 +1,6 @@
 #include "global.h"
 #include "battle_anim.h"
-#include "contest.h"
+// #include "contest.h"
 #include "gpu_regs.h"
 #include "graphics.h"
 #include "palette.h"
@@ -932,7 +932,7 @@ void AnimTask_MetallicShine(u8 taskId)
     }
 
     if (IsContest())
-        species = gContestResources->moveAnim->species;
+        species = 0; // gContestResources->moveAnim->species;
     else
         species = GetMonData(GetBattlerMon(gBattleAnimAttacker), MON_DATA_SPECIES);
 

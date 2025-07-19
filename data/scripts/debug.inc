@@ -10,34 +10,27 @@ Debug_ShowFieldMessageStringVar4::
 
 Debug_CheatStart::
 	setflag FLAG_SYS_POKEMON_GET
-	setflag FLAG_RESCUED_BIRCH
-	setflag FLAG_HIDE_ROUTE_101_BIRCH_ZIGZAGOON_BATTLE
-	setflag FLAG_ADVENTURE_STARTED
-	clearflag FLAG_HIDE_LITTLEROOT_TOWN_BIRCHS_LAB_BIRCH
-	setflag FLAG_HIDE_ROUTE_101_BIRCH_STARTERS_BAG
-	setvar VAR_BIRCH_LAB_STATE, 2
-	setvar VAR_ROUTE101_STATE, 3
-	givemon SPECIES_TREECKO, 20, ITEM_NONE
-	givemon SPECIES_TORCHIC, 20, ITEM_NONE
-	givemon SPECIES_MUDKIP, 20, ITEM_NONE
+	setflag FLAG_PALLET_LADY_NOT_BLOCKING_SIGN
+	setflag FLAG_OPENED_START_MENU
+	setflag FLAG_VISITED_OAKS_LAB
+	setflag FLAG_BEAT_RIVAL_IN_OAKS_LAB
+	givemon SPECIES_BULBASAUR, 20, ITEM_NONE
+	givemon SPECIES_CHARMANDER, 20, ITEM_NONE
+	givemon SPECIES_SQUIRTLE, 20, ITEM_NONE
+	clearflag FLAG_HIDE_OAK_IN_HIS_LAB
+	setflag FLAG_HIDE_RIVAL_IN_LAB
+	setvar VAR_MAP_SCENE_PALLET_TOWN_OAK, 1 @ prevents Oak scene when trying to enter Route 1
 	setflag FLAG_SYS_POKEDEX_GET
 	special SetUnlockedPokedexFlags
-	setflag FLAG_RECEIVED_POKEDEX_FROM_BIRCH
-	setvar VAR_CABLE_CLUB_TUTORIAL_STATE, 2
+	setvar VAR_MAP_SCENE_PALLET_TOWN_PROFESSOR_OAKS_LAB, 6 @ state after handing in parcel and getting pokedex
+	setvar VAR_MAP_SCENE_VIRIDIAN_CITY_MART, 2
+	setvar VAR_MAP_SCENE_VIRIDIAN_CITY_OLD_MAN, 1
+	setvar VAR_MAP_SCENE_PALLET_TOWN_RIVALS_HOUSE, 1
+	setvar VAR_MAP_SCENE_ROUTE22, 1
+	setvar VAR_MAP_SCENE_POKEMON_CENTER_TEALA, 1 @ end
 	setflag FLAG_SYS_NATIONAL_DEX
 	special EnableNationalPokedex
-	setflag FLAG_RECEIVED_RUNNING_SHOES
 	setflag FLAG_SYS_B_DASH
-	setvar VAR_LITTLEROOT_TOWN_STATE, 4 @ 4: Received Running Shoes
-	setvar VAR_LITTLEROOT_INTRO_STATE, 7 @ 7: Told to go meet rival
-	setvar VAR_LITTLEROOT_HOUSES_STATE_BRENDAN, 2 @ 2: Met Rival's Mom (and is corresponding gender)
-	setvar VAR_LITTLEROOT_HOUSES_STATE_MAY, 2 @ 2: Met Rival's Mom (and is corresponding gender)
-	setvar VAR_LITTLEROOT_RIVAL_STATE, 4 @ 4: Received Pokedex
-	setflag FLAG_RECEIVED_BIKE
-	additem ITEM_ACRO_BIKE
-	setvar VAR_BRINEY_HOUSE_STATE, 1
-	setvar VAR_ROUTE116_STATE, 2
-	setflag FLAG_HIDE_ROUTE_116_MR_BRINEY
 	setflag FLAG_BADGE01_GET
 	setflag FLAG_BADGE02_GET
 	setflag FLAG_BADGE03_GET
@@ -46,26 +39,29 @@ Debug_CheatStart::
 	setflag FLAG_BADGE06_GET
 	setflag FLAG_BADGE07_GET
 	setflag FLAG_BADGE08_GET
-	setflag FLAG_VISITED_LITTLEROOT_TOWN
-	setflag FLAG_VISITED_OLDALE_TOWN
-	setflag FLAG_VISITED_DEWFORD_TOWN
-	setflag FLAG_VISITED_LAVARIDGE_TOWN
-	setflag FLAG_VISITED_FALLARBOR_TOWN
-	setflag FLAG_VISITED_VERDANTURF_TOWN
-	setflag FLAG_VISITED_PACIFIDLOG_TOWN
-	setflag FLAG_VISITED_PETALBURG_CITY
-	setflag FLAG_VISITED_SLATEPORT_CITY
-	setflag FLAG_VISITED_MAUVILLE_CITY
-	setflag FLAG_VISITED_RUSTBORO_CITY
-	setflag FLAG_VISITED_FORTREE_CITY
-	setflag FLAG_VISITED_LILYCOVE_CITY
-	setflag FLAG_VISITED_MOSSDEEP_CITY
-	setflag FLAG_VISITED_SOOTOPOLIS_CITY
-	setflag FLAG_VISITED_EVER_GRANDE_CITY
-	setflag FLAG_LANDMARK_POKEMON_LEAGUE
-	setflag FLAG_LANDMARK_BATTLE_FRONTIER
-	clearflag FLAG_HIDE_BRINEYS_HOUSE_MR_BRINEY
-	clearflag FLAG_HIDE_BRINEYS_HOUSE_PEEKO
+	setflag FLAG_GOT_BIKE_VOUCHER
+	setflag FLAG_GOT_BICYCLE
+	additem ITEM_BICYCLE
+    setflag FLAG_WORLD_MAP_PALLET_TOWN
+    setflag FLAG_WORLD_MAP_VIRIDIAN_CITY
+    setflag FLAG_WORLD_MAP_PEWTER_CITY
+    setflag FLAG_WORLD_MAP_ROUTE4_POKEMON_CENTER_1F
+    setflag FLAG_WORLD_MAP_CERULEAN_CITY
+    setflag FLAG_WORLD_MAP_VERMILION_CITY
+    setflag FLAG_WORLD_MAP_ROUTE10_POKEMON_CENTER_1F
+    setflag FLAG_WORLD_MAP_LAVENDER_TOWN
+    setflag FLAG_WORLD_MAP_CELADON_CITY
+    setflag FLAG_WORLD_MAP_FUCHSIA_CITY
+    setflag FLAG_WORLD_MAP_SAFFRON_CITY
+    setflag FLAG_WORLD_MAP_CINNABAR_ISLAND
+    setflag FLAG_WORLD_MAP_INDIGO_PLATEAU_EXTERIOR
+    setflag FLAG_WORLD_MAP_ONE_ISLAND
+    setflag FLAG_WORLD_MAP_TWO_ISLAND
+    setflag FLAG_WORLD_MAP_THREE_ISLAND
+    setflag FLAG_WORLD_MAP_FOUR_ISLAND
+    setflag FLAG_WORLD_MAP_FIVE_ISLAND
+    setflag FLAG_WORLD_MAP_SIX_ISLAND
+    setflag FLAG_WORLD_MAP_SEVEN_ISLAND
 	release
 	end
 
@@ -268,7 +264,7 @@ Debug_ShowExpansionVersion::
 	end
 
 Debug_ExpansionVersion:
-	.string "pokeemerald-expansion {STR_VAR_1}$"
+	.string "pokefirered-expansion {STR_VAR_1}$"
 
 Debug_EventScript_Steven_Multi::
 	call MossdeepCity_SpaceCenter_2F_EventScript_ChoosePartyForMultiBattle
@@ -615,3 +611,58 @@ Debug_EventScript_TellTheTime_Text_0:
 
 DebugEventScript_PrintWeekday_Text_0:
 	.string "Time of day: {STR_VAR_1}$"
+
+
+@ steven multibattle script
+MossdeepCity_SpaceCenter_2F_EventScript_ChoosePartyForMultiBattle::
+	applymovement VAR_LAST_TALKED, Common_Movement_WalkInPlaceFasterDown
+	waitmovement 0
+	special SavePlayerParty
+	fadescreen FADE_TO_BLACK
+	special ChooseHalfPartyForBattle
+	waitstate
+	goto_if_ne VAR_RESULT, 0, MossdeepCity_SpaceCenter_2F_EventScript_DoStevenMultiBattle
+	special LoadPlayerParty
+	goto MossdeepCity_SpaceCenter_2F_EventScript_ReadyForBattlePrompt
+
+MossdeepCity_SpaceCenter_2F_EventScript_DoStevenMultiBattle::
+	multi_2_vs_2 TRAINER_MAXIE_MOSSDEEP, MossdeepCity_SpaceCenter_2F_Text_JustWantToExpandLand, TRAINER_TABITHA_MOSSDEEP, MossdeepCity_SpaceCenter_Text_TabithaDefeat, PARTNER_STEVEN
+	switch VAR_RESULT
+	case 1, MossdeepCity_SpaceCenter_2F_EventScript_DefeatedMaxieTabitha
+	fadescreen FADE_TO_BLACK
+	special SetCB2WhiteOut
+	waitstate
+
+MossdeepCity_SpaceCenter_2F_EventScript_DefeatedMaxieTabitha::
+	fadescreen FADE_FROM_BLACK
+	releaseall
+	end
+
+MossdeepCity_SpaceCenter_2F_Text_JustWantToExpandLand:
+	.string "All I want…\n"
+	.string "I just want to expand the land mass…$"
+
+MossdeepCity_SpaceCenter_2F_EventScript_ReadyForBattlePrompt::
+	applymovement VAR_LAST_TALKED, Common_Movement_FacePlayer
+	waitmovement 0
+	msgbox MossdeepCity_SpaceCenter_2F_Text_StevenAreYouReadyToBattle, MSGBOX_YESNO
+	goto_if_eq VAR_RESULT, YES, MossdeepCity_SpaceCenter_2F_EventScript_ChoosePartyForMultiBattle
+	msgbox MossdeepCity_SpaceCenter_2F_Text_StevenHurryGetReadyQuickly, MSGBOX_DEFAULT
+	closemessage
+	applymovement VAR_LAST_TALKED, Common_Movement_WalkInPlaceFasterDown
+	waitmovement 0
+	releaseall
+	end
+
+MossdeepCity_SpaceCenter_2F_Text_StevenAreYouReadyToBattle:
+	.string "STEVEN: {PLAYER}{KUN}!\n"
+	.string "You're going to help me?\p"
+	.string "Let's go into battle together!\n"
+	.string "Are you ready?$"
+
+MossdeepCity_SpaceCenter_2F_Text_StevenHurryGetReadyQuickly:
+	.string "STEVEN: Then, hurry!\n"
+	.string "Get ready quickly!$"
+
+MossdeepCity_SpaceCenter_Text_TabithaDefeat:
+	.string "I'm with our leader…$"

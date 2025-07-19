@@ -1,6 +1,7 @@
 #ifndef GUARD_MYSTERY_GIFT_SERVER_H
 #define GUARD_MYSTERY_GIFT_SERVER_H
 
+#include "global.h"
 #include "mystery_gift_link.h"
 
 // Return values for Server_* functions.
@@ -20,7 +21,7 @@ enum {
     SVR_GOTO,
     SVR_GOTO_IF_EQ,
     SVR_COPY_GAME_DATA,
-    SVR_CHECK_GAME_DATA_CARD,
+    SVR_CHECK_GAME_DATA, // In Emerald, this was separated into SVR_CHECK_GAME_DATA_CARD and SVR_CHECK_GAME_DATA_NEWS
     SVR_CHECK_EXISTING_CARD,
     SVR_READ_RESPONSE,
     SVR_CHECK_EXISTING_STAMPS,
@@ -44,8 +45,11 @@ enum {
     SVR_COPY_SAVED_NEWS,
     SVR_COPY_SAVED_RAM_SCRIPT,
     SVR_LOAD_UNK_1,
-    SVR_CHECK_GAME_DATA_NEWS,
 };
+
+// Create arguments for SVR_LOAD_CLIENT_SCRIPT or SVR_LOAD_MSG
+// (a script/text size and pointer to send to the client)
+#define PTR_ARG(pointer) .param = sizeof(pointer), .ptr = pointer
 
 // IDs for server messages when ending a script.
 // Given as the parameter to SVR_RETURN, and resolved to text in GetServerResultMessage
@@ -70,7 +74,7 @@ enum {
 struct MysteryGiftServerCmd
 {
     u32 instr;
-    u32 parameter;
+    bool32 param;
     const void *ptr;
 };
 
@@ -80,21 +84,21 @@ struct MysteryGiftServer
     u32 param;
     u32 funcId;
     u32 cmdidx;
-    const struct MysteryGiftServerCmd *script;
+    const struct MysteryGiftServerCmd * script;
     void *recvBuffer;
-    struct WonderCard *card;
-    struct WonderNews *news;
-    struct MysteryGiftLinkGameData *linkGameData;
+    struct WonderCard * card;
+    struct WonderNews * news;
+    struct MysteryGiftLinkGameData * linkGameData;
     const void *ramScript;
     u32 ramScriptSize;
     const void *clientScript;
     u32 clientScriptSize;
     u32 stamp;
-    struct MysteryGiftLink link;
+    struct MysteryGiftLink manager;
 };
 
-void MysterGiftServer_CreateForCard(void);
 void MysterGiftServer_CreateForNews(void);
-u32 MysterGiftServer_Run(u16 *endVal);
+void MysterGiftServer_CreateForCard(void);
+u32 MysterGiftServer_Run(u16 * endVal);
 
 #endif //GUARD_MYSTERY_GIFT_SERVER_H

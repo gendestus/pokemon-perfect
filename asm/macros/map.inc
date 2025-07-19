@@ -42,12 +42,10 @@
 	.endm
 
 	@ Defines an object event template for map data, to be used by a clone object. Mirrors the struct layout of ObjectEventTemplate in include/global.fieldmap.h
-	@ NOTE: The handling for this type of event does not exist in Emerald by default; it is exclusive to FRLG.
 	.macro clone_event index:req, gfx:req, x:req, y:req, target_local_id:req, target_map_id:req
 	.byte \index
-	.byte \gfx
+	.2byte \gfx
 	.byte OBJ_KIND_CLONE
-	.space 1  @ Padding
 	.2byte \x, \y
 	.byte \target_local_id
 	.space 3  @ Padding
@@ -79,15 +77,16 @@
 	inc _num_traps
 	.endm
 
-	@ Defines a weather coord event for map data. Any coord event is treated as a weather coord event if its script is NULL
+	@ Defines a weather coord event for map data. Any coord event is treated as a weather coord event if its script is NULL.
 	.macro coord_weather_event x:req, y:req, elevation:req, weather:req
 	coord_event \x, \y, \elevation, \weather, 0, NULL
 	.endm
 
 	@ Defines a generic background event for map data. Mirrors the struct layout of BgEvent in include/global.fieldmap.h
 	@ 'kind' is any BG_EVENT_* constant (see include/constants/event_bg.h).
-	@ 'arg6' and 'arg7' are used differently depending on the bg event type. See macros below
-	.macro bg_event x:req, y:req, elevation:req, kind:req, arg6:req, arg7
+	@ 'arg6' is used differently depending on the bg event type. 'arg7' and 'arg8' are only used by bg_hidden_item_event.
+	@ See macros below.
+	.macro bg_event x:req, y, elevation:req, kind:req, arg6:req, arg7, arg8
 	.2byte \x, \y
 	.byte \elevation
 	.byte \kind
@@ -96,7 +95,8 @@
 		.4byte \arg6
 	.else
 		.2byte \arg6
-		.2byte \arg7
+		.byte \arg7
+		.byte \arg8
 	.endif
 	inc _num_signs
 	.endm
@@ -107,11 +107,12 @@
 	.endm
 
 	@ Defines a background hidden item event for map data
-	.macro bg_hidden_item_event x:req, y:req, elevation:req, item:req, flag:req
-	bg_event \x, \y, \elevation, BG_EVENT_HIDDEN_ITEM, \item, ((\flag) - FLAG_HIDDEN_ITEMS_START)
+	.macro bg_hidden_item_event x:req, y:req, elevation:req, item:req, flag:req, quantity:req, underfoot:req
+	bg_event \x, \y, \elevation, BG_EVENT_HIDDEN_ITEM, \item, ((\flag) - FLAG_HIDDEN_ITEMS_START), \quantity | (\underfoot << 7)
 	.endm
 
-	@ Defines a background secret base event for map data
+	@ Defines a background secret base event for map data.
+	@ Unused by FRLG
 	.macro bg_secret_base_event x:req, y:req, elevation:req, secret_base_id:req
 	bg_event \x, \y, \elevation, BG_EVENT_SECRET_BASE, \secret_base_id
 	.endm
@@ -134,7 +135,6 @@
 	@ Initialize the event counters for the first map
 	reset_map_events
 
-
 	@ Directions for connecting maps
 	@ The map.json files will only have e.g. "down" as direction data, and this will be appended to "connection_" by the connection macro
 	.equiv connection_down, CONNECTION_SOUTH
@@ -155,5 +155,6 @@
 
 	@ Defines the flags for a map header. Mirrors the layout of the bitfield in struct MapHeader in include/global.fieldmap.h
 	.macro map_header_flags allow_cycling:req, allow_escaping:req, allow_running:req, show_map_name:req
-	.byte ((\show_map_name & 1) << 3) | ((\allow_running & 1) << 2) | ((\allow_escaping & 1) << 1) | \allow_cycling
+	.byte \allow_cycling
+	.byte ((\show_map_name & 1) << 2) | ((\allow_running & 1) << 1) | ((\allow_escaping & 1) << 0)
 	.endm

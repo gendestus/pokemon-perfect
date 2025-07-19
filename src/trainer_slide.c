@@ -8,7 +8,7 @@
 #include "battle_z_move.h"
 #include "data.h"
 #include "event_data.h"
-#include "frontier_util.h"
+// #include "frontier_util.h"
 #include "graphics.h"
 #include "international_string_util.h"
 #include "item.h"
@@ -20,19 +20,19 @@
 #include "strings.h"
 #include "test_runner.h"
 #include "text.h"
-#include "trainer_hill.h"
+// #include "trainer_hill.h"
 #include "window.h"
 #include "line_break.h"
 #include "constants/abilities.h"
-#include "constants/battle_dome.h"
+// #include "constants/battle_dome.h"
 #include "constants/battle_string_ids.h"
-#include "constants/frontier_util.h"
+// #include "constants/frontier_util.h"
 #include "constants/items.h"
 #include "constants/moves.h"
 #include "constants/opponents.h"
 #include "constants/species.h"
 #include "constants/trainers.h"
-#include "constants/trainer_hill.h"
+// #include "constants/trainer_hill.h"
 #include "constants/weather.h"
 #include "trainer_slide.h"
 #include "battle_message.h"
@@ -59,6 +59,7 @@ static const u8* const sTrainerSlides[DIFFICULTY_COUNT][TRAINERS_COUNT][TRAINER_
     },
 };
 
+#define FRONTIER_TRAINERS_COUNT         300
 static const u8* const sFrontierTrainerSlides[DIFFICULTY_COUNT][FRONTIER_TRAINERS_COUNT][TRAINER_SLIDE_COUNT] =
 {
     [DIFFICULTY_NORMAL] =
@@ -240,7 +241,7 @@ enum TrainerSlideTargets ShouldDoTrainerSlide(u32 battler, enum TrainerSlideType
     u32 retValue = TRAINER_SLIDE_TARGET_TRAINER_A;
     bool32 shouldRun = FALSE;
 
-    if (!(gBattleTypeFlags & BATTLE_TYPE_TRAINER) || IsOnPlayerSide(battler))
+    if (!(gBattleTypeFlags & BATTLE_TYPE_TRAINER) || GetBattlerSide(battler) != B_SIDE_OPPONENT)
         return TRAINER_SLIDE_TARGET_NONE;
 
     SetTrainerSlideParamters(battler, &firstId, &lastId, &trainerId, &retValue);
@@ -319,7 +320,7 @@ void TryInitializeFirstSTABMoveTrainerSlide(u32 battlerDef, u32 battlerAtk, u32 
     if (IsSlideInitalizedOrPlayed(slideId))
         return;
 
-    if ((IsOnPlayerSide(battlerDef)))
+    if ((GetBattlerSide(battlerDef) == B_SIDE_PLAYER))
         return;
 
     if (IS_BATTLER_OF_TYPE(battlerAtk, moveType) == FALSE)
@@ -335,7 +336,7 @@ void TryInitializeTrainerSlidePlayerLandsFirstCriticalHit(u32 target)
     if (IsSlideInitalizedOrPlayed(slideId))
         return;
 
-    if (IsOnPlayerSide(target))
+    if (GetBattlerSide(target) == B_SIDE_PLAYER)
         return;
 
     InitalizeTrainerSlide(slideId);
@@ -348,7 +349,7 @@ void TryInitializeTrainerSlideEnemyLandsFirstCriticalHit(u32 target)
     if (IsSlideInitalizedOrPlayed(slideId))
         return;
 
-    if (!IsOnPlayerSide(target))
+    if (GetBattlerSide(target) == B_SIDE_OPPONENT)
         return;
 
     InitalizeTrainerSlide(slideId);
@@ -361,7 +362,7 @@ void TryInitializeTrainerSlidePlayerLandsFirstSuperEffectiveHit(u32 target)
     if (IsSlideInitalizedOrPlayed(slideId))
         return;
 
-    if (IsOnPlayerSide(target))
+    if (GetBattlerSide(target) == B_SIDE_PLAYER)
         return;
 
     InitalizeTrainerSlide(slideId);
@@ -374,7 +375,7 @@ void TryInitializeTrainerSlideEnemyMonUnaffected(u32 target)
     if (IsSlideInitalizedOrPlayed(slideId))
         return;
 
-    if (IsOnPlayerSide(target))
+    if (GetBattlerSide(target) != B_SIDE_OPPONENT)
         return;
 
     InitalizeTrainerSlide(slideId);

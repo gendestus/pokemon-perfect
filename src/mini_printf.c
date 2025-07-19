@@ -40,8 +40,9 @@
 #include "string_util.h"
 
 #ifndef NDEBUG
+#if (PRETTY_PRINT_HANDLER != PRETTY_PRINT_OFF)
 
-struct mini_buff
+struct mini_buff 
 {
     char *buffer, *pbuffer;
     u32 buffer_len;
@@ -86,8 +87,6 @@ static inline char mini_pchar_decode(char encoded)
         ret = '('; // opening parentheses
     else if (encoded == CHAR_RIGHT_PAREN)
         ret = ')'; // closing parentheses
-    else if (encoded == CHAR_HYPHEN)
-        ret = '-'; // hyphen
     return ret;
 }
 
@@ -97,17 +96,15 @@ static s32 _putsAscii(char *s, s32 len, void *buf)
     s32 i;
     struct mini_buff *b;
 
-    if (!buf)
+    if (!buf) 
         return len;
 
     b = buf;
     p0 = b->buffer;
 
     /* Copy to buffer */
-    for (i = 0; i < len; i++)
-    {
-        if(b->pbuffer == b->buffer + b->buffer_len - 1)
-        {
+    for (i = 0; i < len; i++) {
+        if(b->pbuffer == b->buffer + b->buffer_len - 1) {
             break;
         }
         *(b->pbuffer ++) = s[i];
@@ -122,44 +119,18 @@ static s32 _putsEncoded(char *s, s32 len, void *buf)
     s32 i;
     struct mini_buff *b;
 
-    if (!buf)
+    if (!buf) 
         return len;
 
     b = buf;
     p0 = b->buffer;
 
     /* Copy to buffer */
-    for (i = 0; i < len; i++)
-    {
-        if(b->pbuffer == b->buffer + b->buffer_len - 1)
-        {
+    for (i = 0; i < len; i++) {
+        if(b->pbuffer == b->buffer + b->buffer_len - 1) {
             break;
         }
-        if (s[i] == CHAR_NEWLINE)
-        {
-            *(b->pbuffer ++) = '\\';
-            *(b->pbuffer ++) = 'n';
-        }
-        else if (s[i] == CHAR_PROMPT_SCROLL)
-        {
-            *(b->pbuffer ++) = '\\';
-            *(b->pbuffer ++) = 'l';
-        }
-        else if (s[i] == CHAR_PROMPT_CLEAR)
-        {
-            *(b->pbuffer ++) = '\\';
-            *(b->pbuffer ++) = 'p';
-        }
-        else if (s[i] == CHAR_ELLIPSIS)
-        {
-            *(b->pbuffer ++) = '.';
-            *(b->pbuffer ++) = '.';
-            *(b->pbuffer ++) = '.';
-        }
-        else
-        {
-            *(b->pbuffer ++) = mini_pchar_decode(s[i]);
-        }
+        *(b->pbuffer ++) = mini_pchar_decode(s[i]);
     }
     *(b->pbuffer) = 0;
     return b->pbuffer - p0;
@@ -189,7 +160,7 @@ static s32 mini_itoa(s32 value, u32 radix, s32 uppercase, bool32 unsig, char *bu
     }
 
     /* This builds the string back to front ... */
-    do
+    do 
     {
         s32 digit = value % radix;
         *(pbuffer++) = (digit < 10 ? '0' + digit : (uppercase ? 'A' : 'a') + digit - 10);
@@ -214,15 +185,14 @@ static s32 mini_itoa(s32 value, u32 radix, s32 uppercase, bool32 unsig, char *bu
     return len;
 }
 
-static s32 mini_pad(char *ptr, s32 len, char pad_char, s32 pad_to, char *buffer)
+static s32 mini_pad(char* ptr, s32 len, char pad_char, s32 pad_to, char *buffer)
 {
     s32 i;
     bool32 overflow = FALSE;
-    char *pbuffer = buffer;
+    char * pbuffer = buffer;
     if(pad_to == 0)
         pad_to = len;
-    if (len > pad_to)
-    {
+    if (len > pad_to) {
         len = pad_to;
         overflow = TRUE;
     }
@@ -260,7 +230,7 @@ s32 mini_vsnprintf(char *buffer, u32 buffer_len, const char *fmt, va_list va)
     return b.pbuffer - b.buffer;
 }
 
-s32 mini_vpprintf(void *buf, const char *fmt, va_list va)
+s32 mini_vpprintf(void* buf, const char *fmt, va_list va)
 {
     char bf[24];
     char bf2[24];
@@ -274,8 +244,7 @@ s32 mini_vpprintf(void *buf, const char *fmt, va_list va)
         {
             len = 1;
             len = _putsAscii(&ch, len, buf);
-        }
-        else
+        } else 
         {
             char pad_char = ' ';
             s32 pad_to = 0;
@@ -302,7 +271,7 @@ s32 mini_vpprintf(void *buf, const char *fmt, va_list va)
                 ch=*(fmt++);
             }
 
-            switch (ch)
+            switch (ch) 
             {
                 case 0:
                     goto end;
@@ -311,8 +280,7 @@ s32 mini_vpprintf(void *buf, const char *fmt, va_list va)
                     if(l)
                     {
                         len = mini_itoa(va_arg(va, u32), 10, 0, (ch=='u'), bf2);
-                    }
-                    else
+                    } else
                     {
                         if(ch == 'u')
                         {
@@ -354,8 +322,7 @@ s32 mini_vpprintf(void *buf, const char *fmt, va_list va)
                     {
                         len = mini_pad(ptr, len, pad_char, pad_to, bf);
                         len = _putsAscii(bf, len, buf);
-                    }
-                    else
+                    } else
                     {
                         len = _putsAscii(ptr, len, buf);
                     }
@@ -367,8 +334,7 @@ s32 mini_vpprintf(void *buf, const char *fmt, va_list va)
                     {
                         len = mini_pad(ptr, len, pad_char, pad_to, bf);
                         len = _putsEncoded(bf, len, buf);
-                    }
-                    else
+                    } else
                     {
                         len = _putsEncoded(ptr, len, buf);
                     }
@@ -385,4 +351,5 @@ end:
     return n;
 }
 
+#endif
 #endif

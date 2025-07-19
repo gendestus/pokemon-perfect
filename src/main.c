@@ -1,6 +1,7 @@
 #include "global.h"
 #include "crt0.h"
 #include "malloc.h"
+#include "help_system.h"
 #include "link.h"
 #include "link_rfu.h"
 #include "librfu.h"
@@ -10,7 +11,9 @@
 #include "scanline_effect.h"
 #include "overworld.h"
 #include "play_time.h"
+#include "quest_log.h"
 #include "random.h"
+#include "save_failed_screen.h"
 #include "dma3.h"
 #include "gba/flash_internal.h"
 #include "load_save.h"
@@ -22,7 +25,7 @@
 #include "text.h"
 #include "intro.h"
 #include "main.h"
-#include "trainer_hill.h"
+#include "trainer_tower.h"
 #include "test_runner.h"
 #include "constants/rgb.h"
 
@@ -40,7 +43,7 @@ const u8 gGameVersion = GAME_VERSION;
 
 const u8 gGameLanguage = GAME_LANGUAGE; // English
 
-const char BuildDateTime[] = "2005 02 21 11:10";
+const char BuildDateTime[] = "2004 07 20 09:30";
 
 const IntrFunc gIntrTableTemplate[] =
 {
@@ -74,8 +77,6 @@ COMMON_DATA void *gAgbMainLoop_sp = NULL;
 
 static EWRAM_DATA u16 sTrainerId = 0;
 
-//EWRAM_DATA void (**gFlashTimerIntrFunc)(void) = NULL;
-
 static void UpdateLinkAndCallCallbacks(void);
 static void InitMainCallbacks(void);
 static void CallCallbacks(void);
@@ -89,7 +90,7 @@ void EnableVCountIntrAtLine150(void);
 
 #define B_START_SELECT (B_BUTTON | START_BUTTON | SELECT_BUTTON)
 
-void AgbMain(void)
+void AgbMain()
 {
     *(vu16 *)BG_PLTT = RGB_WHITE; // Set the backdrop to white on startup
     InitGpuRegManager();
@@ -114,9 +115,12 @@ void AgbMain(void)
     InitHeap(gHeap, HEAP_SIZE);
 
     gSoftResetDisabled = FALSE;
+    gHelpSystemEnabled = FALSE;
+
+    SetNotInSaveFailedScreen();
 
     if (gFlashMemoryPresent != TRUE)
-        SetMainCallback2((SAVE_TYPE_ERROR_SCREEN) ? CB2_FlashNotDetectedScreen : NULL);
+        SetMainCallback2(NULL);
 
     gLinkTransferringData = FALSE;
 
@@ -182,21 +186,31 @@ static void UpdateLinkAndCallCallbacks(void)
 static void InitMainCallbacks(void)
 {
     gMain.vblankCounter1 = 0;
-    gTrainerHillVBlankCounter = NULL;
+    gTrainerTowerVBlankCounter = NULL;
     gMain.vblankCounter2 = 0;
     gMain.callback1 = NULL;
     SetMainCallback2(gInitialMainCB2);
     gSaveBlock2Ptr = &gSaveblock2.block;
     gPokemonStoragePtr = &gPokemonStorage.block;
+    gQuestLogPlaybackState = QL_PLAYBACK_STATE_STOPPED;
 }
 
 static void CallCallbacks(void)
 {
-    if (gMain.callback1)
-        gMain.callback1();
+#if !TESTING && DEBUG_BATTLE_MENU != TRUE // test framework not working with help system
+    if (!RunSaveFailedScreen() && !RunHelpSystemCallback())
+#else
+#if !TESTING
+    if (!RunSaveFailedScreen())
+#endif
+#endif
+    {
+        if (gMain.callback1)
+            gMain.callback1();
 
-    if (gMain.callback2)
-        gMain.callback2();
+        if (gMain.callback2)
+            gMain.callback2();
+    }
 }
 
 void SetMainCallback2(MainCallback callback)
@@ -363,8 +377,8 @@ static void VBlankIntr(void)
 
     gMain.vblankCounter1++;
 
-    if (gTrainerHillVBlankCounter && *gTrainerHillVBlankCounter < 0xFFFFFFFF)
-        (*gTrainerHillVBlankCounter)++;
+    if (gTrainerTowerVBlankCounter && *gTrainerTowerVBlankCounter < 0xFFFFFFFF)
+        (*gTrainerTowerVBlankCounter)++;
 
     if (gMain.vblankCallback)
         gMain.vblankCallback();
@@ -441,14 +455,14 @@ static void WaitForVBlank(void)
     }
 }
 
-void SetTrainerHillVBlankCounter(u32 *counter)
+void SetTrainerTowerVBlankCounter(u32 *ptr)
 {
-    gTrainerHillVBlankCounter = counter;
+    gTrainerTowerVBlankCounter = ptr;
 }
 
-void ClearTrainerHillVBlankCounter(void)
+void ClearTrainerTowerVBlankCounter(void)
 {
-    gTrainerHillVBlankCounter = NULL;
+    gTrainerTowerVBlankCounter = NULL;
 }
 
 void DoSoftReset(void)

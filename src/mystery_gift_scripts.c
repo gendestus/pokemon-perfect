@@ -1,10 +1,12 @@
 #include "global.h"
-#include "mystery_gift_client.h"
 #include "mystery_gift_server.h"
-#include "mystery_gift.h"
+#include "mystery_gift_client.h"
+#include "constants/mystery_gift.h"
 
-static const u8 sText_CanceledReadingCard[] = _("Canceled reading\nthe Card.");
+extern const struct MysteryGiftServerCmd gServerScript_ClientCanceledCard[];
 
+// Unreferenced
+static const u8 sText_CollectedAllStamps[] = _("You have collected all STAMPs!\nWant to input a CARD as a prize?");
 
 //==================
 // Client scripts
@@ -82,13 +84,6 @@ static const struct MysteryGiftClientCmd sClientScript_HadCard[] = {
     {CLI_RETURN, CLI_MSG_HAD_CARD}
 };
 
-static const struct MysteryGiftClientCmd sClientScript_DynamicError[] = {
-    {CLI_RECV, MG_LINKID_DYNAMIC_MSG},
-    {CLI_COPY_MSG},
-    {CLI_SEND_READY_END},
-    {CLI_RETURN, CLI_MSG_BUFFER_FAILURE}
-};
-
 static const struct MysteryGiftClientCmd sClientScript_DynamicSuccess[] = {
     {CLI_RECV, MG_LINKID_DYNAMIC_MSG},
     {CLI_COPY_MSG},
@@ -96,14 +91,9 @@ static const struct MysteryGiftClientCmd sClientScript_DynamicSuccess[] = {
     {CLI_RETURN, CLI_MSG_BUFFER_SUCCESS}
 };
 
-
 //==================
 // Server scripts
 //==================
-
-// Create arguments for SVR_LOAD_CLIENT_SCRIPT or SVR_LOAD_MSG
-// (a script/text size and pointer to send to the client)
-#define PTR_ARG(pointer) .parameter = sizeof(pointer), .ptr = pointer
 
 static const struct MysteryGiftServerCmd sServerScript_CantSend[] = {
     {SVR_LOAD_CLIENT_SCRIPT, PTR_ARG(sClientScript_CantAccept)},
@@ -121,15 +111,6 @@ static const struct MysteryGiftServerCmd sServerScript_CommError[] = {
 
 static const struct MysteryGiftServerCmd sServerScript_ClientCanceledNews[] = {
     {SVR_LOAD_CLIENT_SCRIPT, PTR_ARG(sClientScript_Canceled)},
-    {SVR_SEND},
-    {SVR_RECV, MG_LINKID_READY_END},
-    {SVR_RETURN, SVR_MSG_CLIENT_CANCELED}
-};
-
-static const struct MysteryGiftServerCmd sServerScript_ClientCanceledCard[] = {
-    {SVR_LOAD_CLIENT_SCRIPT, PTR_ARG(sClientScript_DynamicError)},
-    {SVR_SEND},
-    {SVR_LOAD_MSG, PTR_ARG(sText_CanceledReadingCard)},
     {SVR_SEND},
     {SVR_RECV, MG_LINKID_READY_END},
     {SVR_RETURN, SVR_MSG_CLIENT_CANCELED}
@@ -173,7 +154,7 @@ static const struct MysteryGiftServerCmd sServerScript_TossPrompt[] = {
     {SVR_RECV, MG_LINKID_RESPONSE},
     {SVR_READ_RESPONSE},
     {SVR_GOTO_IF_EQ, FALSE, sServerScript_SendCard},    // Tossed old card, send new one
-    {SVR_GOTO, .ptr = sServerScript_ClientCanceledCard} // Kept old card, cancel new one
+    {SVR_GOTO, .ptr = gServerScript_ClientCanceledCard} // Kept old card, cancel new one
 };
 
 static const struct MysteryGiftServerCmd sServerScript_HasCard[] = {
@@ -196,9 +177,9 @@ const struct MysteryGiftServerCmd gMysteryGiftServerScript_SendWonderNews[] = {
     {SVR_SEND},
     {SVR_RECV, MG_LINKID_GAME_DATA},
     {SVR_COPY_GAME_DATA},
-    {SVR_CHECK_GAME_DATA_NEWS},
+    {SVR_CHECK_GAME_DATA},
     {SVR_GOTO_IF_EQ, FALSE, sServerScript_CantSend},
-    {SVR_GOTO, .ptr = sServerScript_SendNews}
+    {SVR_GOTO, .ptr = sServerScript_SendNews},
 };
 
 const struct MysteryGiftServerCmd gMysteryGiftServerScript_SendWonderCard[] = {
@@ -208,7 +189,7 @@ const struct MysteryGiftServerCmd gMysteryGiftServerScript_SendWonderCard[] = {
     {SVR_SEND},
     {SVR_RECV, MG_LINKID_GAME_DATA},
     {SVR_COPY_GAME_DATA},
-    {SVR_CHECK_GAME_DATA_CARD},
+    {SVR_CHECK_GAME_DATA},
     {SVR_GOTO_IF_EQ, FALSE, sServerScript_CantSend},
     {SVR_CHECK_EXISTING_CARD},
     {SVR_GOTO_IF_EQ, HAS_DIFF_CARD, sServerScript_TossPrompt},

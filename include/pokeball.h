@@ -42,8 +42,8 @@ enum {
     BALL_AFFINE_ANIM_4
 };
 
-extern const struct CompressedSpriteSheet gBallSpriteSheets[];
-extern const struct SpritePalette gBallSpritePalettes[];
+extern const struct CompressedSpriteSheet gBallSpriteSheets[POKEBALL_COUNT];
+extern const struct SpritePalette gBallSpritePalettes[POKEBALL_COUNT];
 extern const struct SpriteTemplate gBallSpriteTemplates[];
 
 #define POKEBALL_PLAYER_SENDOUT     0xFF
@@ -53,10 +53,11 @@ extern const struct SpriteTemplate gBallSpriteTemplates[];
 u8 DoPokeballSendOutAnimation(u32 battler, s16 pan, u8 kindOfThrow);
 void CreatePokeballSpriteToReleaseMon(u8 monSpriteId, u8 monPalNum, u8 x, u8 y, u8 oamPriority, u8 subpriority, u8 delay, u32 fadePalettes, u16 species);
 u8 CreateTradePokeballSprite(u8 monSpriteId, u8 monPalNum, u8 x, u8 y, u8 oamPriority, u8 subPriority, u8 delay, u32 fadePalettes);
-void StartHealthboxSlideIn(u8 battler);
-void DoHitAnimHealthboxEffect(u8 battler);
+void DoHitAnimHealthboxEffect(u8 bank);
 void LoadBallGfx(u8 ballId);
 void FreeBallGfx(u8 ballId);
+void StartHealthboxSlideIn(u8 battler);
+void DestroySpriteAndFreeResources_Ball(struct Sprite *sprite);
 enum PokeBall ItemIdToBallId(u32 ballItem);
 
 #endif // GUARD_POKEBALL_H

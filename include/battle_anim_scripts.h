@@ -953,7 +953,7 @@ extern const u8 gBattleAnimStatus_Nightmare[];
 extern const u8 gBattleAnimGeneral_StatsChange[];
 extern const u8 gBattleAnimGeneral_SubstituteFade[];
 extern const u8 gBattleAnimGeneral_SubstituteAppear[];
-extern const u8 gBattleAnimGeneral_PokeblockThrow[];
+extern const u8 gBattleAnimGeneral_BaitThrow[];
 extern const u8 gBattleAnimGeneral_ItemKnockoff[];
 extern const u8 gBattleAnimGeneral_TurnTrap[];
 extern const u8 gBattleAnimGeneral_HeldItemEffect[];
@@ -1004,6 +1004,12 @@ extern const u8 gBattleAnimGeneral_TeraCharge[];
 extern const u8 gBattleAnimGeneral_TeraActivate[];
 extern const u8 gBattleAnimGeneral_SimpleHeal[];
 extern const u8 gBattleAnimGeneral_PowerConstruct[];
+// pokefirered
+extern const u8 gBattleAnimGeneral_MonScared[];
+extern const u8 gBattleAnimGeneral_GhostGetOut[];
+extern const u8 gBattleAnimGeneral_SilphScoped[];
+extern const u8 gBattleAnimGeneral_SafariRockThrow[];
+extern const u8 gBattleAnimGeneral_SafariReaction[];
 
 // special animations
 extern const u8 gBattleAnimSpecial_LevelUp[];

@@ -1,8 +1,8 @@
 #ifndef GUARD_SCRIPT_MENU_H
 #define GUARD_SCRIPT_MENU_H
 
+#include "global.h"
 #include "list_menu.h"
-#include "constants/script_menu.h"
 #include "menu.h"
 
 // The default size the stack for dynamic multichoice is initialized to
@@ -12,7 +12,7 @@
 #define MULTICHOICE_DYNAMIC_STACK_SIZE 5
 #define MULTICHOICE_DYNAMIC_STACK_INC 5
 
-extern const u8 *const gStdStrings[];
+extern const u8 *const gStdStringPtrs[];
 
 struct DynamicMultichoiceStack
 {
@@ -35,16 +35,26 @@ bool8 ScriptMenu_MultichoiceDynamic(u8 left, u8 top, u8 argc, struct ListMenuIte
 bool8 ScriptMenu_Multichoice(u8 left, u8 top, u8 multichoiceId, bool8 ignoreBPress);
 bool8 ScriptMenu_MultichoiceWithDefault(u8 left, u8 top, u8 multichoiceId, bool8 ignoreBPress, u8 defaultChoice);
 void DrawMultichoiceMenuInternal(u8 left, u8 top, u8 multichoiceId, bool8 ignoreBPress, u8 cursorPos, const struct MenuAction *actions, int count);
-bool8 ScriptMenu_YesNo(u8 left, u8 top);
-bool8 ScriptMenu_MultichoiceGrid(u8 left, u8 top, u8 multichoiceId, bool8 ignoreBPress, u8 columnCount);
-bool8 ScriptMenu_ShowPokemonPic(u16 species, u8 x, u8 y);
-bool8 (*ScriptMenu_HidePokemonPic(void))(void);
-int ConvertPixelWidthToTileWidth(int width);
-u8 CreateWindowFromRect(u8 x, u8 y, u8 width, u8 height);
-void ClearToTransparentAndRemoveWindow(u8 windowId);
-int DisplayTextAndGetWidth(const u8 *str, int prevWidth);
-int ScriptMenu_AdjustLeftCoordFromWidth(int left, int width);
-bool16 ScriptMenu_CreatePCMultichoice(void);
+
+bool8 ScriptMenu_Multichoice(u8 left, u8 top, u8 var3, u8 var4);
+bool8 ScriptMenu_MultichoiceWithDefault(u8 left, u8 top, u8 var3, u8 var4, u8 var5);
+bool8 ScriptMenu_YesNo(u8 var1, u8 var2);
+bool8 ScriptMenu_MultichoiceGrid(u8 left, u8 top, u8 multichoiceId, u8 a4, u8 columnCount);
+bool8 ScriptMenu_ShowPokemonPic(u16 var1, u8 var2, u8 var3);
+bool8 CreatePCMenu(void);
 void ScriptMenu_DisplayPCStartupPrompt(void);
+int ConvertPixelWidthToTileWidth(int width);
+
+bool8 (*ScriptMenu_HidePokemonPic(void))(void);
+void QL_DestroyAbortedDisplay(void);
+void PicboxCancel(void);
+int DisplayTextAndGetWidth(const u8 *str, int width);
+int ScriptMenu_AdjustLeftCoordFromWidth(int left, int width);
+
+// Dynamic Multichoice Callbacks
+
+#define DYN_MULTICHOICE_CB_DEBUG      0
+#define DYN_MULTICHOICE_CB_SHOW_ITEM  1
+#define DYN_MULTICHOICE_CB_NONE       255
 
 #endif //GUARD_SCRIPT_MENU_H

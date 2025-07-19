@@ -2,8 +2,8 @@
   "id": "MAP_BATTLE_COLOSSEUM_4P",
   "name": "BattleColosseum_4P",
   "layout": "LAYOUT_BATTLE_COLOSSEUM_4P",
-  "music": "MUS_EVER_GRANDE",
-  "region_map_section": "MAPSEC_DYNAMIC",
+  "music": "MUS_POKE_CENTER",
+  "region_map_section": "MAPSEC_SPECIAL_AREA",
   "requires_flash": false,
   "weather": "WEATHER_NONE",
   "map_type": "MAP_TYPE_INDOOR",
@@ -11,7 +11,8 @@
   "allow_escaping": false,
   "allow_running": false,
   "show_map_name": false,
-  "battle_scene": "MAP_BATTLE_SCENE_FRONTIER",
+  "floor_number": 0,
+  "battle_scene": "MAP_BATTLE_SCENE_LINK",
   "connections": null,
   "object_events": [],
   "warp_events": [
@@ -52,7 +53,7 @@
       "elevation": 3,
       "var": "VAR_TEMP_0",
       "var_value": "0",
-      "script": "EventScript_BattleColosseum_4P_PlayerSpot0"
+      "script": "BattleColosseum_4P_EventScript_PlayerSpot0"
     },
     {
       "type": "trigger",
@@ -61,7 +62,7 @@
       "elevation": 3,
       "var": "VAR_TEMP_0",
       "var_value": "0",
-      "script": "EventScript_BattleColosseum_4P_PlayerSpot2"
+      "script": "BattleColosseum_4P_EventScript_PlayerSpot2"
     },
     {
       "type": "trigger",
@@ -70,7 +71,7 @@
       "elevation": 3,
       "var": "VAR_TEMP_0",
       "var_value": "0",
-      "script": "EventScript_BattleColosseum_4P_PlayerSpot1"
+      "script": "BattleColosseum_4P_EventScript_PlayerSpot1"
     },
     {
       "type": "trigger",
@@ -79,7 +80,7 @@
       "elevation": 3,
       "var": "VAR_TEMP_0",
       "var_value": "0",
-      "script": "EventScript_BattleColosseum_4P_PlayerSpot3"
+      "script": "BattleColosseum_4P_EventScript_PlayerSpot3"
     }
   ],
   "bg_events": []

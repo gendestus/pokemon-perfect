@@ -291,7 +291,7 @@ void HandlePngToGbaCommand(char *inputPath, char *outputPath, int argc, char **a
 
 void HandlePngToJascPaletteCommand(char *inputPath, char *outputPath, int argc UNUSED, char **argv UNUSED)
 {
-    struct Palette palette = {0};
+    struct Palette palette = {};
 
     ReadPngPalette(inputPath, &palette);
     WriteJascPalette(outputPath, &palette);
@@ -299,7 +299,7 @@ void HandlePngToJascPaletteCommand(char *inputPath, char *outputPath, int argc U
 
 void HandlePngToGbaPaletteCommand(char *inputPath, char *outputPath, int argc UNUSED, char **argv UNUSED)
 {
-    struct Palette palette = {0};
+    struct Palette palette = {};
 
     ReadPngPalette(inputPath, &palette);
     WriteGbaPalette(outputPath, &palette);
@@ -307,7 +307,7 @@ void HandlePngToGbaPaletteCommand(char *inputPath, char *outputPath, int argc UN
 
 void HandleGbaToJascPaletteCommand(char *inputPath, char *outputPath, int argc UNUSED, char **argv UNUSED)
 {
-    struct Palette palette = {0};
+    struct Palette palette = {};
 
     ReadGbaPalette(inputPath, &palette);
     WriteJascPalette(outputPath, &palette);
@@ -340,7 +340,7 @@ void HandleJascToGbaPaletteCommand(char *inputPath, char *outputPath, int argc, 
         }
     }
 
-    struct Palette palette = {0};
+    struct Palette palette = {};
 
     ReadJascPalette(inputPath, &palette);
 
@@ -425,7 +425,7 @@ void HandlePngToFullwidthJapaneseFontCommand(char *inputPath, char *outputPath, 
 void HandleLZCompressCommand(char *inputPath, char *outputPath, int argc, char **argv)
 {
     int overflowSize = 0;
-    int minDistance = 2; // default, for compatibility with LZ77UnCompVram()
+    int minDistance = 2; // default, for compatibility with DecompressDataWithHeaderVram()
 
     for (int i = 3; i < argc; i++)
     {

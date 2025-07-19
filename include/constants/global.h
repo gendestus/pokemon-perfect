@@ -3,21 +3,20 @@
 
 #include "config/general.h"
 #include "config/battle.h"
+#include "config/caps.h"
 #include "config/debug.h"
 #include "config/item.h"
-#include "config/caps.h"
 #include "config/pokemon.h"
 #include "config/overworld.h"
 #include "config/dexnav.h"
-#include "config/summary_screen.h"
 #include "config/ai.h"
 #include "config/follower_npc.h"
 
 // Invalid Versions show as "----------" in Gen 4 and Gen 5's summary screen.
 // In Gens 6 and 7, invalid versions instead show "a distant land" in the summary screen.
-// In Gen 4 only, migrated Pokémon with Diamond, Pearl, or Platinum's ID show as "----------".
+// In Gen 4 only, migrated Pokemon with Diamond, Pearl, or Platinum's ID show as "----------".
 // Gen 5 and up read Diamond, Pearl, or Platinum's ID as "Sinnoh".
-// In Gen 4 and up, migrated Pokémon with HeartGold or SoulSilver's ID show the otherwise unused "Johto" string.
+// In Gen 4 and up, migrated Pokemon with HeartGold or SoulSilver's ID show the otherwise unused "Johto" string.
 #define VERSION_SAPPHIRE 1
 #define VERSION_RUBY 2
 #define VERSION_EMERALD 3
@@ -41,7 +40,6 @@
 #define LANGUAGE_SPANISH  7
 #define NUM_LANGUAGES     7
 
-#define GAME_VERSION (VERSION_EMERALD)
 #define GAME_LANGUAGE (LANGUAGE_ENGLISH)
 
 // party sizes
@@ -53,46 +51,48 @@
 #define MAX_FRONTIER_PARTY_SIZE    (max(FRONTIER_PARTY_SIZE,        \
                                     max(FRONTIER_DOUBLES_PARTY_SIZE,\
                                         FRONTIER_MULTI_PARTY_SIZE)))
-#define UNION_ROOM_PARTY_SIZE       2
 
 // capacities of various saveblock objects
-#define DAYCARE_MON_COUNT 2
-#define POKEBLOCKS_COUNT 40
+#define DAYCARE_MON_COUNT   2
+#define PC_ITEMS_COUNT      30
+#define BAG_ITEMS_COUNT     42
+#define BAG_KEYITEMS_COUNT  30
+#define BAG_POKEBALLS_COUNT 27
+#define BAG_TMHM_COUNT      108
+#define BAG_BERRIES_COUNT   43
 #define OBJECT_EVENTS_COUNT 16
-#define MAIL_COUNT (10 + PARTY_SIZE)
-#define SECRET_BASES_COUNT 20
-#define POKE_NEWS_COUNT 16
-#define PC_ITEMS_COUNT 50
-#define BAG_ITEMS_COUNT 30
-#define BAG_KEYITEMS_COUNT 30
-#define BAG_POKEBALLS_COUNT 16
-#define BAG_TMHM_COUNT 64
-#define BAG_BERRIES_COUNT 46
 #define OBJECT_EVENT_TEMPLATES_COUNT 64
+#define MAIL_COUNT         (PARTY_SIZE + 10)
+#define PC_MAIL_NUM(i)     (PARTY_SIZE + (i))
 #define DECOR_MAX_SECRET_BASE 16
-#define DECOR_MAX_PLAYERS_HOUSE 12
-#define APPRENTICE_COUNT 4
-#define APPRENTICE_MAX_QUESTIONS 9
-#define MAX_REMATCH_ENTRIES 100 // only REMATCH_TABLE_ENTRIES (78) are used
-#define NUM_CONTEST_WINNERS 13
+#define MAX_REMATCH_ENTRIES 100
 #define UNION_ROOM_KB_ROW_COUNT 10
 #define GIFT_RIBBONS_COUNT 11
-#define SAVED_TRENDS_COUNT 5
-#define PYRAMID_BAG_ITEMS_COUNT 10
 #define ROAMER_COUNT 1 // Number of maximum concurrent active roamers
 
-// Number of facilities for Ranking Hall.
-// 7 facilities for single mode + tower double mode + tower multi mode.
-// Excludes link modes. See RANKING_HALL_* in include/constants/battle_frontier.h
-#define HALL_FACILITIES_COUNT 9
-// Received via record mixing, 1 for each player other than yourself
-#define HALL_RECORDS_COUNT 3
+// Contests
+#define CONTEST_CATEGORIES_COUNT  5
 
-// Battle Frontier level modes.
-#define FRONTIER_LVL_50         0
-#define FRONTIER_LVL_OPEN       1
-#define FRONTIER_LVL_MODE_COUNT 2
-#define FRONTIER_LVL_TENT       FRONTIER_LVL_MODE_COUNT // Special usage for indicating Battle Tent
+// string lengths
+#define ITEM_NAME_LENGTH 20
+#define ITEM_NAME_PLURAL_LENGTH ITEM_NAME_LENGTH + 2 // 2 is used for the instance where a word's suffix becomes y->ies
+#define POKEMON_NAME_LENGTH 12
+#define VANILLA_POKEMON_NAME_LENGTH 10
+#define POKEMON_NAME_BUFFER_SIZE max(20, POKEMON_NAME_LENGTH + 1) // Frequently used buffer size. Larger than necessary
+#define PLAYER_NAME_LENGTH   7
+#define MAIL_WORDS_COUNT 9
+#define EASY_CHAT_BATTLE_WORDS_COUNT 6
+#define MOVE_NAME_LENGTH 16
+#define NUM_QUESTIONNAIRE_WORDS 4
+#define WONDER_CARD_TEXT_LENGTH 40
+#define WONDER_NEWS_TEXT_LENGTH 40
+#define WONDER_CARD_BODY_TEXT_LINES 4
+#define WONDER_NEWS_BODY_TEXT_LINES 10
+#define TYPE_NAME_LENGTH 8
+#define ABILITY_NAME_LENGTH 16
+#define TRAINER_NAME_LENGTH 10
+
+#define MAX_STAMP_CARD_STAMPS 7
 
 #define TRAINER_ID_LENGTH 4
 #define MAX_MON_MOVES 4
@@ -106,52 +106,33 @@
 #define CONTEST_CATEGORY_TOUGH    4
 #define CONTEST_CATEGORIES_COUNT  5
 
-// string lengths
-#define ITEM_NAME_LENGTH 20
-#define ITEM_NAME_PLURAL_LENGTH ITEM_NAME_LENGTH + 2 // 2 is used for the instance where a word's suffix becomes y->ies
-#define POKEMON_NAME_LENGTH 12
-#define VANILLA_POKEMON_NAME_LENGTH 10
-#define POKEMON_NAME_BUFFER_SIZE max(20, POKEMON_NAME_LENGTH + 1) // Frequently used buffer size. Larger than necessary
-#define PLAYER_NAME_LENGTH 7
-#define MAIL_WORDS_COUNT 9
-#define EASY_CHAT_BATTLE_WORDS_COUNT 6
-#define MOVE_NAME_LENGTH 16
-#define NUM_QUESTIONNAIRE_WORDS 4
-#define QUIZ_QUESTION_LEN 9
-#define WONDER_CARD_TEXT_LENGTH 40
-#define WONDER_NEWS_TEXT_LENGTH 40
-#define WONDER_CARD_BODY_TEXT_LINES 4
-#define WONDER_NEWS_BODY_TEXT_LINES 10
-#define TYPE_NAME_LENGTH 8
-#define ABILITY_NAME_LENGTH 16
-#define TRAINER_NAME_LENGTH 10
-#define CODE_NAME_LENGTH 11
+#define QUEST_LOG_SCENE_COUNT 4
 
-#define MAX_STAMP_CARD_STAMPS 7
+#define NUM_TOWER_CHALLENGE_TYPES 4
 
-#define MALE 0
+#define MALE   0
 #define FEMALE 1
 #define GENDER_COUNT 2
 
-#define NUM_BARD_SONG_WORDS    6
+#define BARD_SONG_LENGTH       6
 #define NUM_STORYTELLER_TALES  4
 #define NUM_TRADER_ITEMS       4
 #define GIDDY_MAX_TALES       10
 #define GIDDY_MAX_QUESTIONS    8
 
-#define OPTIONS_BUTTON_MODE_NORMAL 0
-#define OPTIONS_BUTTON_MODE_LR 1
-#define OPTIONS_BUTTON_MODE_L_EQUALS_A 2
+#define OPTIONS_BUTTON_MODE_HELP         0
+#define OPTIONS_BUTTON_MODE_LR           1
+#define OPTIONS_BUTTON_MODE_L_EQUALS_A   2
 
-#define OPTIONS_TEXT_SPEED_SLOW 0
-#define OPTIONS_TEXT_SPEED_MID 1
-#define OPTIONS_TEXT_SPEED_FAST 2
+#define OPTIONS_TEXT_SPEED_SLOW  0
+#define OPTIONS_TEXT_SPEED_MID   1
+#define OPTIONS_TEXT_SPEED_FAST  2
 
-#define OPTIONS_SOUND_MONO 0
-#define OPTIONS_SOUND_STEREO 1
+#define OPTIONS_SOUND_MONO    0
+#define OPTIONS_SOUND_STEREO  1
 
-#define OPTIONS_BATTLE_STYLE_SHIFT 0
-#define OPTIONS_BATTLE_STYLE_SET 1
+#define OPTIONS_BATTLE_STYLE_SHIFT  0
+#define OPTIONS_BATTLE_STYLE_SET    1
 
 #define DIR_NONE        0
 #define DIR_SOUTH       1
@@ -162,7 +143,7 @@
 #define DIR_SOUTHEAST   6
 #define DIR_NORTHWEST   7
 #define DIR_NORTHEAST   8
-#define CARDINAL_DIRECTION_COUNT DIR_SOUTHWEST
+#define CARDINAL_DIRECTION_COUNT 5
 
 #define AXIS_X     0
 #define AXIS_Y     1
@@ -181,4 +162,5 @@
 #include "config/test.h"
 #endif
 
-#endif // GUARD_CONSTANTS_GLOBAL_H
+
+#endif //GUARD_CONSTANTS_GLOBAL_H

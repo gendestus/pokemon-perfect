@@ -1,9 +1,16 @@
 #include "global.h"
-#include "battle.h"
-#include "data.h"
 #include "task.h"
 #include "trig.h"
 #include "scanline_effect.h"
+
+extern u16 gBattle_BG0_X;
+extern u16 gBattle_BG0_Y;
+extern u16 gBattle_BG1_X;
+extern u16 gBattle_BG1_Y;
+extern u16 gBattle_BG2_X;
+extern u16 gBattle_BG2_Y;
+extern u16 gBattle_BG3_X;
+extern u16 gBattle_BG3_Y;
 
 static void CopyValue16Bit(void);
 static void CopyValue32Bit(void);
@@ -22,10 +29,10 @@ void ScanlineEffect_Stop(void)
 {
     gScanlineEffect.state = 0;
     DmaStop(0);
-    if (gScanlineEffect.waveTaskId != TASK_NONE)
+    if (gScanlineEffect.waveTaskId != 0xFF)
     {
         DestroyTask(gScanlineEffect.waveTaskId);
-        gScanlineEffect.waveTaskId = TASK_NONE;
+        gScanlineEffect.waveTaskId = 0xFF;
     }
 }
 
@@ -38,7 +45,9 @@ void ScanlineEffect_Clear(void)
     gScanlineEffect.dmaControl = 0;
     gScanlineEffect.srcBuffer = 0;
     gScanlineEffect.state = 0;
-    gScanlineEffect.waveTaskId = TASK_NONE;
+    gScanlineEffect.unused16 = 0;
+    gScanlineEffect.unused17 = 0;
+    gScanlineEffect.waveTaskId = 0xFF;
 }
 
 void ScanlineEffect_SetParams(struct ScanlineEffectParams params)
@@ -63,6 +72,8 @@ void ScanlineEffect_SetParams(struct ScanlineEffectParams params)
     gScanlineEffect.dmaControl = params.dmaControl;
     gScanlineEffect.dmaDest    = params.dmaDest;
     gScanlineEffect.state      = params.initState;
+    gScanlineEffect.unused16   = params.unused9;
+    gScanlineEffect.unused17   = params.unused9;
 }
 
 void ScanlineEffect_InitHBlankDmaTransfer(void)
@@ -96,16 +107,16 @@ void ScanlineEffect_InitHBlankDmaTransfer(void)
 
 static void CopyValue16Bit(void)
 {
-    vu16 *dest = (vu16 *)gScanlineEffect.dmaDest;
-    vu16 *src = (vu16 *)&gScanlineEffectRegBuffers[gScanlineEffect.srcBuffer];
+    u16 *dest = (u16 *)gScanlineEffect.dmaDest;
+    u16 *src = (u16 *)&gScanlineEffectRegBuffers[gScanlineEffect.srcBuffer];
 
     *dest = *src;
 }
 
 static void CopyValue32Bit(void)
 {
-    vu32 *dest = (vu32 *)gScanlineEffect.dmaDest;
-    vu32 *src = (vu32 *)&gScanlineEffectRegBuffers[gScanlineEffect.srcBuffer];
+    u32 *dest = (u32 *)gScanlineEffect.dmaDest;
+    u32 *src = (u32 *)&gScanlineEffectRegBuffers[gScanlineEffect.srcBuffer];
 
     *dest = *src;
 }
@@ -128,7 +139,7 @@ static void TaskFunc_UpdateWavePerFrame(u8 taskId)
     if (sShouldStopWaveTask)
     {
         DestroyTask(taskId);
-        gScanlineEffect.waveTaskId = TASK_NONE;
+        gScanlineEffect.waveTaskId = 0xFF;
     }
     else
     {

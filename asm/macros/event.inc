@@ -1,6 +1,6 @@
 	.set ALLOCATE_SCRIPT_CMD_TABLE, 0
 	.include "data/script_cmd_table.inc"
-
+	
 	@ Does nothing.
 	.macro nop
 	.byte SCR_OP_NOP
@@ -49,32 +49,40 @@
 
 	@ Jumps to the script in gStdScripts at index function.
 	.macro gotostd function:req
-	.byte SCR_OP_GOTO_STD
+	.byte SCR_OP_GOTOSTD
 	.byte \function
 	.endm
 
-	@ callstd function names
+	@ Callstd ids
 	STD_OBTAIN_ITEM = 0
 	STD_FIND_ITEM = 1
+
+	MSGBOX_NPC = 2
+	MSGBOX_SIGN = 3
+	MSGBOX_DEFAULT = 4
+	MSGBOX_YESNO = 5
+	MSGBOX_AUTOCLOSE = 6
+
 	STD_OBTAIN_DECORATION = 7
-	STD_REGISTER_MATCH_CALL = 8
+	STD_PUT_ITEM_AWAY = 8
+	STD_RECEIVED_ITEM = 9
 
 	@ Calls the script in gStdScripts at index function.
 	.macro callstd function:req
-	.byte SCR_OP_CALL_STD
+	.byte SCR_OP_CALLSTD
 	.byte \function
 	.endm
 
 	@ If the result of the last comparison matches condition (see Comparison operators), jumps to the script in gStdScripts at index function.
 	.macro gotostd_if condition:req, function:req
-	.byte SCR_OP_GOTO_STD_IF
+	.byte SCR_OP_GOTOSTD_IF
 	.byte \condition
 	.byte \function
 	.endm
 
 	@ If the result of the last comparison matches condition (see Comparison operators), calls the script in gStdScripts at index function.
 	.macro callstd_if condition:req, function:req
-	.byte SCR_OP_CALL_STD_IF
+	.byte SCR_OP_CALLSTD_IF
 	.byte \condition
 	.byte \function
 	.endm
@@ -97,14 +105,14 @@
 
 	@ Sets the value at the specified script data index to a fixed 4-byte value.
 	.macro loadword destIndex:req, value:req
-	.byte SCR_OP_LOAD_WORD
+	.byte SCR_OP_LOADWORD
 	.byte \destIndex
 	.4byte \value
 	.endm
 
 	@ Sets the value at the specified script data index to a fixed byte value.
 	.macro loadbyte destIndex:req, value:req
-	.byte SCR_OP_LOAD_BYTE
+	.byte SCR_OP_LOADBYTE
 	.byte \destIndex
 	.byte \value
 	.endm
@@ -145,10 +153,7 @@
 	.endm
 
 	@ Changes the value of destination to value.
-	.macro setvar destination:req, value:req, warn=TRUE
-	.if \warn && ((\value >= VARS_START && \value <= VARS_END) || (\value >= SPECIAL_VARS_START && \value <= SPECIAL_VARS_END))
-	.warning "setvar with a value that might be a VAR_ constant; did you mean copyvar instead?"
-	.endif
+	.macro setvar destination:req, value:req
 	.byte SCR_OP_SETVAR
 	.2byte \destination
 	.2byte \value
@@ -293,7 +298,7 @@
 	.2byte SPECIAL_\function
 	.endm
 
-	@ Blocks script execution until a command or C code manually unblocks it. Generally used with specific
+	@ Blocks script execution until a command or C code manually unblocks it. Generally used with specific 
 	@ commands and specials. Calling ScriptContext_Enable for instance will allow execution to continue.
 	.macro waitstate
 	.byte SCR_OP_WAITSTATE
@@ -324,27 +329,21 @@
 	.2byte \flag
 	.endm
 
-	@ Initializes the RTC`s local time offset to the given hour and minute.
+	@ In FRLG, this command is a nop. In RSE, initializes the RTC's local time offset to the given hour and minute.
 	.macro initclock hour:req, minute:req
 	.byte SCR_OP_INITCLOCK
 	.2byte \hour
 	.2byte \minute
 	.endm
 
-	@ Updates local time using the RTC and runs time based events.
+	@ In FRLG, this command is a nop. In RSE, updates local time using the RTC and runs time based events.
 	.macro dotimebasedevents
 	.byte SCR_OP_DOTIMEBASEDEVENTS
 	.endm
 
-	@ Sets the values of variables VAR_0x8000, VAR_0x8001, and VAR_0x8002 to the current hour, minute, and second.
+	@ Sets the values of variables VAR_0x8000, VAR_0x8001, and VAR_0x8002 to 0. In RSE, they'd get the current hour, minute, and second respectively.
 	.macro gettime
 	.byte SCR_OP_GETTIME
-	.endm
-
-	@ Sets the values of variable VAR_0x8000 to the time of day according to those found in rtc.h.
-	@ 0 = MORNING, 1 = DAY, 2 = EVENING, 3 = NIGHT
-	.macro gettimeofday
-	callnative ScrCmd_gettimeofday, requests_effects=1
 	.endm
 
 	@ Plays the specified sound. Only one sound may play at a time, with newer ones interrupting older ones.
@@ -441,7 +440,6 @@
 	.endif
 	.endif
 	.endm
-
 
 	@ Warps the player to the specified map.
 	@ Warp commands can be given either the id of which warp location to go to on the destination map
@@ -586,26 +584,25 @@
 	.2byte \quantity
 	.endm
 
-	@ Adds a decoration to the player's PC.
+	@ In FRLG, this command is a nop. In RSE, adds a decoration to the player's PC.
 	.macro adddecoration decoration:req
 	.byte SCR_OP_ADDDECORATION
 	.2byte \decoration
 	.endm
 
-	@ Removes a decoration from the player's PC.
+	@ In FRLG, this command is a nop. In RSE, removes a decoration from the player's PC.
 	.macro removedecoration decoration:req
 	.byte SCR_OP_REMOVEDECORATION
 	.2byte \decoration
 	.endm
 
-	@ Checks for decoration in the player's PC.
+	@ In FRLG, this command is a nop. In RSE, checks for decoration in the player's PC.
 	.macro checkdecor decoration:req
 	.byte SCR_OP_CHECKDECOR
 	.2byte \decoration
 	.endm
 
-	@ Checks if the player has enough space in their PC to hold the decoration.
-	@ Sets VAR_RESULT to TRUE if there is room, or FALSE is there is no room.
+	@ In FRLG, this command is a nop. In RSE, checks if the player has enough space in their PC to hold the decoration.
 	.macro checkdecorspace decoration:req
 	.byte SCR_OP_CHECKDECORSPACE
 	.2byte \decoration
@@ -614,12 +611,12 @@
 	@ Applies the movement data at movements to the specified (localId) object. If no map is specified, then the current map is used.
 	.macro applymovement localId:req, movements:req, map
 		.ifb \map
-			.byte SCR_OP_APPLYMOVEMENT
+			.byte 0x4f
 			.2byte \localId
 			.4byte \movements
 		.else
 			@ Really only useful if the object has followed from one map to another (e.g. Wally during the catching event).
-			.byte SCR_OP_APPLYMOVEMENTAT
+			.byte 0x50
 			.2byte \localId
 			.4byte \movements
 			map \map
@@ -632,10 +629,10 @@
 	@ If no map is specified, then the current map is used.
 	.macro waitmovement localId=LOCALID_NONE, map
 		.ifb \map
-			.byte SCR_OP_WAITMOVEMENT
+			.byte 0x51
 			.2byte \localId
 		.else
-			.byte SCR_OP_WAITMOVEMENTAT
+			.byte 0x52
 			.2byte \localId
 			map \map
 		.endif
@@ -646,10 +643,10 @@
 	@ If no map is specified, then the current map is used.
 	.macro removeobject localId:req, map
 		.ifb \map
-			.byte SCR_OP_REMOVEOBJECT
+			.byte 0x53
 			.2byte \localId
 		.else
-			.byte SCR_OP_REMOVEOBJECTAT
+			.byte 0x54
 			.2byte \localId
 			map \map
 		.endif
@@ -660,10 +657,10 @@
 	@ If no map is specified, then the current map is used.
 	.macro addobject localId:req, map
 		.ifb \map
-			.byte SCR_OP_ADDOBJECT
+			.byte 0x55
 			.2byte \localId
 		.else
-			.byte SCR_OP_ADDOBJECTAT
+			.byte 0x56
 			.2byte \localId
 			map \map
 		.endif
@@ -707,7 +704,7 @@
 	OBJ_ID_NONE = 0
 
 	@ Configures the arguments for a trainer battle, then jumps to the appropriate script in scripts/trainer_battle.inc
-	.macro trainerbattle type:req localIdA:req, trainer_a:req, intro_text_a:req, lose_text_a:req, event_script_a:req, localIdB:req, trainer_b:req, intro_text_b:req, lose_text_b:req, event_script_b:req, victory_text:req, cannot_battle:req, isDouble:req, playMusicA:req, playMusicB:req, isRematch:req
+	.macro trainerbattle type:req localIdA:req, trainer_a:req, intro_text_a:req, lose_text_a:req, event_script_a:req, localIdB:req, trainer_b:req, intro_text_b:req, lose_text_b:req, event_script_b:req, victory_text:req, cannot_battle:req, isDouble:req, playMusicA:req, playMusicB:req, isRematch:req, rival_battle_flags=0
 	.byte SCR_OP_TRAINERBATTLE
 	.set trainerbattle_flags, 0
 	.ifgt \isDouble; .set trainerbattle_flags, trainerbattle_flags | (1 << 0); .endif
@@ -728,6 +725,7 @@
 	.4byte \event_script_b      @ retAddrB
 	.4byte \victory_text        @ victoryText
 	.4byte \cannot_battle       @ cannotBattle
+	.2byte \rival_battle_flags	@ rivalBattleFlags
 	.endm
 
 	NO_MUSIC = FALSE
@@ -736,11 +734,11 @@
 	@ When used with an event script, you can also pass in an optional flag to disable music
 	.macro trainerbattle_single trainer:req, intro_text:req, lose_text:req, event_script=FALSE, music=TRUE
 	.if \event_script == FALSE
-	trainerbattle TRAINER_BATTLE_SINGLE, LOCALID_NONE, \trainer, \intro_text, \lose_text, NULL, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
+	trainerbattle TRAINER_BATTLE_SINGLE, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, NULL, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
 	.elseif \music == TRUE
-	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT, LOCALID_NONE, \trainer, \intro_text, \lose_text, \event_script, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
+	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, \event_script, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
 	.else
-	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT_NO_MUSIC, LOCALID_NONE, \trainer, \intro_text, \lose_text, \event_script, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
+	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT_NO_MUSIC, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, \event_script, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
 	.endif
 	.endm
 
@@ -748,27 +746,32 @@
 	@ and an optional event script. When used with an event script you can pass in an optional flag to disable music
 	.macro trainerbattle_double trainer:req, intro_text:req, lose_text:req, not_enough_pkmn_text:req, event_script=FALSE, music=TRUE
 	.if \event_script == FALSE
-	trainerbattle TRAINER_BATTLE_DOUBLE, LOCALID_NONE, \trainer, \intro_text, \lose_text, NULL, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, TRUE, TRUE, FALSE, FALSE
+	trainerbattle TRAINER_BATTLE_DOUBLE, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, NULL, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, TRUE, TRUE, FALSE, FALSE
 	.elseif \music == TRUE
-	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT_DOUBLE, LOCALID_NONE, \trainer, \intro_text, \lose_text, \event_script, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, TRUE, TRUE, FALSE, FALSE
+	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT_DOUBLE, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, \event_script, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, TRUE, TRUE, FALSE, FALSE
 	.else
-	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC, LOCALID_NONE, \trainer, \intro_text, \lose_text, \event_script, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, TRUE, FALSE, FALSE, FALSE
+	trainerbattle TRAINER_BATTLE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, \event_script, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, TRUE, FALSE, FALSE, FALSE
 	.endif
 	.endm
 
-	@ Starts a rematch battle. Takes a trainer, intro text and loss text
+	@ Starts a rematch battle, takes a trainer, intro text and loss text
 	.macro trainerbattle_rematch trainer:req, intro_text:req, lose_text:req
-	trainerbattle TRAINER_BATTLE_REMATCH, LOCALID_NONE, \trainer, \intro_text, \lose_text, NULL, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, TRUE
+	trainerbattle TRAINER_BATTLE_REMATCH, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, NULL, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, TRUE
 	.endm
 
 	@ Starts a rematch double battle. Takes a trainer, intro text, loss text, and text for when you have too few pokemon
 	.macro trainerbattle_rematch_double trainer:req, intro_text:req, lose_text:req, not_enough_pkmn_text:req
-	trainerbattle TRAINER_BATTLE_REMATCH_DOUBLE, LOCALID_NONE, \trainer, \intro_text, \lose_text, NULL, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, FALSE, TRUE, FALSE, TRUE
+	trainerbattle TRAINER_BATTLE_REMATCH_DOUBLE, OBJ_ID_NONE, \trainer, \intro_text, \lose_text, NULL, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, \not_enough_pkmn_text, FALSE, TRUE, FALSE, TRUE
 	.endm
 
 	@ Starts a trainer battle, skipping intro text. Takes a trainer and loss text
 	.macro trainerbattle_no_intro trainer:req, lose_text:req
-	trainerbattle TRAINER_BATTLE_SINGLE_NO_INTRO_TEXT, LOCALID_NONE, \trainer, NULL, \lose_text, NULL, LOCALID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
+	trainerbattle TRAINER_BATTLE_SINGLE_NO_INTRO_TEXT, OBJ_ID_NONE, \trainer, NULL, \lose_text, NULL, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, NULL, NULL, FALSE, TRUE, FALSE, FALSE
+	.endm
+
+	@ Starts a trainer battle with victory text if the player loses. If flags is nonzero, the player will be healed after battle (and its assumed to be the tutorial battle)
+	.macro trainerbattle_earlyrival trainer:req, flags:req, lose_text:req, victory_text:req
+	trainerbattle TRAINER_BATTLE_EARLY_RIVAL, OBJ_ID_NONE, \trainer, NULL, \lose_text, NULL, OBJ_ID_NONE, TRAINER_NONE, NULL, NULL, NULL, \victory_text, NULL, FALSE, TRUE, FALSE, FALSE, \flags
 	.endm
 
 	@ Starts a double battle with the player against two trainers
@@ -923,12 +926,12 @@
 	.byte \ignoreBPress
 	.endm
 
-	@ Nopped in Emerald.
+	@ In FRLG, this command is a nop.
 	.macro drawbox
 	.byte SCR_OP_DRAWBOX
 	.endm
 
-	@ Nopped in Emerald, but still consumes parameters.
+	@ In FRLG, this command is a nop. Still consumes parameters.
 	.macro erasebox left:req, top:req, right:req, bottom:req
 	.byte SCR_OP_ERASEBOX
 	.byte \left
@@ -937,7 +940,7 @@
 	.byte \bottom
 	.endm
 
-	@ Nopped in Emerald, but still consumes parameters.
+	@ In FRLG, this command is a nop. Still consumes parameters.
 	.macro drawboxtext left:req, top:req, multichoiceId:req, ignoreBPress:req
 	.byte SCR_OP_DRAWBOXTEXT
 	.byte \left
@@ -946,7 +949,7 @@
 	.byte \ignoreBPress
 	.endm
 
-	@ Displays a box containing the front sprite for the specified Pokemon species.
+	@ Displays a box containing the front sprite for the specified Pokemon species and plays its cry.
 	.macro showmonpic species:req, x:req, y:req
 	.byte SCR_OP_SHOWMONPIC
 	.2byte \species
@@ -959,7 +962,7 @@
 	.byte SCR_OP_HIDEMONPIC
 	.endm
 
-	@ Draws an image of the winner of the contest. winnerId is any CONTEST_WINNER_* constant.
+	@ In FRLG, this command is a nop. In RSE, draws an image of the winner of the contest. winnerId is any CONTEST_WINNER_* constant.
 	.macro showcontestpainting winnerId:req
 	.byte SCR_OP_SHOWCONTESTPAINTING
 	.byte \winnerId
@@ -974,7 +977,6 @@
 	.endm
 
 	@ Formatting for the braille window, to be put at the start of a pointer used by braillemessage.
-	@ These are from RS and are ignored in Emerald (see ScrCmd_braillemessage, and comment above)
 	.macro brailleformat winLeft:req, winTop:req, winRight:req, winBottom:req, textLeft:req, textTop:req
 	.byte \winLeft
 	.byte \winTop
@@ -989,7 +991,7 @@
 	.macro givemon species:req, level:req, item, ball, nature, abilityNum, gender, hpEv, atkEv, defEv, speedEv, spAtkEv, spDefEv, hpIv, atkIv, defIv, speedIv, spAtkIv, spDefIv, move1, move2, move3, move4, isShiny, gmaxFactor, teraType, dmaxLevel
 	callnative ScrCmd_createmon, requests_effects=1
 	.byte 0
-	.byte PARTY_SIZE @ assign to first empty slot
+	.byte 6 @ assign to first empty slot
 	.set givemon_flags, 0
 	.2byte \species
 	.2byte \level
@@ -1109,7 +1111,7 @@
 	.endm
 
 	@ Gives the player an Egg of the specified species.
-	@ VAR_RESULT will be set to MON_GIVEN_TO_PARTY, MON_GIVEN_TO_PC, or MON_CANT_GIVE depending on the outcome.
+	@ VAR_RESULT will be set to MON_GIVEN_TO_PARTY, MON_GIVEN_TO_PC, or MON_CANT_GIVE depending on the outcome. 
 	.macro giveegg species:req
 	.byte SCR_OP_GIVEEGG
 	.2byte \species
@@ -1131,6 +1133,14 @@
 	.macro checkpartymove move:req
 	.byte SCR_OP_CHECKPARTYMOVE
 	.2byte \move
+	.endm
+
+	@ Checks if field move can be used. If so, VAR_RESULT is set to TRUE, gFieldEffectArguments[0] to masked
+	@ species or party index of the Pokemon, VAR_0x8004 to species, STR_VAR_1 to the Pokemon's name,
+	@ and STR_VAR_2 to the move's name.
+	.macro checkfieldmoveusable fieldMove:req
+	.byte SCR_OP_CHECKFIELDMOVEUSABLE
+	.2byte \fieldMove
 	.endm
 
 	@ Converts STR_VAR_1, STR_VAR_2, or STR_VAR_3 to its corresponding index into sScriptStringVars (0, 1, or 2).
@@ -1178,7 +1188,7 @@
 	.2byte \item
 	.endm
 
-	@ Writes the name of the specified decoration to the specified buffer.
+	@ In FRLG, this command is a nop. In RSE, writes the name of the specified decoration to the specified buffer.
 	.macro bufferdecorationname stringVarId:req, decoration:req
 	.byte SCR_OP_BUFFERDECORATIONNAME
 	stringvar \stringVarId
@@ -1220,13 +1230,6 @@
 	.4byte \products
 	.endm
 
-	@ Used as the endpoint for a Pokemart item list
-	.macro pokemartlistend
-	.2byte ITEM_NONE
-	release
-	end
-	.endm
-
 	@ Opens the Pokemart system and treats the list of items as decorations.
 	@ Products should be a list of .2byte decoration values preceded by an .align 2
 	.macro pokemartdecoration products:req
@@ -1246,8 +1249,7 @@
 	.2byte \id
 	.endm
 
-	@ Sets a berry tree's berry and growth stage. treeId is any BERRY_TREE_* constant (an index into berryTrees in SaveBlock1),
-	@ berry is any ITEM_TO_BERRY(ITEM_BERRY_NAME) value, and growthStage is any BERRY_STAGE_* constant.
+	@ In FRLG, this command is a nop. In RSE, sets a berry tree's berry and growth stage.
 	.macro setberrytree treeId:req, berry:req, growthStage:req
 	.byte SCR_OP_SETBERRYTREE
 	.byte \treeId
@@ -1255,22 +1257,22 @@
 	.byte \growthStage
 	.endm
 
-	@ Opens the party menu to select a Pokemon for a contest.
+	@ In FRLG, this command is a nop. In RSE, opens the party menu to select a Pokemon for a contest.
 	.macro choosecontestmon
 	.byte SCR_OP_CHOOSECONTESTMON
 	.endm
 
-	@ Starts the appeals round of a contest.
+	@ In FRLG, this command is a nop. In RSE, starts the appeals round of a contest.
 	.macro startcontest
 	.byte SCR_OP_STARTCONTEST
 	.endm
 
-	@ Shows the results screen of a contest.
+	@ In FRLG, this command is a nop. In RSE, shows the results screen of a contest.
 	.macro showcontestresults
 	.byte SCR_OP_SHOWCONTESTRESULTS
 	.endm
 
-	@ Starts communication to initialize a link contest.
+	@ In FRLG, this command is a nop. In RSE, starts communication to initialize a link contest.
 	.macro contestlinktransfer
 	.byte SCR_OP_CONTESTLINKTRANSFER
 	.endm
@@ -1330,7 +1332,7 @@
 	.byte \disable
 	.endm
 
-	@ Gets whether the effects of the specified PokeNews program are active. newsKind is a POKENEWS_* constant.
+	@ In FRLG, this command is a nop. In RSE, gets whether the effects of the specified PokeNews program are active.
 	.macro getpokenewsactive newsKind:req
 	.byte SCR_OP_GETPOKENEWSACTIVE
 	.2byte \newsKind
@@ -1388,7 +1390,7 @@
 	.2byte \animation
 	.endm
 
-	@ Sets which healing location (HEAL_LOCATION_*) the player will return to if all of the Pokemon in their party faint.
+	@ Sets which healing place the player will return to if all of the Pokemon in their party faint.
 	.macro setrespawn heallocation:req
 	.byte SCR_OP_SETRESPAWN
 	.2byte \heallocation
@@ -1461,8 +1463,7 @@
 	map \map
 	.endm
 
-	@ Creates a sprite with object graphics. Used when creating large groups of static NPCs that exceed
-	@ the object event limit (e.g. Contest / Battle Dome audiences and Union Room group members).
+	@ Creates a sprite with object graphics. Used when creating large groups of static NPCs that exceed the object event limit.
 	@ The specified id can be used to refer to the sprite again later with turnvobject.
 	.macro createvobject graphicsId:req, id:req, x:req, y:req, elevation=3, direction=DIR_SOUTH
 	.byte SCR_OP_CREATEVOBJECT
@@ -1514,7 +1515,7 @@
 	.2byte \y
 	.endm
 
-	@ Consumes its parameters and does nothing. It is implemented but unused in Ruby/Sapphire.
+	@ In FRLG, this command is a nop. It is implemented but unused in Ruby/Sapphire.
 	.macro addelevmenuitem a:req, b:req, c:req, d:req
 	.byte SCR_OP_ADDELEVMENUITEM
 	.byte \a
@@ -1523,7 +1524,7 @@
 	.2byte \d
 	.endm
 
-	@ Does nothing. It is implemented but unused in Ruby/Sapphire.
+	@ In FRLG, this command is a nop. It is implemented but unused in Ruby/Sapphire.
 	.macro showelevmenu
 	.byte SCR_OP_SHOWELEVMENU
 	.endm
@@ -1534,7 +1535,7 @@
 	.2byte \out
 	.endm
 
-	@ Gives 'count' coins to the player, up to a total of MAX_COINS.
+	@ Gives 'count' coins to the player, up to a total of MAX_COINS. 
 	@ If the player already has MAX_COINS then VAR_RESULT is set to TRUE, otherwise it is set to FALSE.
 	.macro addcoins count:req
 	.byte SCR_OP_ADDCOINS
@@ -1667,38 +1668,32 @@
 	.2byte \box
 	.endm
 
-	@ Used only in FireRed/LeafGreen, does nothing in Emerald.
+	@ Sets the color of the text in standard message boxes. color is any NPC_TEXT_COLOR_* constant.
+	@ The color will be reset to NPC_TEXT_COLOR_DEFAULT whenever ProcessPlayerFieldInput is called.
 	.macro textcolor color:req
 	.byte SCR_OP_TEXTCOLOR
 	.byte \color
 	.endm
 
-	@ Used only in FireRed/LeafGreen, does nothing in Emerald.
-	.macro loadhelp text:req
+	@ Displays the help menu with the given text.
+	.macro loadhelp msg:req
 	.byte SCR_OP_LOADHELP
-	.4byte \text
+	.4byte \msg
 	.endm
 
-	@ Used only in FireRed/LeafGreen, does nothing in Emerald.
+	@ Erases the help menu
 	.macro unloadhelp
 	.byte SCR_OP_UNLOADHELP
 	.endm
 
-	@ Used only in FireRed/LeafGreen, does nothing in Emerald.
+	@ After using this command, all standard message boxes will use the signpost frame.
 	.macro signmsg
 	.byte SCR_OP_SIGNMSG
 	.endm
 
-	@ Used only in FireRed/LeafGreen, does nothing in Emerald.
+	@ Ends the effects of signmsg, returning message box frames to normal.
 	.macro normalmsg
 	.byte SCR_OP_NORMALMSG
-	.endm
-
-	@ Used only in FireRed/LeafGreen, does nothing in Emerald.
-	.macro comparehiddenvar a:req, value:req
-	.byte SCR_OP_COMPAREHIDDENVAR
-	.byte \a
-	.4byte \value
 	.endm
 
 	@ Sets the modernFatefulEncounter bit for the Pokemon in the specified slot of the player's party.
@@ -1720,7 +1715,7 @@
 	.byte SCR_OP_TRYWONDERCARDSCRIPT
 	.endm
 
-	@ Used only in FireRed/LeafGreen, does nothing in Emerald.
+	@ Sets worldmapflag to 1. This allows the player to Fly to the corresponding map, if that map has a flightspot.
 	.macro setworldmapflag worldmapflag:req
 	.byte SCR_OP_SETWORLDMAPFLAG
 	.2byte \worldmapflag
@@ -1742,38 +1737,20 @@
 	.byte \location
 	.endm
 
-	@ For the rotating tile puzzles in Mossdeep Gym / Trick House Room 7. Moves the objects one rotation
-	@ on the colored puzzle specified by puzzleNumber.
-	.macro moverotatingtileobjects puzzleNumber:req
-	.byte SCR_OP_MOVEROTATINGTILEOBJECTS
-	.2byte \puzzleNumber
+	@ Gets the width of the specified message in the Braille font and sets the result to VAR_0x8004.
+	.macro getbraillestringwidth msg:req
+	.byte SCR_OP_GETBRAILLESTRINGWIDTH
+	.4byte \msg
 	.endm
 
-	@ For the rotating tile puzzles in Mossdeep Gym / Trick House Room 7. Updates the facing direction of all objects on the puzzle tiles
-	.macro turnrotatingtileobjects
-	.byte SCR_OP_TURNROTATINGTILEOBJECTS
-	.endm
-
-	@ For the rotating tile puzzles in Mossdeep Gym / Trick House Room 7. Allocates memory for the puzzle objects.
-	@ isTrickHouse is needed to determine which of the two maps the puzzle is on, in order to know where in the tileset
-	@ the puzzle tiles start (TRUE for Trick House Room, FALSE for Mossdeep Gym).
-	.macro initrotatingtilepuzzle isTrickHouse:req
-	.byte SCR_OP_INITROTATINGTILEPUZZLE
-	.2byte \isTrickHouse
-	.endm
-
-	@ For the rotating tile puzzles in Mossdeep Gym / Trick House Room 7. Frees the memory allocated for the puzzle objects.
-	.macro freerotatingtilepuzzle
-	.byte SCR_OP_FREEROTATINGTILEPUZZLE
-	.endm
-
-	@ Warp used by the teleport tiles in the Mossdeep Gym. Plays SE_WARP_IN and does a simple fade transition.
-	@ Also skips reloading object events by setting SKIP_OBJECT_EVENT_LOAD.
-	@ Warp commands can be given either the id of which warp location to go to on the destination map
-	@ or a pair of x/y coordinates to go to directly on the destination map.
-	.macro warpmossdeepgym map:req, a, b, c
-	.byte SCR_OP_WARPMOSSDEEPGYM
-	formatwarp \map, \a, \b, \c
+	@ Writes the name of the specified item to the specified buffer. If 'item' is a Berry or ITEM_POKE_BALL
+	@ and if the quantity is 2 or more, the buffered string will be pluralized ("IES" or "S" appended).
+	@ If the specified item is >= ITEMS_COUNT then the name of ITEM_NONE ("????????") is buffered instead.
+	.macro bufferitemnameplural stringVarId:req, item:req, quantity:req
+	.byte SCR_OP_BUFFERITEMNAMEPLURAL
+	stringvar \stringVarId
+	.2byte \item
+	.2byte \quantity
 	.endm
 
 	@ Sets the selected object to the id of the currently approaching trainer.
@@ -1787,18 +1764,6 @@
 	.byte SCR_OP_LOCKFORTRAINER
 	.endm
 
-	@ Destroys the window created by braillemessage.
-	.macro closebraillemessage
-	.byte SCR_OP_CLOSEBRAILLEMESSAGE
-	.endm
-
-	@ Prints and draws the message all at once rather than character by character.
-	@ Does not wait for player input to continue.
-	.macro messageinstant text:req
-	.byte SCR_OP_MESSAGEINSTANT
-	.4byte \text
-	.endm
-
 	@ Equivalent to fadescreen but uses a hardware fade and darken/lighten blend modes,
 	@ to avoid modifying palettes at all.
 	@ Useful for fade-out/fade-in without leaving the overworld or entering a new scene.
@@ -1807,54 +1772,6 @@
 	.byte SCR_OP_FADESCREENSWAPBUFFERS
 	.byte \mode
 	.byte \nowait
-	.endm
-
-	@ Buffers the specified trainer's class name to the given string var.
-	@ If the trainer id is >= TRAINERS_COUNT it will be treated as TRAINER_NONE.
-	.macro buffertrainerclassname stringVarId:req, trainerId:req
-	.byte SCR_OP_BUFFERTRAINERCLASSNAME
-	stringvar \stringVarId
-	.2byte \trainerId
-	.endm
-
-	@ Buffers the specified trainer's name to the given string var.
-	@ If the trainer id is >= TRAINERS_COUNT it will be treated as TRAINER_NONE.
-	.macro buffertrainername stringVarId:req, trainerId:req
-	.byte SCR_OP_BUFFERTRAINERNAME
-	stringvar \stringVarId
-	.2byte \trainerId
-	.endm
-
-	@ Starts a Pokenav call with the given text.
-	.macro pokenavcall text:req
-	.byte SCR_OP_POKENAVCALL
-	.4byte \text
-	.endm
-
-	@ Warp with a fade to white. Used during the Sootopolis legendary fight.
-	@ Warp commands can be given either the id of which warp location to go to on the destination map
-	@ or a pair of x/y coordinates to go to directly on the destination map.
-	.macro warpwhitefade map:req, a, b, c
-	.byte SCR_OP_WARPWHITEFADE
-	formatwarp \map, \a, \b, \c
-	.endm
-
-	@ Buffers the name of the contest category to the buffer.
-	@ For example a category of CONTEST_CATEGORY_COOL will buffer the string "COOLNESS CONTEST".
-	.macro buffercontestname stringVarId:req, category:req
-	.byte SCR_OP_BUFFERCONTESTNAME
-	stringvar \stringVarId
-	.2byte \category
-	.endm
-
-	@ Writes the name of the specified item to the specified buffer. If 'item' is a Berry or ITEM_POKE_BALL
-	@ and if the quantity is 2 or more, the buffered string will be pluralized ("IES" or "S" appended).
-	@ If the specified item is >= ITEMS_COUNT then the name of ITEM_NONE ("????????") is buffered instead.
-	.macro bufferitemnameplural stringVarId:req, item:req, quantity:req
-	.byte SCR_OP_BUFFERITEMNAMEPLURAL
-	stringvar \stringVarId
-	.2byte \item
-	.2byte \quantity
 	.endm
 
 	.macro _dynmultichoice left:req, top:req, ignoreBPress:req, maxBeforeScroll:req, shouldSort:req, initialSelected:req, callbacks:req argv:vararg
@@ -1888,6 +1805,7 @@
 	.macro dynmultistack left:req, top:req, ignoreBPress:req, maxBeforeScroll:req, shouldSort:req, initialSelected:req, callbacks:req
 	_dynmultichoice \left, \top, \ignoreBPress, \maxBeforeScroll, \shouldSort, \initialSelected, \callbacks, NULL
 	.endm
+
 
 @ Supplementary
 
@@ -1987,14 +1905,14 @@
 	trycompare vgoto_if, FALSE, \a, \b, \c
 	.endm
 
-	.macro vgoto_if_unset flag:req, dest:req
-	checkflag \flag
-	vgoto_if FALSE, \dest
-	.endm
-
 	.macro vgoto_if_set flag:req, dest:req
 	checkflag \flag
 	vgoto_if TRUE, \dest
+	.endm
+
+	.macro vgoto_if_unset flag:req, dest:req
+	checkflag \flag
+	vgoto_if FALSE, \dest
 	.endm
 
 	.macro goto_if_defeated trainer:req, dest:req
@@ -2026,15 +1944,6 @@
 	goto_if_eq \dest
 	.endm
 
-	@ Message box types
-	MSGBOX_NPC = 2
-	MSGBOX_SIGN = 3
-	MSGBOX_DEFAULT = 4
-	MSGBOX_YESNO = 5
-	MSGBOX_AUTOCLOSE = 6
-	MSGBOX_GETPOINTS = 9
-	MSGBOX_POKENAV = 10
-
 	YES = 1
 	NO  = 0
 
@@ -2046,7 +1955,7 @@
 
 	@ Gives 'amount' of the specified 'item' to the player and prints a message with fanfare.
 	@ If the player doesn't have space for all the items then as many are added as possible, the
-	@ message indicates there is no room, and VAR_RESULT is set to FALSE.
+	@ message indicates there is no room, and VAR_RESULT is set to FALSE. 
 	@ Otherwise VAR_RESULT is set to TRUE, and the message indicates they have received the item(s).
 	.macro giveitem item:req, amount=1
 	setorcopyvar VAR_0x8000, \item
@@ -2062,33 +1971,55 @@
 	callstd STD_FIND_ITEM
 	.endm
 
-	@ Equivalent to giveitem but for a single decoration.
-	.macro givedecoration decoration:req
-	setorcopyvar VAR_0x8000, \decoration
-	callstd STD_OBTAIN_DECORATION
+	@ Prints the message "{PLAYER} put the {ITEM} in the {POCKET}." The item name is pluralized, if applicable.
+	.macro putitemaway item:req, amount=1
+	setorcopyvar VAR_0x8000, \item
+	setorcopyvar VAR_0x8001, \amount
+	callstd STD_PUT_ITEM_AWAY
 	.endm
 
-	@ Registers the specified trainer in Match Call and plays a fanfare with a notification message.
-	.macro register_matchcall trainer:req
-	setvar VAR_0x8004, \trainer
-	special SetMatchCallRegisteredFlag
-	setorcopyvar VAR_0x8000, \trainer
-	callstd STD_REGISTER_MATCH_CALL
+	@ Prints the provided message after playing the fanfare music (can only be MUS_LEVEL_UP or MUS_OBTAIN_KEY_ITEM).
+	@ It then prints the message shown by using putitemaway.
+	.macro msgreceiveditem msg:req, item:req, amount=1, fanfare=MUS_LEVEL_UP
+	loadword 0, \msg
+	setorcopyvar VAR_0x8000, \item
+	setorcopyvar VAR_0x8001, \amount
+	setorcopyvar VAR_0x8002, \fanfare
+	callstd STD_RECEIVED_ITEM
 	.endm
 
-	@ Does a sparkle field effect (e.g. when the Trick Master is hiding) at the given coordinates.
-	.macro dofieldeffectsparkle x:req, y:req, priority:req
-	setfieldeffectargument 0, \x
-	setfieldeffectargument 1, \y
-	setfieldeffectargument 2, \priority
-	dofieldeffect FLDEFF_SPARKLE
+	@ Adds the specified item to the bag, then prints a message with fanfare. See description of msgreceiveditem.
+	.macro giveitem_msg msg:req, item:req, amount=1, fanfare=MUS_LEVEL_UP
+	additem \item, \amount
+	msgreceiveditem \msg, \item, \amount, \fanfare
 	.endm
 
-	@ Prints a braille message, waits for an A or B press, then closes the message.
-	.macro braillemsgbox text:req
+	@ Depends on the provided function. With the default argument, unlocks the specified entry in the Fame Checker.
+	.macro famechecker person:req, index:req, function=SetFlavorTextFlagFromSpecialVars
+	setvar VAR_0x8004, \person
+	setvar VAR_0x8005, \index
+	special \function
+	.endm
+
+	@ Sets the 'defeated' flag for all trainers in the specified gym.
+	.macro set_gym_trainers gym:req
+	setvar VAR_0x8008, \gym
+	call EventScript_SetGymTrainers
+	.endm
+
+	@ Jumps to dest if the Quest Log is currently showing playback scenes (dest is usually a release/end)
+	.macro goto_if_questlog dest:req
+	special GetQuestLogState
+	compare VAR_RESULT, 2
+	goto_if_eq \dest
+	.endm
+
+	@ Prints a braille message, then waits for users input.
+	.macro braillemessage_wait text:req
+	setvar VAR_0x8006, 0
 	braillemessage \text
-	waitbuttonpress
-	closebraillemessage
+	getbraillestringwidth \text
+	call EventScript_BrailleCursorWaitButton
 	.endm
 
 	@ Creates a Pokémon with the modernFatefulEncounter bit set for an encounter
@@ -2100,7 +2031,7 @@
 	.endm
 
 	.macro setdynamicaifunc func:req
-	callnative ScriptSetDynamicAiFunc, requests_effects=1
+	callnative ScriptSetDynamicAiFunc
 	.4byte \func
 	.endm
 
@@ -2109,7 +2040,7 @@
 	@ The rest of the arguments are the stat change values to each stat.
 	@ For example, giving the first opponent +1 to atk and -2 to speed would be: settotemboost B_POSITION_OPPONENT_LEFT, 1, 0, -2
 	.macro settotemboost battler:req, atk=0,def=0,speed=0,spatk=0,spdef=0,acc=0,evas=0
-	callnative ScriptSetTotemBoost, requests_effects=1
+	callnative ScriptSetTotemBoost
 	.2byte \battler
 	.2byte \atk
 	.2byte \def
@@ -2187,14 +2118,14 @@
 	@ Sets VAR_RESULT to TRUE if stat can be hyper trained, or to
 	@ FALSE otherwise.
 	.macro canhypertrain stat:req, slot:req
-	callnative CanHyperTrain, requests_effects=1
+	callnative CanHyperTrain
 	.byte \stat
 	.2byte \slot
 	.endm
 
 	@ Hyper Trains a stat.
 	.macro hypertrain stat:req, slot:req
-	callnative HyperTrain, requests_effects=1
+	callnative HyperTrain
 	.byte \stat
 	.2byte \slot
 	.endm
@@ -2202,7 +2133,7 @@
 	@ Sets VAR_RESULT to TRUE if the Pokemon has the Gigantamax Factor,
 	@ or to FALSE otherwise.
 	.macro hasgigantamaxfactor slot:req
-	callnative HasGigantamaxFactor, requests_effects=1
+	callnative HasGigantamaxFactor
 	.2byte \slot
 	.endm
 
@@ -2210,7 +2141,7 @@
 	@ Fails for Melmetal (vanilla behavior).
 	@ Sets VAR_RESULT to TRUE if it succeeds, and FALSE otherwise.
 	.macro togglegigantamaxfactor slot:req
-	callnative ToggleGigantamaxFactor, requests_effects=1
+	callnative ToggleGigantamaxFactor
 	.2byte \slot
 	.endm
 
@@ -2248,27 +2179,25 @@
 	@ Inflicts \status1 to the Pokémon in \slot.
 	@ If \slot is greater or equal than PARTY_SIZE, the status is inflicted on each of the Player's Pokémon.
 	.macro setstatus1 status1:req, slot:req
-	callnative Script_SetStatus1, requests_effects=1
+	callnative Script_SetStatus1
 	.2byte \status1
 	.2byte \slot
 	.endm
 
 	@ Sets VAR_RESULT to the Pokémon in \slot's Tera Type
 	.macro checkteratype slot:req
-	callnative CheckTeraType, requests_effects=1
+	callnative CheckTeraType
 	.2byte \slot
 	.endm
 
 	@ Sets the Pokémon in \slot's Tera Type
 	.macro setteratype type:req, slot:req
-	callnative SetTeraType, requests_effects=1
+	callnative SetTeraType
 	.byte \type
 	.2byte \slot
-	.endm
-
-	@ Saves species and forms of Daycare Pokémon to specific vars. Saves the amount of Daycare mon to VAR_RESULT.
+	.endm@ Saves species and forms of Daycare Pokémon to specific vars. Saves the amount of Daycare mon to VAR_RESULT.
 	.macro getdaycaregfx varSpecies1:req varSpecies2:req varForm1:req varForm2:req
-	callnative GetDaycareGraphics, requests_effects=1
+	callnative GetDaycareGraphics
 	.2byte \varSpecies1
 	.2byte \varSpecies2
 	.2byte \varForm1
@@ -2277,12 +2206,12 @@
 
 	@ Plays the cry of the first alive party member.
 	.macro playfirstmoncry
-	callnative PlayFirstMonCry, requests_effects=1
+	callnative PlayFirstMonCry
 	.endm
 
 	@ Buffers the nickname of the first alive party member.
 	.macro bufferlivemonnickname out:req
-	callnative BufferFirstLiveMonNickname, requests_effects=1
+	callnative BufferFirstLiveMonNickname
 	.byte \out
 	.endm
 
@@ -2293,189 +2222,48 @@
 
 	@ Checks if Field move is being used by the current follower.
 	.macro isfollowerfieldmoveuser var:req
-	callnative IsFollowerFieldMoveUser, requests_effects=1
+	callnative IsFollowerFieldMoveUser
 	.2byte \var
 	.endm
 
 	@ Saves the direction from where source object event would need to turn to to face the target into the specified var.
 	.macro getdirectiontoface var:req, sourceId:req, targetId:req
-	callnative GetDirectionToFaceScript, requests_effects=1
+	callnative GetDirectionToFaceScript
 	.2byte \var
 	.byte \sourceId
 	.byte \targetId
 	.endm
 
-	@ set the wild double battle flag
-	@ can be used in conjunection with createmon to set up a wild battle with 2 player mons vs. 1 enemy mon
-	.macro setwilddoubleflag
-	callnative ScriptSetDoubleBattleFlag, requests_effects=1
-	.endm
-
-	@ ============================ @
-	@ FAKE RTC MACROS
-	@ Will only function if OW_USE_FAKE_RTC is true. If it has any additional requirements, it will be listed accordingly.
-	
-	@ When OW_USE_FAKE_RTC is true and OW_FLAG_PAUSE_TIME is assigned, this macro will stop the flow of time.
+	@ When OW_USE_FAKE_RTC and OW_FLAG_PAUSE_TIME is assigned, this macro will stop the flow of time.
 	.macro pausefakertc
-	callnative Script_PauseFakeRtc, requests_effects=1
+	callnative Script_PauseFakeRtc
 	.endm
 
 	@ When OW_USE_FAKE_RTC and OW_FLAG_PAUSE_TIME is assigned, this macro will resume the flow of time.
 	.macro resumefakertc
-	callnative Script_ResumeFakeRtc, requests_effects=1
+	callnative Script_ResumeFakeRtc
 	.endm
 
 	@ When OW_USE_FAKE_RTC and OW_FLAG_PAUSE_TIME is assigned, this macro will resume the flow of time if paused, and stop the flow of time otherwise.
 	.macro togglefakertc
-	callnative Script_ToggleFakeRtc, requests_effects=1
-	.endm
-
-	@ When OW_USE_FAKE_RTC is true, adds a specified amount of time.
-	.macro addtime days:req, hours:req, minutes:req
-	callnative ScrCmd_addtime, requests_effects=1
-	.4byte \days
-	.4byte \hours
-	.4byte \minutes
-	.endm
-
-	@ When OW_USE_FAKE_RTC is true, adds a specified number of days to the time. 
-	.macro adddays days:req
-	callnative ScrCmd_adddays, requests_effects=1
-	.4byte \days
-	.endm
-
-	@ When OW_USE_FAKE_RTC is true, adds a specified number of days, hours, and minutes to the time. 
-	.macro addhours hours:req
-	callnative ScrCmd_addhours, requests_effects=1
-	.4byte \hours
-	.endm
-
-	@ When OW_USE_FAKE_RTC is true, adds a specified number of days, hours, and minutes to the time. 
-	.macro addminutes minutes:req
-	callnative ScrCmd_addminutes, requests_effects=1
-	.4byte \minutes
-	.endm
-
-	@ Forwards the time to a specified hour and minute. 
-	@ This causes the time to go to the next day if the time has already been past. 
-	.macro fwdtime hours:req, minutes:req
-	callnative ScrCmd_fwdtime, requests_effects=1
-	.4byte \hours
-	.4byte \minutes
-	.endm
-
-	@ Forwards the time to a specified day of the week. Uses a 0-index starting from Sunday.
-	.macro fwdweekday weekday:req
-	callnative ScrCmd_fwdweekday, requests_effects=1
-	.4byte \weekday
+	callnative Script_ToggleFakeRtc
 	.endm
 
 	@ ============================ @
 	@ ITEM DESCRIPTION HEADER MACROS
 	@ Used with OW_SHOW_ITEM_DESCRIPTIONS config
 	.macro showitemdescription
-	callnative ScriptShowItemDescription, requests_effects=1
+	callnative ScriptShowItemDescription
 	.byte 0
 	.endm
 
 	.macro showberrydescription
-	callnative ScriptShowItemDescription, requests_effects=1
+	callnative ScriptShowItemDescription
 	.byte 1
 	.endm
 
 	.macro hideitemdescription
-	callnative ScriptHideItemDescription, requests_effects=1
-	.endm
-
-	@ Remove all of specified item from the player's bag and return the number of removed items to VAR_RESULT
-	.macro removeallitem itemId:req
-	callnative ScrCmd_removeallitem, requests_effects=1
-	.2byte \itemId
-	.endm
-
-	@ Stores the position of the given object in destX and destY. Mode CURRENT_POSITION will take the object's current position. Mode TEMPLATE_POSITION will take the object's template position.
-	.macro getobjectxy localId:req, posType:req, destX:req, destY:req
-	callnative ScrCmd_getobjectxy, requests_effects=1
-	.2byte \localId
-	.2byte \posType
-	.2byte \destX
-	.2byte \destY
-	.endm
-
-	.macro getobjecttemplatexy localId:req, posType = TEMPLATE_POSITION, destX:req, destY:req
-	callnative ScrCmd_getobjectxy, requests_effects=1
-	.2byte \localId
-	.2byte \posType
-	.2byte \destX
-	.2byte \destY
-	.endm
-
-	.macro getobjectcurrentxy localId:req, posType = CURRENT_POSITION, destX:req, destY:req
-	callnative ScrCmd_getobjectxy, requests_effects=1
-	.2byte \localId
-	.2byte \posType
-	.2byte \destX
-	.2byte \destY
-	.endm
-
-	@ Return TRUE to dest if there is an object at the position x and y.
-	.macro checkobjectat x:req, y:req, dest = VAR_RESULT
-	callnative ScrCmd_checkobjectat, requests_effects=1
-	.2byte \x
-	.2byte \y
-	.2byte \dest
-	.endm
-
-	@ Returns the state of the Pokedex Seen Flag to VAR_RESULT for the Pokemon with speciesId
-	.macro getseenmon species:req
-	callnative Scrcmd_getsetpokedexflag, requests_effects=1
-	.2byte \species
-	.2byte FLAG_GET_SEEN
-	.endm
-
-	@ Returns the state of the Pokedex Caught Flag to VAR_RESULT for the Pokemon with speciesId
-	.macro getcaughtmon species:req
-	callnative Scrcmd_getsetpokedexflag, requests_effects=1
-	.2byte \species
-	.2byte FLAG_GET_CAUGHT
-	.endm
-
-	@ Sets the Pokedex Seen Flag for the Pokemon with speciesId
-	.macro setseenmon species:req
-	callnative Scrcmd_getsetpokedexflag, requests_effects=1
-	.2byte \species
-	.2byte FLAG_SET_SEEN
-	.endm
-
-	@ Sets the Pokedex Caught Flag for the Pokemon with speciesId
-	.macro setcaughtmon species:req
-	callnative Scrcmd_getsetpokedexflag, requests_effects=1
-	.2byte \species
-	.2byte FLAG_SET_CAUGHT
-	.endm
-
-	@ Check if the Player has speciesId in their party. OPEN_PARTY_SCREEN will have the player select a mon from their party. NO_PARTY_SCREEN will automatically check every mon in the player's party.
-	.macro checkspecies speciesId:req, mode=NO_PARTY_SCREEN
-	.if \mode == OPEN_PARTY_SCREEN
-		special ChoosePartyMon
-		waitstate
-		callnative Scrcmd_checkspecies_choose, requests_effects=1
-		.2byte \speciesId
-	.else
-		callnative Scrcmd_checkspecies, requests_effects=1
-		.2byte \speciesId
-	.endif
-	.endm
-
-	.macro checkspecies_choose speciesId:req
-	checkspecies \speciesId, OPEN_PARTY_SCREEN
-	.endm
-
-	@ Gets the facing direction of a given event object and stores it in the variable dest.
-	.macro getobjectfacingdirection localId:req, dest:req
-	callnative Scrcmd_getobjectfacingdirection, requests_effects=1
-	.2byte \localId
-	.2byte \dest
+	callnative ScriptHideItemDescription
 	.endm
 
 	@ Hides any follower Pokémon if present, putting them into their Poké Ball; by default waits for their movement to finish.
@@ -2484,158 +2272,3 @@
 	.2byte \wait
 	.endm
 
-	.macro increasedifficulty
-	callnative Script_IncreaseDifficulty, requests_effects=1
-	.endm
-
-	.macro decreasedifficulty
-	callnative Script_DecreaseDifficulty, requests_effects=1
-	.endm
-
-	.macro getdifficulty var:req
-	callnative Script_GetDifficulty, requests_effects=1
-	.endm
-
-	.macro setdifficulty difficulty:req
-	callnative Script_SetDifficulty, requests_effects=1
-	.byte \difficulty
-	.endm
-
-	.macro forcesave
-	callnative Script_ForceSaveGame
-	waitstate
-	.endm
-
-	@ Makes the trainer unable to see the player if executed.
-	@ This is a no-op if the player interacts with the trainer.
-	.macro cant_see_if, condition:req
-	callnative Script_EndTrainerCanSeeIf, requests_effects=1
-	.byte \condition
-	.endm
-
-	.macro cant_see
-	cant_see_if_unset 0 @ flag 0 is always FALSE.
-	.endm
-
-	.macro cant_see_if_unset, flag:req
-	checkflag \flag
-	cant_see_if FALSE
-	.endm
-
-	.macro cant_see_if_set, flag:req
-	checkflag \flag
-	cant_see_if TRUE
-	.endm
-
-	.macro cant_see_if_trainerflag_unset, trainer:req
-	checktrainerflag \trainer
-	cant_see_if FALSE
-	.endm
-
-	.macro cant_see_if_trainerflag_set, trainer:req
-	checktrainerflag \trainer
-	cant_see_if TRUE
-	.endm
-
-	.macro cant_see_if_lt, a:req, b:req
-	compare \a, \b
-	cant_see_if 0
-	.endm
-
-	.macro cant_see_if_eq, a:req, b:req
-	compare \a, \b
-	cant_see_if 1
-	.endm
-
-	.macro cant_see_if_gt, a:req, b:req
-	compare \a, \b
-	cant_see_if 2
-	.endm
-
-	.macro cant_see_if_le, a:req, b:req
-	compare \a, \b
-	cant_see_if 3
-	.endm
-
-	.macro cant_see_if_ge, a:req, b:req
-	compare \a, \b
-	cant_see_if 4
-	.endm
-
-	.macro cant_see_if_ne, a:req, b:req
-	compare \a, \b
-	cant_see_if 5
-	.endm
-
-@ Follower NPCs
-
-	@ Sets an NPC up to follow the player.
-	@ Follower flags are defined in include/constants/follower_npc.h
-	@ If you want to specify a battle partner without specifying a custom script, you can set the script parameter to 0.
-	.macro setfollowernpc localId:req, flags:req, script=0, battlePartner=0
-	.if FNPC_ENABLE_NPC_FOLLOWERS
-		checkfollowernpc
-		compare VAR_RESULT, FALSE
-		goto_if_ne 1f
-		hidefollower
-		waitmovement OBJ_EVENT_ID_FOLLOWER
-		callnative ScriptSetFollowerNPC
-		.if \script == 0
-			.set setScript, FALSE
-		.else
-			.set setScript, TRUE
-		.endif
-		.byte \localId
-		.2byte \flags
-		.byte setScript
-		.2byte \battlePartner
-		.4byte \script
-		updatefollowingmon
-        1:
-	.else
-		.error "setfollowernpc unavailable with FNPC_ENABLE_NPC_FOLLOWERS defined as FALSE"
-	.endif
-	.endm
-
-	@ Remove the follower NPC (assumes there will only ever be one).
-	.macro destroyfollowernpc
-	.if FNPC_ENABLE_NPC_FOLLOWERS
-		callnative ScriptDestroyFollowerNPC
-	.else
-		.error "destroyfollowernpc unavailable with FNPC_ENABLE_NPC_FOLLOWERS defined as FALSE"
-	.endif
-	.endm
-
-	@ Makes the player and follower NPC face one another.
-	.macro facefollowernpc
-	callnative ScriptFaceFollowerNPC
-	.endm
-
-	@ Makes the follower NPC walk into the player and get hidden.
-	@ Optionally, you can set the walk speed for the movement:
-	@ 0 = Slow
-	@ 1 = Normal (default)
-	@ 2 = Fast
-	@ 3 = Faster
-	.macro hidefollowernpc speed=1
-	callnative ScriptHideNPCFollower
-	.byte \speed
-	waitmovement OBJ_EVENT_ID_NPC_FOLLOWER
-	callnative HideNPCFollower
-	.endm
-
-	@ Checks if you have a follower NPC. Returns the result to VAR_RESULT.
-	.macro checkfollowernpc
-	callnative ScriptCheckFollowerNPC
-	.endm
-
-	@ Updates Pokemon follower.
-	.macro updatefollowingmon
-	callnative ScriptUpdateFollowingMon
-	.endm
-
-	@ Changes the battle partner of the existing follower NPC.
-	.macro changefollowerbattler battlePartner:req
-	callnative ScriptChangeFollowerNPCBattlePartner
-	.2byte \battlePartner
-	.endm

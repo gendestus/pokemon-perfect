@@ -1,49 +1,44 @@
 #include "global.h"
-#include "event_data.h"
-#include "event_scripts.h"
+#include "field_player_avatar.h"
 #include "field_effect.h"
-#include "fldeff.h"
 #include "party_menu.h"
+#include "event_data.h"
 #include "script.h"
-#include "string_util.h"
-#include "task.h"
+#include "fldeff.h"
+#include "event_scripts.h"
 #include "constants/event_objects.h"
-#include "constants/field_effects.h"
 
-// static functions
-static void FieldCallback_Strength(void);
-static void StartStrengthFieldEffect(void);
+static void FieldCB_UseStrength(void);
+static void ShowMonCB_UseStrength(void);
 
-// text
-bool8 SetUpFieldMove_Strength(void)
+bool32 FieldMove_SetUpStrength(void)
 {
-    if (CheckObjectGraphicsInFrontOfPlayer(OBJ_EVENT_GFX_PUSHABLE_BOULDER) == TRUE)
+    if (TestPlayerAvatarFlags(PLAYER_AVATAR_FLAG_SURFING) || CheckObjectGraphicsInFrontOfPlayer(OBJ_EVENT_GFX_PUSHABLE_BOULDER) != TRUE)
+    {
+        return FALSE;
+    }
+    else
     {
         gSpecialVar_Result = GetCursorSelectionMonId();
         gFieldCallback2 = FieldCallback_PrepareFadeInFromMenu;
-        gPostMenuFieldCallback = FieldCallback_Strength;
+        gPostMenuFieldCallback = FieldCB_UseStrength;
         return TRUE;
     }
-    return FALSE;
 }
-
-static void FieldCallback_Strength(void)
+static void FieldCB_UseStrength(void)
 {
     gFieldEffectArguments[0] = GetCursorSelectionMonId();
-    ScriptContext_SetupScript(EventScript_UseStrength);
+    ScriptContext_SetupScript(EventScript_FldEffStrength);
 }
 
-bool8 FldEff_UseStrength(void)
+u32 FldEff_UseStrength(void)
 {
-    u8 taskId = CreateFieldMoveTask();
-    gTasks[taskId].data[8] = (u32)StartStrengthFieldEffect >> 16;
-    gTasks[taskId].data[9] = (u32)StartStrengthFieldEffect;
-    GetMonNickname(&gPlayerParty[gFieldEffectArguments[0]], gStringVar1);
+    u8 taskId = CreateFieldEffectShowMon();
+    FLDEFF_SET_FUNC_TO_DATA(ShowMonCB_UseStrength);
     return FALSE;
 }
 
-// Just passes control back to EventScript_UseStrength
-static void StartStrengthFieldEffect(void)
+static void ShowMonCB_UseStrength(void)
 {
     FieldEffectActiveListRemove(FLDEFF_USE_STRENGTH);
     ScriptContext_Enable();

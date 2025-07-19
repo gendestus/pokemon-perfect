@@ -1,12 +1,25 @@
+GAME_VERSION ?= FIRERED
+
 # GBA rom header
-TITLE       := POKEMON EMER
-GAME_CODE   := BPEE
+ifeq ($(GAME_VERSION),FIRERED)
+TITLE       := POKEMON FIRE
+GAME_CODE   := BPRE
+BUILD_NAME  := firered
+else
+ifeq ($(GAME_VERSION),LEAFGREEN)
+TITLE       := POKEMON LEAF
+GAME_CODE   := BPGE
+BUILD_NAME  := leafgreen
+else
+$(error unknown version $(GAME_VERSION))
+endif
+endif
 MAKER_CODE  := 01
 REVISION    := 0
 KEEP_TEMPS  ?= 0
 
 # `File name`.gba
-FILE_NAME := pokeemerald
+FILE_NAME := poke$(BUILD_NAME)
 BUILD_DIR := build
 
 # Compares the ROM to a checksum of the original - only makes sense using when non-modern
@@ -19,6 +32,8 @@ ANALYZE      ?= 0
 UNUSED_ERROR ?= 0
 # Adds -Og and -g flags, which optimize the build for debugging and include debug info respectively
 DEBUG        ?= 0
+# Adds -flto flag, which increases link time but results in a more efficient binary (especially in audio processing)
+LTO          ?= 0
 
 ifeq (compare,$(MAKECMDGOALS))
   COMPARE := 1
@@ -61,9 +76,9 @@ endif
 CPP := $(PREFIX)cpp
 
 ROM_NAME := $(FILE_NAME).gba
-OBJ_DIR_NAME := $(BUILD_DIR)/modern
-OBJ_DIR_NAME_TEST := $(BUILD_DIR)/modern-test
-OBJ_DIR_NAME_DEBUG := $(BUILD_DIR)/modern-debug
+OBJ_DIR_NAME := $(BUILD_DIR)/$(BUILD_NAME)
+OBJ_DIR_NAME_TEST := $(BUILD_DIR)/$(BUILD_NAME)-test
+OBJ_DIR_NAME_DEBUG := $(BUILD_DIR)/$(BUILD_NAME)-debug
 
 ELF_NAME := $(ROM_NAME:.gba=.elf)
 MAP_NAME := $(ROM_NAME:.gba=.map)
@@ -106,7 +121,7 @@ TEST_BUILDDIR = $(OBJ_DIR)/$(TEST_SUBDIR)
 SHELL := bash -o pipefail
 
 # Set flags for tools
-ASFLAGS := -mcpu=arm7tdmi --defsym MODERN=1
+ASFLAGS := -mcpu=arm7tdmi -march=armv4t -meabi=5 --defsym MODERN=1 --defsym $(GAME_VERSION)=1
 
 INCLUDE_DIRS := include
 INCLUDE_CPP_ARGS := $(INCLUDE_DIRS:%=-iquote %)
@@ -117,17 +132,25 @@ O_LEVEL ?= g
 else
 O_LEVEL ?= 2
 endif
-CPPFLAGS := $(INCLUDE_CPP_ARGS) -Wno-trigraphs -DMODERN=1 -DTESTING=$(TEST) -std=gnu17
+CPPFLAGS := $(INCLUDE_CPP_ARGS) -Wno-trigraphs -DMODERN=1 -DTESTING=$(TEST) -D$(GAME_VERSION) -std=gnu17
 ARMCC := $(PREFIX)gcc
 PATH_ARMCC := PATH="$(PATH)" $(ARMCC)
 CC1 := $(shell $(PATH_ARMCC) --print-prog-name=cc1) -quiet
+
 override CFLAGS += -mthumb -mthumb-interwork -O$(O_LEVEL) -mabi=apcs-gnu -mtune=arm7tdmi -march=armv4t -Wno-pointer-to-int-cast -std=gnu17 -Werror -Wall -Wno-strict-aliasing -Wno-attribute-alias -Woverride-init
+
+ifneq ($(LTO),0)
+  ifneq ($(TEST),1)
+    override CFLAGS += -flto=auto -fno-fat-lto-objects -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections
+  endif
+endif
+
 ifeq ($(ANALYZE),1)
   override CFLAGS += -fanalyzer
 endif
-# Only throw an error for unused elements if its RH-Hideout's repo
+# Only throw an error for unused elements if its cawtds's repo
 ifeq ($(UNUSED_ERROR),0)
-  ifneq ($(GITHUB_REPOSITORY_OWNER),rh-hideout)
+  ifneq ($(GITHUB_REPOSITORY_OWNER),cawtds)
     override CFLAGS += -Wno-error=unused-variable -Wno-error=unused-const-variable -Wno-error=unused-parameter -Wno-error=unused-function -Wno-error=unused-but-set-parameter -Wno-error=unused-but-set-variable -Wno-error=unused-value -Wno-error=unused-local-typedefs
   endif
 endif
@@ -151,6 +174,8 @@ endif
 AUTO_GEN_TARGETS :=
 include make_tools.mk
 # Tool executables
+SMOLTM       := $(TOOLS_DIR)/compresSmol/compresSmolTilemap$(EXE)
+SMOL         := $(TOOLS_DIR)/compresSmol/compresSmol$(EXE)
 GFX          := $(TOOLS_DIR)/gbagfx/gbagfx$(EXE)
 AIF          := $(TOOLS_DIR)/aif2pcm/aif2pcm$(EXE)
 MID          := $(TOOLS_DIR)/mid2agb/mid2agb$(EXE)
@@ -183,8 +208,8 @@ ALL_LEARNABLES_JSON := $(LEARNSET_HELPERS_BUILD_DIR)/all_learnables.json
 WILD_ENCOUNTERS_TOOL_DIR := $(TOOLS_DIR)/wild_encounters
 AUTO_GEN_TARGETS += $(DATA_SRC_SUBDIR)/wild_encounters.h
 
-$(DATA_SRC_SUBDIR)/wild_encounters.h: $(DATA_SRC_SUBDIR)/wild_encounters.json $(WILD_ENCOUNTERS_TOOL_DIR)/wild_encounters_to_header.py $(INCLUDE_DIRS)/config/overworld.h $(INCLUDE_DIRS)/config/dexnav.h
-	python3 $(WILD_ENCOUNTERS_TOOL_DIR)/wild_encounters_to_header.py > $@
+$(DATA_SRC_SUBDIR)/wild_encounters.h: $(DATA_SRC_SUBDIR)/wild_encounters.json $(WILD_ENCOUNTERS_TOOL_DIR)/wild_encounters_time_season.py $(INCLUDE_DIRS)/config/overworld.h $(INCLUDE_DIRS)/config/dexnav.h
+	python3 $(WILD_ENCOUNTERS_TOOL_DIR)/wild_encounters_time_season.py
 
 $(C_BUILDDIR)/wild_encounter.o: c_dep += $(DATA_SRC_SUBDIR)/wild_encounters.h
 
@@ -281,7 +306,7 @@ agbcc:
 
 LD_SCRIPT_TEST := ld_script_test.ld
 
-$(OBJ_DIR)/ld_script_test.ld: $(LD_SCRIPT_TEST) $(LD_SCRIPT_DEPS)
+$(OBJ_DIR)/ld_script_test.ld: $(LD_SCRIPT_TEST)
 	cd $(OBJ_DIR) && sed "s#tools/#../../tools/#g" ../../$(LD_SCRIPT_TEST) > ld_script_test.ld
 
 $(TESTELF): $(OBJ_DIR)/ld_script_test.ld $(OBJS) $(TEST_OBJS) libagbsyscall tools check-tools
@@ -290,7 +315,7 @@ $(TESTELF): $(OBJ_DIR)/ld_script_test.ld $(OBJS) $(TEST_OBJS) libagbsyscall tool
 	$(FIX) $@ -t"$(TITLE)" -c$(GAME_CODE) -m$(MAKER_CODE) -r$(REVISION) -d0 --silent
 	$(PATCHELF) $(TESTELF) gTestRunnerArgv "$(TESTS)\0"
 
-ifeq ($(GITHUB_REPOSITORY_OWNER),rh-hideout)
+ifeq ($(GITHUB_REPOSITORY_OWNER),cawtds)
 TEST_SKIP_IS_FAIL := \x01
 else
 TEST_SKIP_IS_FAIL := \x00
@@ -317,7 +342,7 @@ clean-assets:
 	rm -f $(DATA_ASM_SUBDIR)/layouts/layouts.inc $(DATA_ASM_SUBDIR)/layouts/layouts_table.inc
 	rm -f $(DATA_ASM_SUBDIR)/maps/connections.inc $(DATA_ASM_SUBDIR)/maps/events.inc $(DATA_ASM_SUBDIR)/maps/groups.inc $(DATA_ASM_SUBDIR)/maps/headers.inc $(DATA_SRC_SUBDIR)/map_group_count.h
 	find sound -iname '*.bin' -exec rm {} +
-	find . \( -iname '*.1bpp' -o -iname '*.4bpp' -o -iname '*.8bpp' -o -iname '*.gbapal' -o -iname '*.lz' -o -iname '*.rl' -o -iname '*.latfont' -o -iname '*.hwjpnfont' -o -iname '*.fwjpnfont' \) -exec rm {} +
+	find . \( -iname '*.1bpp' -o -iname '*.4bpp' -o -iname '*.8bpp' -o -iname '*.gbapal' -o -iname '*.lz' -o -iname '*.smol' -o -iname '*.fastSmol' -o -iname '*.smolTM' -o -iname '*.rl' -o -iname '*.latfont' -o -iname '*.hwjpnfont' -o -iname '*.fwjpnfont' \) -exec rm {} +
 	find $(DATA_ASM_SUBDIR)/maps \( -iname 'connections.inc' -o -iname 'events.inc' -o -iname 'header.inc' \) -exec rm {} +
 
 tidy: tidymodern tidycheck tidydebug
@@ -336,6 +361,7 @@ tidydebug:
 # Other rules
 include graphics_file_rules.mk
 include map_data_rules.mk
+include tileset_rules.mk
 include spritesheet_rules.mk
 include json_data_rules.mk
 include audio_rules.mk
@@ -351,13 +377,16 @@ generated: $(AUTO_GEN_TARGETS)
 %.pal: ;
 %.aif: ;
 
-%.1bpp:   %.png  ; $(GFX) $< $@
-%.4bpp:   %.png  ; $(GFX) $< $@
-%.8bpp:   %.png  ; $(GFX) $< $@
-%.gbapal: %.pal  ; $(GFX) $< $@
-%.gbapal: %.png  ; $(GFX) $< $@
-%.lz:     %      ; $(GFX) $< $@
-%.rl:     %      ; $(GFX) $< $@
+%.1bpp:     %.png  ; $(GFX) $< $@
+%.4bpp:     %.png  ; $(GFX) $< $@
+%.8bpp:     %.png  ; $(GFX) $< $@
+%.gbapal:   %.pal  ; $(GFX) $< $@
+%.gbapal:   %.png  ; $(GFX) $< $@
+%.lz:       %      ; $(GFX) $< $@
+%.smolTM:   %      ; $(SMOLTM) $< $@
+%.fastSmol: %      ; $(SMOL) -w $< $@ false false false
+%.smol:     %      ; $(SMOL) -w $< $@
+%.rl:       %      ; $(GFX) $< $@
 
 clean-generated:
 	@rm -f $(AUTO_GEN_TARGETS)
@@ -471,25 +500,36 @@ $(DATA_SRC_SUBDIR)/pokemon/teachable_learnsets.h: $(TEACHABLE_DEPS)
 
 # Linker script
 LD_SCRIPT := ld_script_modern.ld
-LD_SCRIPT_DEPS :=
 
 # Final rules
 
 libagbsyscall:
 	@$(MAKE) -C libagbsyscall TOOLCHAIN=$(TOOLCHAIN) MODERN=1
 
-# Elf from object files
-LDFLAGS = -Map ../../$(MAP)
-$(ELF): $(LD_SCRIPT) $(LD_SCRIPT_DEPS) $(OBJS) libagbsyscall
-	@cd $(OBJ_DIR) && $(LD) $(LDFLAGS) -T ../../$< --print-memory-usage -o ../../$@ $(OBJS_REL) $(LIB) | cat
-	@echo "cd $(OBJ_DIR) && $(LD) $(LDFLAGS) -T ../../$< --print-memory-usage -o ../../$@ <objs> <libs> | cat"
+# Enable LTO LDFLAGS if set
+ifneq ($(LTO),0)
+LDFLAGS := -march=armv4t -mabi=apcs-gnu -mcpu=arm7tdmi -Xlinker -Map=../../$(MAP) -Xlinker --print-memory-usage -Xassembler -meabi=5 -Xassembler -march=armv4t -Xassembler -mcpu=arm7tdmi -Xlinker --gc-sections
+LDFLAGS += -Xlinker -flto=auto
+$(ELF): $(LD_SCRIPT) $(OBJS) libagbsyscall
+	@echo "cd $(OBJ_DIR) && $(ARMCC) $(LDFLAGS) -T ../../$< -o ../../$@ <objs> <libs>"
+	+@cd $(OBJ_DIR) && $(ARMCC) $(LDFLAGS) -T ../../$< -o ../../$@ $(OBJS_REL) $(LIB)
 	$(FIX) $@ -t"$(TITLE)" -c$(GAME_CODE) -m$(MAKER_CODE) -r$(REVISION) --silent
+else
+# Output .map file, memory usage readout and gc sections to clean-up unused data
+LDFLAGS = -Map ../../$(MAP) --print-memory-usage --gc-sections
+$(ELF): $(LD_SCRIPT) $(OBJS) libagbsyscall
+	@cd $(OBJ_DIR) && $(LD) $(LDFLAGS) -T ../../$<  -o ../../$@ $(OBJS_REL) $(LIB) | cat
+	@echo "cd $(OBJ_DIR) && $(LD) $(LDFLAGS) -T ../../$< -o ../../$@ <objs> <libs> | cat"
+	$(FIX) $@ -t"$(TITLE)" -c$(GAME_CODE) -m$(MAKER_CODE) -r$(REVISION) --silent
+endif
 
 # Builds the rom from the elf file
 $(ROM): $(ELF)
 	$(OBJCOPY) -O binary $< $@
 	$(FIX) $@ -p --silent
 
+firered:                ; @$(MAKE) GAME_VERSION=FIRERED
+leafgreen:              ; @$(MAKE) GAME_VERSION=LEAFGREEN
 # Symbol file (`make syms`)
 $(SYM): $(ELF)
 	$(OBJDUMP) -t $< | sort -u | grep -E "^0[2389]" | $(PERL) -p -e 's/^(\w{8}) (\w).{6} \S+\t(\w{8}) (\S+)$$/\1 \2 \3 \4/g' > $@

@@ -1,5 +1,7 @@
-#ifndef GUARD_FIELDCONTROLAVATAR_H
-#define GUARD_FIELDCONTROLAVATAR_H
+#ifndef GUARD_FIELD_CONTROL_AVATAR_H
+#define GUARD_FIELD_CONTROL_AVATAR_H
+
+#include "global.h"
 
 struct FieldInput
 {
@@ -12,30 +14,29 @@ struct FieldInput
     bool8 tookStep:1;
     bool8 pressedBButton:1;
     bool8 pressedRButton:1;
+    bool8 input_field_1_0:1;
     bool8 input_field_1_1:1;
     bool8 input_field_1_2:1;
     bool8 input_field_1_3:1;
-    bool8 input_field_1_4:1;
-    bool8 input_field_1_5:1;
-    bool8 input_field_1_6:1;
-    bool8 input_field_1_7:1;
     u8 dpadDirection;
 };
 
-void FieldClearPlayerInput(struct FieldInput *pStruct);
-void FieldGetPlayerInput(struct FieldInput *pStruct, u16 keys, u16 heldKeys);
-int ProcessPlayerFieldInput(struct FieldInput *pStruct);
+extern struct FieldInput gFieldInputRecord;
+
 void RestartWildEncounterImmunitySteps(void);
-const u8 *GetObjectEventScriptPointerPlayerFacing(void);
-bool8 TryDoDiveWarp(struct MapPosition *position, u16 metatileBehavior);
+void ClearPoisonStepCounter(void);
 int SetCableClubWarp(void);
-u8 TrySetDiveWarp(void);
+void HandleBoulderFallThroughHole(struct ObjectEvent *);
+void GetInFrontOfPlayerPosition(struct MapPosition * position);
+bool8 dive_warp(struct MapPosition * pos, u16 behavior);
+bool8 IsDirectionalStairWarpMetatileBehavior(u16 metatileBehavior, u8 playerDirection);
 const u8 *GetInteractedLinkPlayerScript(struct MapPosition *position, u8 metatileBehavior, u8 direction);
 const u8 *GetCoordEventScriptAtMapPosition(struct MapPosition *position);
-void ClearPoisonStepCounter(void);
-void CancelSignPostMessageBox(struct FieldInput *input);
+void FieldClearPlayerInput(struct FieldInput *input);
+int ProcessPlayerFieldInput(struct FieldInput *input);
+void FieldInput_HandleCancelSignpost(struct FieldInput * input);
+void FieldGetPlayerInput(struct FieldInput *input, u16 newKeys, u16 heldKeys);
+void HandleBoulderActivateVictoryRoadSwitch(u16 x, u16 y);
+const u8 *GetObjectEventScriptPointerPlayerFacing(void);
 
-#define NOT_SIGNPOST 0
-#define WALK_AWAY_SIGNPOST_FRAMES 6
-
-#endif // GUARD_FIELDCONTROLAVATAR_H
+#endif //GUARD_FIELD_CONTROL_AVATAR_H

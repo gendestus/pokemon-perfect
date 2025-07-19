@@ -3,7 +3,7 @@
 #include "battle.h"
 #include "battle_anim.h"
 #include "bg.h"
-#include "contest.h"
+// #include "contest.h"
 #include "data.h"
 #include "decompress.h"
 #include "dma3.h"
@@ -2435,12 +2435,12 @@ void AnimTask_SwallowDeformMon(u8 taskId)
 
 void AnimTask_HideSwapSprite(u8 taskId)
 {
-    int i, j;
+    // int i, j;
     u8 position;
     struct BattleAnimBgData animBg;
     u8 *dest;
     u8 *src;
-    u16 *bgTilemap;
+    // u16 *bgTilemap;
 
     u8 spriteId = gBattlerSpriteIds[gBattleAnimAttacker];
 
@@ -2453,7 +2453,7 @@ void AnimTask_HideSwapSprite(u8 taskId)
         gTasks[taskId].data[0]++;
         break;
     case 1:
-        HandleSpeciesGfxDataChange(gBattleAnimAttacker, gBattleAnimTarget, gTasks[taskId].data[10], gBattleAnimArgs[1]);
+        HandleSpeciesGfxDataChange(gBattleAnimAttacker, gBattleAnimTarget, gTasks[taskId].data[10], gBattleAnimArgs[1], FALSE);
         GetBgDataForTransform(&animBg, gBattleAnimAttacker);
 
         if (IsContest())
@@ -2467,34 +2467,34 @@ void AnimTask_HideSwapSprite(u8 taskId)
         LoadBgTiles(1, animBg.bgTiles, 0x800, animBg.tilesOffset);
         if (IsContest())
         {
-            if (IsSpeciesNotUnown(gContestResources->moveAnim->species) != IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
-            {
-                bgTilemap = (u16 *)animBg.bgTilemap;
-                for (i = 0; i < 8; i++)
-                {
-                    for (j = 0; j < 4; j++)
-                    {
-                        u16 temp = bgTilemap[j + i * 0x20];
-                        bgTilemap[j + i * 0x20] = bgTilemap[(7 - j) + i * 0x20];
-                        bgTilemap[(7 - j) + i * 0x20] = temp;
-                    }
-                }
+            // if (IsSpeciesNotUnown(gContestResources->moveAnim->species) != IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
+            // {
+            //     bgTilemap = (u16 *)animBg.bgTilemap;
+            //     for (i = 0; i < 8; i++)
+            //     {
+            //         for (j = 0; j < 4; j++)
+            //         {
+            //             u16 temp = bgTilemap[j + i * 0x20];
+            //             bgTilemap[j + i * 0x20] = bgTilemap[(7 - j) + i * 0x20];
+            //             bgTilemap[(7 - j) + i * 0x20] = temp;
+            //         }
+            //     }
 
-                for (i = 0; i < 8; i++)
-                {
-                    for (j = 0; j < 8; j++)
-                    {
-                       bgTilemap[j + i * 0x20] ^= 0x400;
-                    }
-                }
-            }
+            //     for (i = 0; i < 8; i++)
+            //     {
+            //         for (j = 0; j < 8; j++)
+            //         {
+            //            bgTilemap[j + i * 0x20] ^= 0x400;
+            //         }
+            //     }
+            // }
 
-            if (IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
-                gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteContest;
-            else
-                gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteOpponentSide;
+            // if (IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
+            //     gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteContest;
+            // else
+            //     gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteOpponentSide;
 
-            StartSpriteAffineAnim(&gSprites[gBattlerSpriteIds[gBattleAnimAttacker]], BATTLER_AFFINE_NORMAL);
+            // StartSpriteAffineAnim(&gSprites[gBattlerSpriteIds[gBattleAnimAttacker]], BATTLER_AFFINE_NORMAL);
         }
 
         gTasks[taskId].data[0]++;
@@ -2515,14 +2515,19 @@ void AnimTask_HideSwapSprite(u8 taskId)
     }
 }
 
+
+#define megaEvo data[10]
+#define trackEnemyPersonality data[11]
+#define ghostUnveil data[12]
+
 void AnimTask_TransformMon(u8 taskId)
 {
-    int i, j;
+    // int i, j;
     u8 position;
     struct BattleAnimBgData animBg;
     u8 *dest;
     u8 *src;
-    u16 *bgTilemap;
+    // u16 *bgTilemap;
     u16 stretch;
 
     switch (gTasks[taskId].data[0])
@@ -2534,8 +2539,9 @@ void AnimTask_TransformMon(u8 taskId)
         else
             SetAnimBgAttribute(2, BG_ANIM_MOSAIC, 1);
 
-        gTasks[taskId].data[10] = gBattleAnimArgs[0];
-        gTasks[taskId].data[11] = gBattleAnimArgs[1];
+        gTasks[taskId].megaEvo = gBattleAnimArgs[0];
+        gTasks[taskId].trackEnemyPersonality = gBattleAnimArgs[1];
+        gTasks[taskId].ghostUnveil = gBattleAnimArgs[2];
         gTasks[taskId].data[0]++;
         break;
     case 1:
@@ -2550,7 +2556,7 @@ void AnimTask_TransformMon(u8 taskId)
         }
         break;
     case 2:
-        HandleSpeciesGfxDataChange(gBattleAnimAttacker, gBattleAnimTarget, gTasks[taskId].data[10], gTasks[taskId].data[11]);
+        HandleSpeciesGfxDataChange(gBattleAnimAttacker, gBattleAnimTarget, gTasks[taskId].megaEvo, gTasks[taskId].trackEnemyPersonality, gTasks[taskId].ghostUnveil);
         GetBgDataForTransform(&animBg, gBattleAnimAttacker);
 
         if (IsContest())
@@ -2564,34 +2570,34 @@ void AnimTask_TransformMon(u8 taskId)
         LoadBgTiles(1, animBg.bgTiles, 0x800, animBg.tilesOffset);
         if (IsContest())
         {
-            if (IsSpeciesNotUnown(gContestResources->moveAnim->species) != IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
-            {
-                bgTilemap = (u16 *)animBg.bgTilemap;
-                for (i = 0; i < 8; i++)
-                {
-                    for (j = 0; j < 4; j++)
-                    {
-                        u16 temp = bgTilemap[j + i * 0x20];
-                        bgTilemap[j + i * 0x20] = bgTilemap[(7 - j) + i * 0x20];
-                        bgTilemap[(7 - j) + i * 0x20] = temp;
-                    }
-                }
+            // if (IsSpeciesNotUnown(gContestResources->moveAnim->species) != IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
+            // {
+            //     bgTilemap = (u16 *)animBg.bgTilemap;
+            //     for (i = 0; i < 8; i++)
+            //     {
+            //         for (j = 0; j < 4; j++)
+            //         {
+            //             u16 temp = bgTilemap[j + i * 0x20];
+            //             bgTilemap[j + i * 0x20] = bgTilemap[(7 - j) + i * 0x20];
+            //             bgTilemap[(7 - j) + i * 0x20] = temp;
+            //         }
+            //     }
 
-                for (i = 0; i < 8; i++)
-                {
-                    for (j = 0; j < 8; j++)
-                    {
-                       bgTilemap[j + i * 0x20] ^= 0x400;
-                    }
-                }
-            }
+            //     for (i = 0; i < 8; i++)
+            //     {
+            //         for (j = 0; j < 8; j++)
+            //         {
+            //            bgTilemap[j + i * 0x20] ^= 0x400;
+            //         }
+            //     }
+            // }
 
-            if (IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
-                gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteContest;
-            else
-                gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteOpponentSide;
+            // if (IsSpeciesNotUnown(gContestResources->moveAnim->targetSpecies))
+            //     gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteContest;
+            // else
+            //     gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteOpponentSide;
 
-            StartSpriteAffineAnim(&gSprites[gBattlerSpriteIds[gBattleAnimAttacker]], BATTLER_AFFINE_NORMAL);
+            // StartSpriteAffineAnim(&gSprites[gBattlerSpriteIds[gBattleAnimAttacker]], BATTLER_AFFINE_NORMAL);
         }
 
         gTasks[taskId].data[0]++;
@@ -2628,6 +2634,10 @@ void AnimTask_TransformMon(u8 taskId)
         break;
     }
 }
+
+#undef megaEvo
+#undef trackEnemyPersonality
+#undef ghostUnveil
 
 void AnimTask_IsMonInvisible(u8 taskId)
 {
@@ -3457,10 +3467,11 @@ void AnimTask_RolePlaySilhouette(u8 taskId)
     if (IsContest())
     {
         isBackPic = TRUE;
-        personality = gContestResources->moveAnim->targetPersonality;
-        isShiny = gContestResources->moveAnim->targetIsShiny;
-        species = gContestResources->moveAnim->targetSpecies;
-        xOffset = 20;
+        personality = 0; // personality = gContestResources->moveAnim->targetPersonality;
+        isShiny = FALSE; // isShiny = gContestResources->moveAnim->targetIsShiny;
+        species = SPECIES_NONE; // species = gContestResources->moveAnim->targetSpecies;
+        xOffset = 20; // xOffset = 20;
+        priority = 0; // priority = GetBattlerSpriteBGPriority(gBattleAnimAttacker);
     }
     else
     {
@@ -5044,8 +5055,8 @@ void AnimTask_MonToSubstitute(u8 taskId)
         LoadBattleMonGfxAndAnimate(gBattleAnimAttacker, FALSE, spriteId);
         if (IsContest())
         {
-            gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteContest;
-            StartSpriteAffineAnim(&gSprites[gBattlerSpriteIds[gBattleAnimAttacker]], BATTLER_AFFINE_NORMAL);
+            // gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].affineAnims = gAffineAnims_BattleSpriteContest;
+            // StartSpriteAffineAnim(&gSprites[gBattlerSpriteIds[gBattleAnimAttacker]], BATTLER_AFFINE_NORMAL);
         }
 
         for (i = 0; i < NUM_TASK_DATA; i++)
@@ -5339,10 +5350,10 @@ void AnimTask_SnatchOpposingMonMove(u8 taskId)
     case 1:
         if (IsContest())
         {
-            personality = gContestResources->moveAnim->personality;
-            isShiny = gContestResources->moveAnim->isShiny;
-            species = gContestResources->moveAnim->species;
-            subpriority = GetBattlerSpriteSubpriority(gBattleAnimAttacker);
+            personality = 0; // personality = gContestResources->moveAnim->personality;
+            isShiny = FALSE; // isShiny = gContestResources->moveAnim->isShiny;
+            species = SPECIES_NONE; // species = gContestResources->moveAnim->species;
+            subpriority = 0; // subpriority = GetBattlerSpriteSubpriority(gBattleAnimAttacker);
             isBackPic = FALSE;
             x = -32;
         }

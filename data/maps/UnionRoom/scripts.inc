@@ -3,7 +3,7 @@ UnionRoom_MapScripts::
 	map_script MAP_SCRIPT_ON_TRANSITION, UnionRoom_OnTransition
 	.byte 0
 
-UnionRoom_OnResume:
+UnionRoom_OnResume::
 	setflag FLAG_HIDE_UNION_ROOM_PLAYER_1
 	setflag FLAG_HIDE_UNION_ROOM_PLAYER_2
 	setflag FLAG_HIDE_UNION_ROOM_PLAYER_3
@@ -23,14 +23,14 @@ UnionRoom_OnResume:
 	special RunUnionRoom
 	end
 
-UnionRoom_OnTransition:
+UnionRoom_OnTransition::
 	setflag FLAG_TEMP_HIDE_FOLLOWER
 	end
 
 UnionRoom_EventScript_Player1::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_1
+	setvar VAR_RESULT, 1
 	waitstate
 	release
 	end
@@ -38,7 +38,7 @@ UnionRoom_EventScript_Player1::
 UnionRoom_EventScript_Player2::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_2
+	setvar VAR_RESULT, 2
 	waitstate
 	release
 	end
@@ -46,7 +46,7 @@ UnionRoom_EventScript_Player2::
 UnionRoom_EventScript_Player3::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_3
+	setvar VAR_RESULT, 3
 	waitstate
 	release
 	end
@@ -54,7 +54,7 @@ UnionRoom_EventScript_Player3::
 UnionRoom_EventScript_Player4::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_4
+	setvar VAR_RESULT, 4
 	waitstate
 	release
 	end
@@ -62,7 +62,7 @@ UnionRoom_EventScript_Player4::
 UnionRoom_EventScript_Player5::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_5
+	setvar VAR_RESULT, 5
 	waitstate
 	release
 	end
@@ -70,7 +70,7 @@ UnionRoom_EventScript_Player5::
 UnionRoom_EventScript_Player6::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_6
+	setvar VAR_RESULT, 6
 	waitstate
 	release
 	end
@@ -78,7 +78,7 @@ UnionRoom_EventScript_Player6::
 UnionRoom_EventScript_Player7::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_7
+	setvar VAR_RESULT, 7
 	waitstate
 	release
 	end
@@ -86,7 +86,7 @@ UnionRoom_EventScript_Player7::
 UnionRoom_EventScript_Player8::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_PLAYER_8
+	setvar VAR_RESULT, 8
 	waitstate
 	release
 	end
@@ -94,14 +94,14 @@ UnionRoom_EventScript_Player8::
 UnionRoom_EventScript_Attendant::
 	lock
 	faceplayer
-	setvar VAR_RESULT, UR_INTERACT_ATTENDANT
+	setvar VAR_RESULT, 9
 	waitstate
 	release
 	end
 
 UnionRoom_EventScript_Unused::
 	lockall
-	setvar VAR_RESULT, UR_INTERACT_UNUSED
+	setvar VAR_RESULT, 10
 	waitstate
 	releaseall
 	end

@@ -28,7 +28,7 @@ struct PokemonStorage
 
 extern struct PokemonStorage *gPokemonStoragePtr;
 
-void DrawTextWindowAndBufferTiles(const u8 *string, void *dst, u8 zero1, u8 zero2, s32 bytesToBuffer);
+void DrawTextWindowAndBufferTiles(const u8 *string, void *dst, u8 zero1, u8 zero2, u8 *buffer, s32 bytesToBuffer);
 u8 CountMonsInBox(u8 boxId);
 s16 GetFirstFreeBoxSpot(u8 boxId);
 u8 CountPartyAliveNonEggMonsExcept(u8 slotToIgnore);
@@ -59,20 +59,9 @@ bool8 CheckFreePokemonStorageSpace(void);
 bool32 CheckBoxMonSanityAt(u32 boxId, u32 boxPosition);
 u32 CountStorageNonEggMons(void);
 u32 CountAllStorageMons(void);
-bool32 AnyStorageMonWithMove(u16 move);
+bool32 AnyStorageMonWithMove(u16 moveId);
 
-void ResetWaldaWallpaper(void);
-void SetWaldaWallpaperLockedOrUnlocked(bool32 unlocked);
-bool32 IsWaldaWallpaperUnlocked(void);
-u32 GetWaldaWallpaperPatternId(void);
-void SetWaldaWallpaperPatternId(u8 id);
-u32 GetWaldaWallpaperIconId(void);
-void SetWaldaWallpaperIconId(u8 id);
-u16 *GetWaldaWallpaperColorsPtr(void);
-void SetWaldaWallpaperColors(u16 color1, u16 color2);
-u8 *GetWaldaPhrasePtr(void);
-void SetWaldaPhrase(const u8 *src);
-bool32 IsWaldaPhraseEmpty(void);
+void CB2_ReturnToPokeStorage(void);
 
 void EnterPokeStorage(u8 boxOption);
 u32 CountPartyNonEggMons(void);

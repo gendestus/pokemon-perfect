@@ -50,7 +50,6 @@ void WonderNews_Reset(void)
     VarSet(VAR_WONDER_NEWS_STEP_COUNTER, 0);
 }
 
-// Only used in FRLG
 void WonderNews_IncrementStepCounter(void)
 {
     u16 *stepCounter = GetVarPointer(VAR_WONDER_NEWS_STEP_COUNTER);
@@ -66,15 +65,13 @@ void WonderNews_IncrementStepCounter(void)
     }
 }
 
-// Only used in FRLG
 u16 WonderNews_GetRewardInfo(void)
 {
     u16 *result = &gSpecialVar_Result;
     struct WonderNewsMetadata *data = GetSavedWonderNewsMetadata();
     u16 rewardType;
 
-    // Checks if Mystery Event is enabled, not Mystery Gift?
-    if (!IsMysteryEventEnabled() || !ValidateSavedWonderNews())
+    if (!IsMysteryGiftEnabled() || !ValidateSavedWonderNews())
         return NEWS_REWARD_NONE;
 
     rewardType = GetRewardType(data);
@@ -105,6 +102,7 @@ u16 WonderNews_GetRewardInfo(void)
 static u32 GetRewardItem(struct WonderNewsMetadata *data)
 {
     u32 itemId;
+
     data->newsType = WONDER_NEWS_NONE;
     itemId = data->berry + FIRST_BERRY_INDEX - 1;
     data->berry = 0;
@@ -150,7 +148,7 @@ static u32 GetRewardType(struct WonderNewsMetadata *data)
             return NEWS_REWARD_SENT_SMALL;
         return NEWS_REWARD_SENT_BIG;
     default:
-        AGB_ASSERT(0);
+        AGB_ASSERT_EX(0, ABSPATH("menews_jisan.c"), 383);
         return NEWS_REWARD_NONE;
     }
 }

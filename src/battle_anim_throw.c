@@ -17,6 +17,7 @@
 #include "trig.h"
 #include "util.h"
 #include "data.h"
+#include "constants/battle_string_ids.h"
 #include "constants/items.h"
 #include "constants/moves.h"
 #include "constants/songs.h"
@@ -87,9 +88,9 @@ static void Task_ShinyStars(u8);
 static void SpriteCB_ShinyStars_Encircle(struct Sprite *);
 static void SpriteCB_ShinyStars_Diagonal(struct Sprite *);
 static void Task_ShinyStars_Wait(u8);
-static void SpriteCB_PokeBlock_LiftArm(struct Sprite *);
-static void SpriteCB_PokeBlock_Arc(struct Sprite *);
-static void SpriteCB_ThrowPokeBlock_Free(struct Sprite *);
+static void SpriteCB_SafariBaitOrRock_WaitPlayerThrow(struct Sprite *);
+static void SpriteCB_SafariBaitOrRock_ArcFlight(struct Sprite *);
+static void SpriteCB_SafariBaitOrRock_Finish(struct Sprite *);
 static void PokeBallOpenParticleAnimation(u8);
 static void GreatBallOpenParticleAnimation(u8);
 static void SafariBallOpenParticleAnimation(u8);
@@ -100,7 +101,9 @@ static void RepeatBallOpenParticleAnimation(u8);
 static void TimerBallOpenParticleAnimation(u8);
 static void PremierBallOpenParticleAnimation(u8);
 static void CB_CriticalCaptureThrownBallMovement(struct Sprite *sprite);
-static void SpriteCB_PokeBlock_Throw(struct Sprite *);
+static void SpriteCB_SafariBaitOrRock_Init(struct Sprite *);
+static void GhostBallDodge(struct Sprite *sprite);
+static void GhostBallDodge2(struct Sprite *sprite);
 
 struct CaptureStar
 {
@@ -627,15 +630,15 @@ const u16 gBallOpenFadeColors[] =
     [BALL_CHERISH] = RGB(25, 4, 3),
 };
 
-const struct SpriteTemplate gPokeblockSpriteTemplate =
+const struct SpriteTemplate gSafariBaitSpriteTemplate =
 {
-    .tileTag = ANIM_TAG_POKEBLOCK,
-    .paletteTag = ANIM_TAG_POKEBLOCK,
+    .tileTag = ANIM_TAG_SAFARI_BAIT,
+    .paletteTag = ANIM_TAG_SAFARI_BAIT,
     .oam = &gOamData_AffineOff_ObjNormal_16x16,
     .anims = gDummySpriteAnimTable,
     .images = NULL,
     .affineAnims = gDummySpriteAffineAnimTable,
-    .callback = SpriteCB_PokeBlock_Throw,
+    .callback = SpriteCB_SafariBaitOrRock_Init,
 };
 
 static const union AnimCmd sAnim_SafariRock[] =
@@ -649,7 +652,7 @@ static const union AnimCmd *const sAnims_SafariRock[] = {
 };
 
 // Unused, leftover from FRLG
-static const struct SpriteTemplate sSafariRockSpriteTemplate =
+const struct SpriteTemplate sSafariRockSpriteTemplate =
 {
     .tileTag = ANIM_TAG_ROCKS,
     .paletteTag = ANIM_TAG_ROCKS,
@@ -657,7 +660,7 @@ static const struct SpriteTemplate sSafariRockSpriteTemplate =
     .anims = sAnims_SafariRock,
     .images = NULL,
     .affineAnims = gDummySpriteAffineAnimTable,
-    .callback = SpriteCB_PokeBlock_Throw,
+    .callback = SpriteCB_SafariBaitOrRock_Init,
 };
 
 extern const struct SpriteTemplate gWishStarSpriteTemplate;
@@ -774,7 +777,7 @@ static void AnimTask_UnusedLevelUpHealthBox_Step(u8 taskId)
     }
 }
 
-static void LoadHealthboxPalsForLevelUp(u8 *paletteId1, u8 *paletteId2, u8 battler)
+void LoadHealthboxPalsForLevelUp(u8 *paletteId1, u8 *paletteId2, u8 battler)
 {
     u8 healthBoxSpriteId;
     u8 spriteId1, spriteId2;
@@ -803,7 +806,7 @@ void AnimTask_LoadHealthboxPalsForLevelUp(u8 taskId)
     DestroyAnimVisualTask(taskId);
 }
 
-static void FreeHealthboxPalsForLevelUp(u8 battler)
+void FreeHealthboxPalsForLevelUp(u8 battler)
 {
     u8 healthBoxSpriteId;
     u8 spriteId1, spriteId2;
@@ -945,10 +948,18 @@ void AnimTask_FreeBallGfx(u8 taskId)
 
 void AnimTask_IsBallBlockedByTrainer(u8 taskId)
 {
-    if (gBattleSpritesDataPtr->animationData->ballThrowCaseId == BALL_TRAINER_BLOCK)
+    switch (gBattleSpritesDataPtr->animationData->ballThrowCaseId)
+    {
+    case BALL_TRAINER_BLOCK:
         gBattleAnimArgs[ARG_RET_ID] = -1;
-    else
+        break;
+    case BALL_GHOST_DODGE:
+        gBattleAnimArgs[ARG_RET_ID] = -2;
+        break;
+    default:
         gBattleAnimArgs[ARG_RET_ID] = 0;
+        break;
+    }
 
     DestroyAnimVisualTask(taskId);
 }
@@ -989,20 +1000,22 @@ void AnimTask_ThrowBall_StandingTrainer(u8 taskId)
     u8 subpriority;
     u8 spriteId;
 
-    if (gBattleTypeFlags & BATTLE_TYPE_WALLY_TUTORIAL)
+    if (gBattleTypeFlags & BATTLE_TYPE_OLD_MAN_TUTORIAL)
     {
-        x = 32;
+        x = 28;
         y = 11;
     }
     else
     {
         x = 23;
-        y = 5;
+        y = 11;
+        if (gSaveBlock2Ptr->playerGender == FEMALE)
+            y = 13;
     }
 
     ballId = ItemIdToBallId(gLastUsedItem);
     subpriority = GetBattlerSpriteSubpriority(GetBattlerAtPosition(B_POSITION_OPPONENT_LEFT)) + 1;
-    spriteId = CreateSprite(&gBallSpriteTemplates[ballId], x + 32, y | 80, subpriority);
+    spriteId = CreateSprite(&gBallSpriteTemplates[ballId], x | 32, y | 80, subpriority);
     gSprites[spriteId].sDuration = 34;
     gSprites[spriteId].sTargetX = GetBattlerSpriteCoord(gBattleAnimTarget, BATTLER_COORD_X);
     gSprites[spriteId].sTargetY = GetBattlerSpriteCoord(gBattleAnimTarget, BATTLER_COORD_Y) - 16;
@@ -1081,6 +1094,10 @@ static void SpriteCB_Ball_Arc(struct Sprite *sprite)
         if (gBattleSpritesDataPtr->animationData->ballThrowCaseId == BALL_TRAINER_BLOCK)
         {
             sprite->callback = SpriteCB_Ball_Block;
+        }
+        else if (gBattleSpritesDataPtr->animationData->ballThrowCaseId == BALL_GHOST_DODGE)
+        {
+            sprite->callback = GhostBallDodge;
         }
         else
         {
@@ -1521,7 +1538,7 @@ static void SpriteCB_Ball_Capture_Step(struct Sprite *sprite)
     sprite->sTimer++;
     if (sprite->sTimer == 40)
     {
-        PlaySE(SE_RG_BALL_CLICK);
+        PlaySE(SE_BALL_CLICK);
         BlendPalettes(0x10000 << sprite->oam.paletteNum, 6, RGB_BLACK);
         MakeCaptureStars(sprite);
     }
@@ -1534,7 +1551,7 @@ static void SpriteCB_Ball_Capture_Step(struct Sprite *sprite)
         gDoingBattleAnim = FALSE;
         UpdateOamPriorityInAllHealthboxes(1, FALSE);
         m4aMPlayAllStop();
-        PlaySE(MUS_RG_CAUGHT_INTRO);
+        PlaySE(MUS_CAUGHT_INTRO);
     }
     else if (sprite->sTimer == 315)
     {
@@ -2062,7 +2079,7 @@ static void RepeatBallOpenParticleAnimation(u8 taskId)
     priority = gTasks[taskId].data[3];
     subpriority = gTasks[taskId].data[4];
 
-    for (i = 0; i < 12; i++)
+    for (i = 0; i < POKEBALL_COUNT; i++)
     {
         spriteId = CreateSprite(&sBallParticleSpriteTemplates[ballId], x, y, subpriority);
         if (spriteId != MAX_SPRITES)
@@ -2592,20 +2609,20 @@ static void SpriteCB_ShinyStars_Diagonal(struct Sprite *sprite)
 #undef sPhase
 #undef sTimer
 
-void AnimTask_LoadPokeblockGfx(u8 taskId)
+void AnimTask_LoadBaitGfx(u8 taskId)
 {
     u8 UNUSED paletteIndex;
 
-    LoadCompressedSpriteSheetUsingHeap(&gBattleAnimPicTable[ANIM_TAG_POKEBLOCK - ANIM_SPRITES_START]);
-    LoadSpritePalette(&gBattleAnimPaletteTable[ANIM_TAG_POKEBLOCK - ANIM_SPRITES_START]);
-    paletteIndex = IndexOfSpritePaletteTag(ANIM_TAG_POKEBLOCK);
+    LoadCompressedSpriteSheetUsingHeap(&gBattleAnimPicTable[ANIM_TAG_SAFARI_BAIT - ANIM_SPRITES_START]);
+    LoadSpritePalette(&gBattleAnimPaletteTable[ANIM_TAG_SAFARI_BAIT - ANIM_SPRITES_START]);
+    paletteIndex = IndexOfSpritePaletteTag(ANIM_TAG_SAFARI_BAIT);
     DestroyAnimVisualTask(taskId);
 }
 
-void AnimTask_FreePokeblockGfx(u8 taskId)
+void AnimTask_FreeBaitGfx(u8 taskId)
 {
-    FreeSpriteTilesByTag(ANIM_TAG_POKEBLOCK);
-    FreeSpritePaletteByTag(ANIM_TAG_POKEBLOCK);
+    FreeSpriteTilesByTag(ANIM_TAG_SAFARI_BAIT);
+    FreeSpritePaletteByTag(ANIM_TAG_SAFARI_BAIT);
     DestroyAnimVisualTask(taskId);
 }
 
@@ -2614,7 +2631,7 @@ void AnimTask_FreePokeblockGfx(u8 taskId)
 #define sTargetY data[4]
 #define sAmplitude data[5]
 
-static void SpriteCB_PokeBlock_Throw(struct Sprite *sprite)
+static void SpriteCB_SafariBaitOrRock_Init(struct Sprite *sprite)
 {
     InitSpritePosToAnimAttacker(sprite, FALSE);
     sprite->sDuration = 30;
@@ -2623,7 +2640,7 @@ static void SpriteCB_PokeBlock_Throw(struct Sprite *sprite)
     sprite->sAmplitude = -32;
     InitAnimArcTranslation(sprite);
     gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].callback = SpriteCB_TrainerThrowObject;
-    sprite->callback = SpriteCB_PokeBlock_LiftArm;
+    sprite->callback = SpriteCB_SafariBaitOrRock_WaitPlayerThrow;
 }
 
 #undef sDuration
@@ -2631,24 +2648,24 @@ static void SpriteCB_PokeBlock_Throw(struct Sprite *sprite)
 #undef sTargetY
 #undef sAmplitude
 
-static void SpriteCB_PokeBlock_LiftArm(struct Sprite *sprite)
+static void SpriteCB_SafariBaitOrRock_WaitPlayerThrow(struct Sprite *sprite)
 {
     if (gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].animCmdIndex == 1)
-        sprite->callback = SpriteCB_PokeBlock_Arc;
+        sprite->callback = SpriteCB_SafariBaitOrRock_ArcFlight;
 }
 
-static void SpriteCB_PokeBlock_Arc(struct Sprite *sprite)
+static void SpriteCB_SafariBaitOrRock_ArcFlight(struct Sprite *sprite)
 {
     if (TranslateAnimHorizontalArc(sprite))
     {
         sprite->data[0] = 0;
         sprite->invisible = TRUE;
-        sprite->callback = SpriteCB_ThrowPokeBlock_Free;
+        sprite->callback = SpriteCB_SafariBaitOrRock_Finish;
     }
 }
 
 // Destroy after end of player animation
-static void SpriteCB_ThrowPokeBlock_Free(struct Sprite *sprite)
+static void SpriteCB_SafariBaitOrRock_Finish(struct Sprite *sprite)
 {
     if (gSprites[gBattlerSpriteIds[gBattleAnimAttacker]].animEnded)
     {
@@ -2674,6 +2691,16 @@ void AnimTask_SetAttackerTargetLeftPos(u8 taskId)
         break;
     }
 
+    DestroyAnimVisualTask(taskId);
+}
+
+void AnimTask_SafariGetReaction(u8 taskId)
+{
+    if (gBattleCommunication[MULTISTRING_CHOOSER] >= NUM_SAFARI_REACTIONS)
+        gBattleAnimArgs[7] = 0;
+    else
+        gBattleAnimArgs[7] = gBattleCommunication[MULTISTRING_CHOOSER];
+    
     DestroyAnimVisualTask(taskId);
 }
 
@@ -2767,5 +2794,36 @@ static void CB_CriticalCaptureThrownBallMovement(struct Sprite *sprite)
         sprite->data[5] = 0;
         sprite->callback = SpriteCB_Ball_Bounce_Step;
     }
+}
+
+// FRLG
+static void GhostBallDodge(struct Sprite *sprite)
+{
+    sprite->x += sprite->x2;
+    sprite->y += sprite->y2;
+    sprite->x2 = sprite->y2 = 0;
+    sprite->data[0] = 0x22;
+    sprite->data[1] = sprite->x;
+    sprite->data[2] = sprite->x - 8;
+    sprite->data[3] = sprite->y;
+    sprite->data[4] = 0x90;
+    sprite->data[5] = 0x20;
+    InitAnimArcTranslation(sprite);
+    TranslateAnimVerticalArc(sprite);
+    sprite->callback = GhostBallDodge2;
+}
+
+static void GhostBallDodge2(struct Sprite *sprite)
+{
+    if (!TranslateAnimVerticalArc(sprite))
+    {
+        if ((sprite->y + sprite->y2) < 65)
+            return;
+    }
+    
+    sprite->data[0] = 0;
+    sprite->callback = DestroySpriteAfterOneFrame;
+    gDoingBattleAnim = FALSE;
+    UpdateOamPriorityInAllHealthboxes(1, FALSE);
 }
 

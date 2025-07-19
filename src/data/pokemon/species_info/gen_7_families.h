@@ -1399,7 +1399,7 @@ const struct SpeciesInfo gSpeciesInfoGen7[] =
         .levelUpLearnset = sCrabrawlerLevelUpLearnset,
         .teachableLearnset = sCrabrawlerTeachableLearnset,
         .eggMoveLearnset = sCrabrawlerEggMoveLearnset,
-        .evolutions = EVOLUTION({EVO_LEVEL, 0, SPECIES_CRABOMINABLE, CONDITIONS({IF_IN_MAP, MAP_SHOAL_CAVE_LOW_TIDE_ICE_ROOM})},
+        .evolutions = EVOLUTION({EVO_LEVEL, 0, SPECIES_CRABOMINABLE, CONDITIONS({IF_IN_MAP, MAP_SEAFOAM_ISLANDS_B4F})},
                                 {EVO_ITEM, ITEM_ICE_STONE, SPECIES_CRABOMINABLE}),
     },
 
@@ -2987,11 +2987,7 @@ const struct SpeciesInfo gSpeciesInfoGen7[] =
         .frontPic = gMonFrontPic_Lurantis,
         .frontPicSize = MON_COORDS_SIZE(48, 64),
         .frontPicYOffset = 2,
-        .frontAnimFrames = ANIM_FRAMES(
-            ANIMCMD_FRAME(0, 5),
-            ANIMCMD_FRAME(1, 35),
-            ANIMCMD_FRAME(0, 1),
-        ),
+        .frontAnimFrames = sAnims_SingleFramePlaceHolder,
         .frontAnimId = ANIM_GROW_VIBRATE,
         .backPic = gMonBackPic_Lurantis,
         .backPicSize = MON_COORDS_SIZE(56, 64),

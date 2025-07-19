@@ -1,0 +1,35 @@
+{
+  "id": "MAP_HAUNTED_CITY",
+  "name": "HauntedCity",
+  "layout": "LAYOUT_HAUNTED_CITY",
+  "music": "MUS_LAVENDER",
+  "region_map_section": "MAPSEC_HAUNTED_CITY",
+  "requires_flash": false,
+  "weather": "WEATHER_ABNORMAL",
+  "map_type": "MAP_TYPE_CITY",
+  "allow_cycling": false,
+  "allow_escaping": false,
+  "allow_running": true,
+  "show_map_name": true,
+  "floor_number": 0,
+  "battle_scene": "MAP_BATTLE_SCENE_NORMAL",
+  "connections": [
+    {
+      "map": "MAP_LAVENDER_TOWN",
+      "offset": 0,
+      "direction": "left"
+    }
+  ],
+  "object_events": [],
+  "warp_events": [
+    {
+      "x": 42,
+      "y": 10,
+      "elevation": 0,
+      "dest_map": "MAP_STEEL_PLANT",
+      "dest_warp_id": "0"
+    }
+  ],
+  "coord_events": [],
+  "bg_events": []
+}

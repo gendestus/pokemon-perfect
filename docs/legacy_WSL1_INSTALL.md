@@ -1,6 +1,6 @@
 ### Setting up WSL1 (Legacy Portion)
 
-1. Certain packages are required to build pokeemerald. Install these packages by running the following command:
+1. Certain packages are required to build pokefirered. Install these packages by running the following command:
 
     ```bash
     sudo apt install build-essential git libpng-dev gdebi-core
@@ -17,8 +17,8 @@
     cd /mnt/c/Users/<user>/Downloads
     ```
 
-    > Note 1: The Windows C:\ drive is called /mnt/c/ in WSL.
-    > Note 2: If the path has spaces, then the path must be wrapped with quotations, e.g. `cd     "/mnt/c/users/<user>/Downloads folder"`.
+    > Note 1: The Windows C:\ drive is called /mnt/c/ in WSL.  
+    > Note 2: If the path has spaces, then the path must be wrapped with quotations, e.g. `cd     "/mnt/c/users/<user>/Downloads folder"`.  
     > Note 3: Windows path names are case-insensitive so adhering to capitalization isn't needed
 
 4. Once the directory has been changed to the folder containing the devkitPro pacman package, run the following commands to install devkitARM.
@@ -38,4 +38,4 @@
     source /etc/profile.d/devkit-env.sh
     ```
 
-Proceed to [Choosing where to store pokeemerald (WSL1) of the current INSTALL.md](/INSTALL.md#choosing-where-to-store-pokeemerald-expansion-WSL1).
+Proceed to [Choosing where to store pokefirered (WSL1) of the current INSTALL.md](/INSTALL.md#choosing-where-to-store-pokefirered-WSL1).

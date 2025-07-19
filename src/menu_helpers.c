@@ -1,125 +1,83 @@
 #include "global.h"
-#include "task.h"
-#include "window.h"
-#include "menu.h"
-#include "menu_helpers.h"
-#include "gpu_regs.h"
 #include "bg.h"
-#include "main.h"
-#include "text.h"
+#include "decompress.h"
+#include "field_specials.h"
+#include "gpu_regs.h"
 #include "graphics.h"
 #include "link.h"
-#include "string_util.h"
-#include "sound.h"
 #include "mail.h"
+#include "menu.h"
+#include "menu_helpers.h"
 #include "overworld.h"
-#include "decompress.h"
+#include "sound.h"
+#include "string_util.h"
+#include "task.h"
 #include "constants/songs.h"
 #include "constants/items.h"
+#include "constants/maps.h"
 
-#define TAG_SWAP_LINE 109
-
-static void Task_ContinueTaskAfterMessagePrints(u8 taskId);
-static void Task_CallYesOrNoCallback(u8 taskId);
-
-EWRAM_DATA static struct YesNoFuncTable sYesNo = {0};
-EWRAM_DATA static u8 sMessageWindowId = 0;
-
-static TaskFunc sMessageNextTask;
-
-static const struct OamData sOamData_SwapLine =
-{
-    .y = 0,
-    .affineMode = ST_OAM_AFFINE_OFF,
-    .objMode = ST_OAM_OBJ_NORMAL,
-    .mosaic = FALSE,
-    .bpp = ST_OAM_4BPP,
-    .shape = SPRITE_SHAPE(16x16),
-    .x = 0,
-    .matrixNum = 0,
-    .size = SPRITE_SIZE(16x16),
-    .tileNum = 0,
-    .priority = 0,
-    .paletteNum = 0,
-    .affineParam = 0
+enum {
+    ANIM_SWAP_LINE_START,
+    ANIM_SWAP_LINE_MID,
+    ANIM_SWAP_LINE_END,
 };
 
-static const union AnimCmd sAnim_SwapLine_RightArrow[] =
-{
+static EWRAM_DATA const struct YesNoFuncTable *sYesNo = NULL;
+static EWRAM_DATA TaskFunc sMessageNextTask = NULL;
+static EWRAM_DATA u8 sMessageWindowId = {0};
+
+
+static const struct OamData sOamData_SwapLine = {
+    .affineMode = ST_OAM_AFFINE_OFF,
+    .shape = SPRITE_SHAPE(16x16),
+    .size = SPRITE_SIZE(16x16),
+    .priority = 1,
+    .paletteNum = 1
+};
+
+static const union AnimCmd sAnim_SwapLine_Start[] = {
     ANIMCMD_FRAME(0, 0),
     ANIMCMD_END
 };
 
-static const union AnimCmd sAnim_SwapLine_Line[] =
-{
+static const union AnimCmd sAnim_SwapLine_Mid[] = {
     ANIMCMD_FRAME(4, 0),
     ANIMCMD_END
 };
 
-static const union AnimCmd sAnim_SwapLine_LeftArrow[] =
-{
+static const union AnimCmd sAnim_SwapLine_End[] = {
     ANIMCMD_FRAME(0, 0, .hFlip = TRUE),
     ANIMCMD_END
 };
 
-static const union AnimCmd *const sAnims_SwapLine[] =
-{
-    sAnim_SwapLine_RightArrow,
-    sAnim_SwapLine_Line,
-    sAnim_SwapLine_LeftArrow
+static const union AnimCmd *const sAnims_SwapLine[] = {
+    [ANIM_SWAP_LINE_START] = sAnim_SwapLine_Start,
+    [ANIM_SWAP_LINE_MID]   = sAnim_SwapLine_Mid,
+    [ANIM_SWAP_LINE_END]   = sAnim_SwapLine_End
 };
 
-static const struct CompressedSpriteSheet sSpriteSheet_SwapLine =
-{
-    gSwapLineGfx, 0x100, TAG_SWAP_LINE
+static const struct CompressedSpriteSheet sSpriteSheet_SwapLine = {
+    .data = gSwapLineGfx,
+    .size = 0x100,
+    .tag = TAG_SWAP_LINE
 };
 
-static const struct SpritePalette sSpritePalette_SwapLine =
-{
-    gSwapLinePal, TAG_SWAP_LINE
+static const struct SpritePalette sSpritePalette_SwapLine = {
+    .data = gSwapLinePal,
+    .tag = TAG_SWAP_LINE
 };
 
-static const struct SpriteTemplate sSpriteTemplate_SwapLine =
-{
+static const struct SpriteTemplate sSpriteTemplate_SwapLine = {
     .tileTag = TAG_SWAP_LINE,
     .paletteTag = TAG_SWAP_LINE,
     .oam = &sOamData_SwapLine,
     .anims = sAnims_SwapLine,
     .images = NULL,
     .affineAnims = gDummySpriteAffineAnimTable,
-    .callback = SpriteCallbackDummy,
+    .callback = SpriteCallbackDummy
 };
 
-// code
-void ResetVramOamAndBgCntRegs(void)
-{
-    SetGpuReg(REG_OFFSET_DISPCNT, 0);
-    SetGpuReg(REG_OFFSET_BG3CNT, 0);
-    SetGpuReg(REG_OFFSET_BG2CNT, 0);
-    SetGpuReg(REG_OFFSET_BG1CNT, 0);
-    SetGpuReg(REG_OFFSET_BG0CNT, 0);
-    CpuFill16(0, (void *) VRAM, VRAM_SIZE);
-    CpuFill32(0, (void *) OAM, OAM_SIZE);
-    CpuFill16(0, (void *) PLTT, PLTT_SIZE);
-}
-
-void ResetAllBgsCoordinates(void)
-{
-    ChangeBgX(0, 0, BG_COORD_SET);
-    ChangeBgY(0, 0, BG_COORD_SET);
-    ChangeBgX(1, 0, BG_COORD_SET);
-    ChangeBgY(1, 0, BG_COORD_SET);
-    ChangeBgX(2, 0, BG_COORD_SET);
-    ChangeBgY(2, 0, BG_COORD_SET);
-    ChangeBgX(3, 0, BG_COORD_SET);
-    ChangeBgY(3, 0, BG_COORD_SET);
-}
-
-void SetVBlankHBlankCallbacksToNull(void)
-{
-    SetVBlankCallback(NULL);
-    SetHBlankCallback(NULL);
-}
+static void Task_ContinueTaskAfterMessagePrints(u8 taskId);
 
 void DisplayMessageAndContinueTask(u8 taskId, u8 windowId, u16 tileNum, u8 paletteNum, u8 fontId, u8 textSpeed, const u8 *string, void *taskFunc)
 {
@@ -147,106 +105,27 @@ static void Task_ContinueTaskAfterMessagePrints(u8 taskId)
         sMessageNextTask(taskId);
 }
 
-void DoYesNoFuncWithChoice(u8 taskId, const struct YesNoFuncTable *data)
-{
-    sYesNo = *data;
-    gTasks[taskId].func = Task_CallYesOrNoCallback;
-}
-
-void CreateYesNoMenuWithCallbacks(u8 taskId, const struct WindowTemplate *template, u8 unused1, u8 unused2, u8 unused3, u16 tileStart, u8 palette, const struct YesNoFuncTable *yesNo)
-{
-    CreateYesNoMenu(template, tileStart, palette, 0);
-    sYesNo = *yesNo;
-    gTasks[taskId].func = Task_CallYesOrNoCallback;
-}
-
 static void Task_CallYesOrNoCallback(u8 taskId)
 {
     switch (Menu_ProcessInputNoWrapClearOnChoose())
     {
     case 0:
         PlaySE(SE_SELECT);
-        sYesNo.yesFunc(taskId);
+        gTasks[taskId].func = sYesNo->yesFunc;
         break;
     case 1:
     case MENU_B_PRESSED:
         PlaySE(SE_SELECT);
-        sYesNo.noFunc(taskId);
+        gTasks[taskId].func = sYesNo->noFunc;
         break;
     }
 }
 
-// Returns TRUE if the quantity was changed, FALSE if it remained the same
-bool8 AdjustQuantityAccordingToDPadInput(s16 *quantity, u16 max)
+void CreateYesNoMenuWithCallbacks(u8 taskId, const struct WindowTemplate *template, u8 fontId, u8 left, u8 top, u16 tileStart, u8 palette, const struct YesNoFuncTable *yesNo)
 {
-    s16 valBefore = *quantity;
-
-    if (JOY_REPEAT(DPAD_ANY) == DPAD_UP)
-    {
-        (*quantity)++;
-        if (*quantity > max)
-            *quantity = 1;
-
-        if (*quantity == valBefore)
-        {
-            return FALSE;
-        }
-        else
-        {
-            PlaySE(SE_SELECT);
-            return TRUE;
-        }
-    }
-    else if (JOY_REPEAT(DPAD_ANY) == DPAD_DOWN)
-    {
-        (*quantity)--;
-        if (*quantity <= 0)
-            *quantity = max;
-
-        if (*quantity == valBefore)
-        {
-            return FALSE;
-        }
-        else
-        {
-            PlaySE(SE_SELECT);
-            return TRUE;
-        }
-    }
-    else if (JOY_REPEAT(DPAD_ANY) == DPAD_RIGHT)
-    {
-        *quantity += 10;
-        if (*quantity > max)
-            *quantity = max;
-
-        if (*quantity == valBefore)
-        {
-            return FALSE;
-        }
-        else
-        {
-            PlaySE(SE_SELECT);
-            return TRUE;
-        }
-    }
-    else if (JOY_REPEAT(DPAD_ANY) == DPAD_LEFT)
-    {
-        *quantity -= 10;
-        if (*quantity <= 0)
-            *quantity = 1;
-
-        if (*quantity == valBefore)
-        {
-            return FALSE;
-        }
-        else
-        {
-            PlaySE(SE_SELECT);
-            return TRUE;
-        }
-    }
-
-    return FALSE;
+    CreateYesNoMenuAtPos(template, fontId, left, top, tileStart, palette, 0);
+    sYesNo = yesNo;
+    gTasks[taskId].func = Task_CallYesOrNoCallback;
 }
 
 u8 GetLRKeysPressed(void)
@@ -258,7 +137,6 @@ u8 GetLRKeysPressed(void)
         if (JOY_NEW(R_BUTTON))
             return MENU_R_PRESSED;
     }
-
     return 0;
 }
 
@@ -271,13 +149,12 @@ u8 GetLRKeysPressedAndHeld(void)
         if (JOY_REPEAT(R_BUTTON))
             return MENU_R_PRESSED;
     }
-
     return 0;
 }
 
 bool8 IsHoldingItemAllowed(u16 itemId)
 {
-    // e-Reader Enigma Berry can't be held in link areas
+    // Enigma Berry can't be held in link areas
     if (itemId == ITEM_ENIGMA_BERRY_E_READER
      && ((gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_TRADE_CENTER)
        && gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_TRADE_CENTER))
@@ -289,7 +166,7 @@ bool8 IsHoldingItemAllowed(u16 itemId)
 
 bool8 IsWritingMailAllowed(u16 itemId)
 {
-    if ((IsOverworldLinkActive() == TRUE || InUnionRoom() == TRUE) && ItemIsMail(itemId) == TRUE)
+    if ((IsUpdateLinkStateCBActive() == TRUE || InUnionRoom() == TRUE) && ItemIsMail(itemId) == TRUE)
         return FALSE;
     else
         return TRUE;
@@ -297,47 +174,124 @@ bool8 IsWritingMailAllowed(u16 itemId)
 
 bool8 MenuHelpers_IsLinkActive(void)
 {
-    if (IsOverworldLinkActive() == TRUE || gReceivedRemoteLinkPlayers == 1)
+    if (IsUpdateLinkStateCBActive() == TRUE || gReceivedRemoteLinkPlayers == 1)
         return TRUE;
     else
         return FALSE;
 }
 
-static bool8 IsActiveOverworldLinkBusy(void)
+bool8 IsActiveOverworldLinkBusy(void)
 {
     if (!MenuHelpers_IsLinkActive())
         return FALSE;
     else
-        return Overworld_IsRecvQueueAtMax();
+        return (u8)Overworld_LinkRecvQueueLengthMoreThan2();
 }
 
 bool8 MenuHelpers_ShouldWaitForLinkRecv(void)
 {
-    if (IsActiveOverworldLinkBusy() == TRUE || IsLinkRecvQueueAtOverworldMax() == TRUE )
+    if (IsActiveOverworldLinkBusy() == TRUE || IsLinkRecvQueueAtOverworldMax() == TRUE)
         return TRUE;
     else
         return FALSE;
 }
 
-void SetItemListPerPageCount(struct ItemSlot *slots, u8 slotsCount, u8 *pageItems, u8 *totalItems, u8 maxPerPage)
+void SetVBlankHBlankCallbacksToNull(void)
 {
-    u16 i;
-    struct ItemSlot *slots_ = slots;
+    SetVBlankCallback(NULL);
+    SetHBlankCallback(NULL);
+}
 
-    // Count the number of non-empty item slots
-    *totalItems = 0;
-    for (i = 0; i < slotsCount; i++)
+void ResetVramOamAndBgCntRegs(void)
+{
+    SetGpuReg(REG_OFFSET_DISPCNT, 0);
+    SetGpuReg(REG_OFFSET_BG3CNT, 0);
+    SetGpuReg(REG_OFFSET_BG2CNT, 0);
+    SetGpuReg(REG_OFFSET_BG1CNT, 0);
+    SetGpuReg(REG_OFFSET_BG0CNT, 0);
+    CpuFill16(0, (void *) VRAM, VRAM_SIZE);
+    CpuFill32(0, (void *) OAM, OAM_SIZE);
+    CpuFill16(0, (void *) PLTT, PLTT_SIZE);
+}
+
+void ResetAllBgsCoordinates(void)
+{
+    ChangeBgX(0, 0, BG_COORD_SET);
+    ChangeBgY(0, 0, BG_COORD_SET);
+    ChangeBgX(1, 0, BG_COORD_SET);
+    ChangeBgY(1, 0, BG_COORD_SET);
+    ChangeBgX(2, 0, BG_COORD_SET);
+    ChangeBgY(2, 0, BG_COORD_SET);
+    ChangeBgX(3, 0, BG_COORD_SET);
+    ChangeBgY(3, 0, BG_COORD_SET);
+}
+
+bool8 AdjustQuantityAccordingToDPadInput(s16 *quantity_p, u16 qmax)
+{
+    s16 valBefore = (*quantity_p);
+
+    if (JOY_REPEAT(DPAD_ANY) == DPAD_UP)
     {
-        if (slots_[i].itemId != ITEM_NONE)
-            (*totalItems)++;
-    }
-    (*totalItems)++; // + 1 for 'Cancel'
+        (*quantity_p)++;
+        if ((*quantity_p) > qmax)
+            (*quantity_p) = 1;
 
-    // Set number of items per page
-    if (*totalItems > maxPerPage)
-        *pageItems = maxPerPage;
-    else
-        *pageItems = *totalItems;
+        if ((*quantity_p) == valBefore)
+        {
+            return FALSE;
+        }
+        else
+        {
+            PlaySE(SE_SELECT);
+            return TRUE;
+        }
+    }
+    else if (JOY_REPEAT(DPAD_ANY) == DPAD_DOWN)
+    {
+        (*quantity_p)--;
+        if ((*quantity_p) <= 0)
+            (*quantity_p) = qmax;
+        if ((*quantity_p) == valBefore)
+        {
+            return FALSE;
+        }
+        else
+        {
+            PlaySE(SE_SELECT);
+            return TRUE;
+        }
+    }
+    else if (JOY_REPEAT(DPAD_ANY) == DPAD_RIGHT)
+    {
+        (*quantity_p) += 10;
+        if ((*quantity_p) > qmax)
+            (*quantity_p) = qmax;
+        if ((*quantity_p) == valBefore)
+        {
+            return FALSE;
+        }
+        else
+        {
+            PlaySE(SE_SELECT);
+            return TRUE;
+        }
+    }
+    else if (JOY_REPEAT(DPAD_ANY) == DPAD_LEFT)
+    {
+        (*quantity_p) -= 10;
+        if ((*quantity_p) <= 0)
+            (*quantity_p) = 1;
+        if ((*quantity_p) == valBefore)
+        {
+            return FALSE;
+        }
+        else
+        {
+            PlaySE(SE_SELECT);
+            return TRUE;
+        }
+    }
+    return FALSE;
 }
 
 void SetCursorWithinListBounds(u16 *scrollOffset, u16 *cursorPos, u8 maxShownItems, u8 totalItems)
@@ -390,6 +344,14 @@ void SetCursorScrollWithinListBounds(u16 *scrollOffset, u16 *cursorPos, u8 shown
     }
 }
 
+u8 GetDialogBoxFontId(void)
+{
+    if (ContextNpcGetTextColor() == NPC_TEXT_COLOR_MALE)
+        return FONT_MALE;
+    else
+        return FONT_FEMALE;
+}
+
 void LoadListMenuSwapLineGfx(void)
 {
     LoadCompressedSpriteSheet(&sSpriteSheet_SwapLine);
@@ -402,24 +364,11 @@ void CreateSwapLineSprites(u8 *spriteIds, u8 count)
 
     for (i = 0; i < count; i++)
     {
-        spriteIds[i] = CreateSprite(&sSpriteTemplate_SwapLine, i * 16, 0, 0);
+        spriteIds[i] = CreateSprite(&sSpriteTemplate_SwapLine, i * 16 + 96, 7, 0);
         if (i != 0)
-            StartSpriteAnim(&gSprites[spriteIds[i]], 1);
+            StartSpriteAnim(&gSprites[spriteIds[i]], ANIM_SWAP_LINE_MID);
 
         gSprites[spriteIds[i]].invisible = TRUE;
-    }
-}
-
-void DestroySwapLineSprites(u8 *spriteIds, u8 count)
-{
-    u8 i;
-
-    for (i = 0; i < count; i++)
-    {
-        if (i == count - 1)
-            DestroySpriteAndFreeResources(&gSprites[spriteIds[i]]);
-        else
-            DestroySprite(&gSprites[spriteIds[i]]);
     }
 }
 

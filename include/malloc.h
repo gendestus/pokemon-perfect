@@ -1,10 +1,13 @@
-#ifndef GUARD_ALLOC_H
-#define GUARD_ALLOC_H
+#ifndef GUARD_MALLOC_H
+#define GUARD_MALLOC_H
 
+#define malloc Alloc
+#define calloc(ct, sz) AllocZeroed((ct) * (sz))
+#define free Free
 
 #define FREE_AND_SET_NULL(ptr)          \
 {                                       \
-    Free(ptr);                          \
+    free(ptr);                          \
     ptr = NULL;                         \
 }
 
@@ -12,10 +15,9 @@
 
 #define MALLOC_SYSTEM_ID 0xA3A3
 
-struct MemBlock
-{
+struct MemBlock {
     // Whether this block is currently allocated.
-    u16 allocated:1;
+    bool16 allocated:1;
 
     u16 unused_00:4;
 
@@ -42,7 +44,7 @@ struct MemBlock
 };
 
 #define HEAP_SIZE 0x1C000
-extern u8 gHeap[HEAP_SIZE];
+extern u8 gHeap[];
 
 #if TESTING || !defined(NDEBUG)
 
@@ -59,9 +61,9 @@ extern u8 gHeap[HEAP_SIZE];
 void *Alloc_(u32 size, const char *location);
 void *AllocZeroed_(u32 size, const char *location);
 void Free(void *pointer);
-void InitHeap(void *heapStart, u32 heapSize);
+void InitHeap(void *pointer, u32 size);
 
 const struct MemBlock *HeapHead(void);
 const char *MemBlockLocation(const struct MemBlock *block);
 
-#endif // GUARD_ALLOC_H
+#endif // GUARD_MALLOC_H

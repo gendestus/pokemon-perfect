@@ -12,6 +12,20 @@
 
 	.section script_data, "aw", %progbits
 
+@ pokefirered leftovers
+BattleScript_OldMan_Pokedude_CaughtMessage::
+	printstring STRINGID_GOTCHAPKMNCAUGHTOLDMAN
+	setbyte gBattleOutcome, B_OUTCOME_CAUGHT
+	endlinkbattle
+	finishturn
+
+BattleScript_GhostBallDodge::
+	waitmessage B_WAIT_TIME_LONG
+	printstring STRINGID_ITDODGEDBALL
+	waitmessage B_WAIT_TIME_LONG
+	finishaction
+
+@ pokemerald
 	.align 2
 gBattlescriptsForUsingItem::
 	.4byte BattleScript_ItemRestoreHP                @ EFFECT_ITEM_RESTORE_HP
@@ -29,10 +43,39 @@ gBattlescriptsForUsingItem::
 
 	.align 2
 gBattlescriptsForSafariActions::
-	.4byte BattleScript_ActionWatchesCarefully
-	.4byte BattleScript_ActionGetNear
-	.4byte BattleScript_ActionThrowPokeblock
-	.4byte BattleScript_ActionWallyThrow
+	.4byte BattleScript_WatchesCarefully
+	.4byte BattleScript_ThrowRock
+	.4byte BattleScript_ThrowBait
+	.4byte BattleScript_LeftoverWallyPrepToThrow
+
+BattleScript_WatchesCarefully::
+	printfromtable gSafariReactionStringIds
+	waitmessage B_WAIT_TIME_LONG
+	playanimation BS_OPPONENT1, B_ANIM_SAFARI_REACTION
+	end2
+
+BattleScript_ThrowRock::
+	printstring STRINGID_THREWROCK
+	waitmessage B_WAIT_TIME_LONG
+	playanimation BS_ATTACKER, B_ANIM_ROCK_THROW
+	end2
+
+BattleScript_ThrowBait::
+	printstring STRINGID_THREWBAIT
+	waitmessage B_WAIT_TIME_LONG
+	playanimation BS_ATTACKER, B_ANIM_BAIT_THROW
+	end2
+
+BattleScript_LeftoverWallyPrepToThrow::
+	printstring STRINGID_RETURNMON
+	waitmessage B_WAIT_TIME_LONG
+	returnatktoball
+	waitstate
+	trainerslidein BS_TARGET
+	waitstate
+	printstring STRINGID_YOUTHROWABALLNOWRIGHT
+	waitmessage B_WAIT_TIME_LONG
+	end2
 
 BattleScript_ItemEnd:
 	end
@@ -104,9 +147,7 @@ BattleScript_ItemHealAndCureStatusEnd::
 BattleScript_ItemIncreaseStat::
 	call BattleScript_UseItemMessage
 	itemincreasestat
-	statbuffchange MOVE_EFFECT_AFFECTS_USER | STAT_CHANGE_NOT_PROTECT_AFFECTED | STAT_CHANGE_ALLOW_PTR, BattleScript_ItemEnd
-	setgraphicalstatchangevalues
-	playanimation BS_ATTACKER, B_ANIM_STATS_CHANGE, sB_ANIM_ARG1
+	statbuffchange BS_ATTACKER, STAT_CHANGE_NOT_PROTECT_AFFECTED | STAT_CHANGE_ALLOW_PTR, BattleScript_ItemEnd
 	printfromtable gStatUpStringIds
 	waitmessage B_WAIT_TIME_LONG
 	end
@@ -121,7 +162,7 @@ BattleScript_UsePokeFlute::
 BattleScript_PokeFluteWakeUp::
 	printstring STRINGID_POKEFLUTE
 	waitmessage B_WAIT_TIME_LONG
-	fanfare MUS_RG_POKE_FLUTE
+	fanfare MUS_POKE_FLUTE
 	waitfanfare
 	printstring STRINGID_MONHEARINGFLUTEAWOKE
 	waitmessage B_WAIT_TIME_LONG
@@ -141,7 +182,8 @@ BattleScript_ItemSetMist::
 
 BattleScript_ItemSetFocusEnergy::
 	call BattleScript_UseItemMessage
-	jumpifstatus2 BS_ATTACKER, STATUS2_FOCUS_ENERGY_ANY, BattleScript_ButItFailed
+	jumpifvolatile BS_ATTACKER, VOLATILE_DRAGON_CHEER, BattleScript_ButItFailed
+	jumpifvolatile BS_ATTACKER, VOLATILE_FOCUS_ENERGY, BattleScript_ButItFailed
 	setfocusenergy BS_ATTACKER
 	playmoveanimation BS_ATTACKER, MOVE_FOCUS_ENERGY
 	waitanimation
@@ -163,12 +205,17 @@ BattleScript_ItemIncreaseAllStats::
 	end
 
 BattleScript_BallThrow::
-	jumpifword CMP_COMMON_BITS, gBattleTypeFlags, BATTLE_TYPE_WALLY_TUTORIAL, BattleScript_BallThrowByWally
+	jumpifbattletype BATTLE_TYPE_OLD_MAN_TUTORIAL, BattleScript_OldManThrowBall
+	jumpifbattletype BATTLE_TYPE_POKEDUDE, BattleScript_PokedudeThrowBall
 	printstring STRINGID_PLAYERUSEDITEM
 	handleballthrow
 
-BattleScript_BallThrowByWally::
-	printstring STRINGID_WALLYUSEDITEM
+BattleScript_OldManThrowBall::
+	printstring STRINGID_OLDMANUSEDITEM
+	handleballthrow
+
+BattleScript_PokedudeThrowBall::
+	printstring STRINGID_POKEDUDEUSED
 	handleballthrow
 
 BattleScript_SafariBallThrow::
@@ -234,35 +281,6 @@ BattleScript_RunByUsingItem::
 	playse SE_FLEE
 	setbyte gBattleOutcome, B_OUTCOME_RAN
 	finishturn
-
-BattleScript_ActionWatchesCarefully:
-	printstring STRINGID_PKMNWATCHINGCAREFULLY
-	waitmessage B_WAIT_TIME_LONG
-	end2
-
-BattleScript_ActionGetNear:
-	printfromtable gSafariGetNearStringIds
-	waitmessage B_WAIT_TIME_LONG
-	end2
-
-BattleScript_ActionThrowPokeblock:
-	printstring STRINGID_THREWPOKEBLOCKATPKMN
-	waitmessage B_WAIT_TIME_LONG
-	playanimation BS_ATTACKER, B_ANIM_POKEBLOCK_THROW, NULL
-	printfromtable gSafariPokeblockResultStringIds
-	waitmessage B_WAIT_TIME_LONG
-	end2
-
-BattleScript_ActionWallyThrow:
-	printstring STRINGID_RETURNMON
-	waitmessage B_WAIT_TIME_LONG
-	returnatktoball
-	waitstate
-	trainerslidein BS_PLAYER1
-	waitstate
-	printstring STRINGID_YOUTHROWABALLNOWRIGHT
-	waitmessage B_WAIT_TIME_LONG
-	end2
 
 BattleScript_TrainerASlideMsgRet::
 	trainerslidein BS_OPPONENT1

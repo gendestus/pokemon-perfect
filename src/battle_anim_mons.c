@@ -3,7 +3,7 @@
 #include "battle_anim.h"
 #include "battle_interface.h"
 #include "bg.h"
-#include "contest.h"
+// #include "contest.h"
 #include "data.h"
 #include "decompress.h"
 #include "dma3.h"
@@ -47,7 +47,7 @@ const struct UCoords8 sBattlerCoords[BATTLE_COORDS_COUNT][MAX_BATTLERS_COUNT] =
     {
         [B_POSITION_PLAYER_LEFT]    = { 32, 80 },
         [B_POSITION_OPPONENT_LEFT]  = { 200, 40 },
-        [B_POSITION_PLAYER_RIGHT]   = { 90, 84 },
+        [B_POSITION_PLAYER_RIGHT]   = { 90, 88 },
         [B_POSITION_OPPONENT_RIGHT] = { 152, 32 },
     },
 };
@@ -111,10 +111,11 @@ u8 GetBattlerSpriteCoord(u8 battler, u8 coordType)
     default:
         if (IsContest())
         {
-            if (gContestResources->moveAnim->hasTargetAnim)
-                species = gContestResources->moveAnim->targetSpecies;
-            else
-                species = gContestResources->moveAnim->species;
+            // if (gContestResources->moveAnim->hasTargetAnim)
+            //     species = gContestResources->moveAnim->targetSpecies;
+            // else
+            //     species = gContestResources->moveAnim->species;
+            species = SPECIES_NONE;
         }
         else
         {
@@ -149,10 +150,11 @@ u8 GetBattlerYDelta(u8 battler, u16 species)
     {
         if (species == SPECIES_UNOWN)
         {
-            if (gContestResources->moveAnim->hasTargetAnim)
-                personality = gContestResources->moveAnim->targetPersonality;
-            else
-                personality = gContestResources->moveAnim->personality;
+            // if (gContestResources->moveAnim->hasTargetAnim)
+            //     personality = gContestResources->moveAnim->targetPersonality;
+            // else
+            //     personality = gContestResources->moveAnim->personality;
+            personality = 0;
             species = GetUnownSpeciesId(personality);
         }
     }
@@ -224,10 +226,11 @@ u8 GetBattlerSpriteCoord2(u8 battler, u8 coordType)
     {
         if (IsContest())
         {
-            if (gContestResources->moveAnim->hasTargetAnim)
-                species = gContestResources->moveAnim->targetSpecies;
-            else
-                species = gContestResources->moveAnim->species;
+            // if (gContestResources->moveAnim->hasTargetAnim)
+            //     species = gContestResources->moveAnim->targetSpecies;
+            // else
+            //     species = gContestResources->moveAnim->species;
+            species = SPECIES_NONE;
         }
         else
         {
@@ -916,7 +919,7 @@ void ClearBattleAnimBg(u32 bgId)
 void AnimLoadCompressedBgGfx(u32 bgId, const u32 *src, u32 tilesOffset)
 {
     CpuFill32(0, gBattleAnimBgTileBuffer, 0x2000);
-    LZDecompressWram(src, gBattleAnimBgTileBuffer);
+    DecompressDataWithHeaderWram(src, gBattleAnimBgTileBuffer);
     LoadBgTiles(bgId, gBattleAnimBgTileBuffer, 0x2000, tilesOffset);
 }
 
@@ -1018,7 +1021,7 @@ void StartAnimLinearTranslation(struct Sprite *sprite)
     sprite->callback(sprite);
 }
 
-static void UNUSED StartAnimLinearTranslation_SetCornerVecX(struct Sprite *sprite)
+void StartAnimLinearTranslation_SetCornerVecX(struct Sprite *sprite)
 {
     sprite->data[1] = sprite->x;
     sprite->data[3] = sprite->y;
@@ -1844,7 +1847,8 @@ static u16 GetBattlerYDeltaFromSpriteId(u8 spriteId)
         {
             if (IsContest())
             {
-                species = gContestResources->moveAnim->species;
+                // species = gContestResources->moveAnim->species;
+                species = SPECIES_NONE;
                 return gSpeciesInfo[species].backPicYOffset;
             }
             else
@@ -2042,8 +2046,8 @@ u8 CreateAdditionalMonSpriteForMoveAnim(u16 species, bool8 isBackpic, u8 id, s16
 
     if (IsContest())
     {
-        gSprites[spriteId].affineAnims = gAffineAnims_BattleSpriteContest;
-        StartSpriteAffineAnim(&gSprites[spriteId], BATTLER_AFFINE_NORMAL);
+        // gSprites[spriteId].affineAnims = gAffineAnims_BattleSpriteContest;
+        // StartSpriteAffineAnim(&gSprites[spriteId], BATTLER_AFFINE_NORMAL);
     }
     return spriteId;
 }
@@ -2064,16 +2068,18 @@ s16 GetBattlerSpriteCoordAttr(u8 battler, u8 attr)
 
     if (IsContest())
     {
-        if (gContestResources->moveAnim->hasTargetAnim)
-        {
-            species = gContestResources->moveAnim->targetSpecies;
-            personality = gContestResources->moveAnim->targetPersonality;
-        }
-        else
-        {
-            species = gContestResources->moveAnim->species;
-            personality = gContestResources->moveAnim->personality;
-        }
+        // if (gContestResources->moveAnim->hasTargetAnim)
+        // {
+        //     species = gContestResources->moveAnim->targetSpecies;
+        //     personality = gContestResources->moveAnim->targetPersonality;
+        // }
+        // else
+        // {
+        //     species = gContestResources->moveAnim->species;
+        //     personality = gContestResources->moveAnim->personality;
+        // }
+        species = SPECIES_NONE;
+        personality = 0;
         species = SanitizeSpeciesId(species);
         if (species == SPECIES_UNOWN)
             species = GetUnownSpeciesId(personality);
@@ -2411,4 +2417,12 @@ void AnimWeatherBallDown(struct Sprite *sprite)
     }
     sprite->callback = StartAnimLinearTranslation;
     StoreSpriteCallbackInData6(sprite, DestroyAnimSprite);
+}
+
+u8 GetGhostSpriteDefault_Y(u8 battlerId)
+{
+    if (GetBattlerSide(battlerId) != B_SIDE_OPPONENT)
+        return GetBattlerSpriteCoord(battlerId, BATTLER_COORD_Y_PIC_OFFSET_DEFAULT);
+    else
+        return GetBattlerSpriteCoord(battlerId, BATTLER_COORD_Y);
 }

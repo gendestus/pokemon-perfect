@@ -5,7 +5,7 @@
 #include "graphics.h"
 #include "sprite.h"
 #include "util.h"
-#include "constants/battle_palace.h"
+// #include "constants/battle_palace.h"
 
 #define TAG_SMOKESCREEN 55019
 

@@ -1,10 +1,11 @@
 #ifndef GUARD_RANDOM_H
 #define GUARD_RANDOM_H
 
+#define RAND_MULT 1103515245
 // The number 1103515245 comes from the example implementation of rand and srand
 // in the ISO C standard.
-#define ISO_RANDOMIZE1(val) (1103515245 * (val) + 24691)
-#define ISO_RANDOMIZE2(val) (1103515245 * (val) + 12345)
+#define ISO_RANDOMIZE1(val)(RAND_MULT * (val) + 24691)
+#define ISO_RANDOMIZE2(val)(RAND_MULT * (val) + 12345)
 
 /* Some functions have been added to support Expansion's RNG implementation.
 *
@@ -190,6 +191,7 @@ enum RandomTag
     RNG_AI_SWITCH_TRAPPER,
     RNG_AI_SWITCH_FREE_TURN,
     RNG_AI_SWITCH_ALL_MOVES_BAD,
+    RNG_AI_CONSERVE_TERA,
     RNG_AI_SWITCH_ALL_SCORES_BAD,
     RNG_AI_PP_STALL_DISREGARD_MOVE,
     RNG_SHELL_SIDE_ARM,
@@ -198,6 +200,7 @@ enum RandomTag
     RNG_AI_PREDICT_SWITCH,
     RNG_AI_PREDICT_MOVE,
     RNG_AI_STATUS_FOCUS_PUNCH,
+    RNG_AI_BOOST_INTO_HAZE,
     RNG_HEALER,
     RNG_DEXNAV_ENCOUNTER_LEVEL,
 };

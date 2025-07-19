@@ -22,7 +22,10 @@ enum {
     CURRENT_TEST_STATE_RUN,
 };
 
-__attribute__((section(".persistent"))) struct PersistentTestRunnerState gPersistentTestRunnerState = {0};
+__attribute__((section(".persistent"))) static struct {
+    u32 address:28;
+    u32 state:1;
+} sCurrentTest = {0};
 
 void TestRunner_Battle(const struct Test *);
 
@@ -181,16 +184,15 @@ top:
         gSaveBlock2Ptr->optionsBattleStyle = OPTIONS_BATTLE_STYLE_SET;
 
         // The current test restarted the ROM (e.g. by jumping to NULL).
-        if (gPersistentTestRunnerState.address != 0)
+        if (sCurrentTest.address != 0)
         {
             gTestRunnerState.test = __start_tests;
-            while ((uintptr_t)gTestRunnerState.test != gPersistentTestRunnerState.address)
+            while ((uintptr_t)gTestRunnerState.test != sCurrentTest.address)
             {
                 AssignCostToRunner();
                 gTestRunnerState.test++;
             }
-
-            if (gPersistentTestRunnerState.state == CURRENT_TEST_STATE_ESTIMATE)
+            if (sCurrentTest.state == CURRENT_TEST_STATE_ESTIMATE)
             {
                 u32 runner = MinCostProcess();
                 gTestRunnerState.processCosts[runner] += 1;
@@ -209,9 +211,6 @@ top:
                 gTestRunnerState.state = STATE_REPORT_RESULT;
                 gTestRunnerState.result = TEST_RESULT_CRASH;
             }
-
-            if (gPersistentTestRunnerState.expectCrash)
-                gTestRunnerState.expectedResult = TEST_RESULT_CRASH;
         }
         else
         {
@@ -253,8 +252,8 @@ top:
         REG_TM2CNT_L = UINT16_MAX - (274 * 60); // Approx. 1 second.
         REG_TM2CNT_H = TIMER_ENABLE | TIMER_INTR_ENABLE | TIMER_1024CLK;
 
-        gPersistentTestRunnerState.address = (uintptr_t)gTestRunnerState.test;
-        gPersistentTestRunnerState.state = CURRENT_TEST_STATE_ESTIMATE;
+        sCurrentTest.address = (uintptr_t)gTestRunnerState.test;
+        sCurrentTest.state = CURRENT_TEST_STATE_ESTIMATE;
 
         // If AssignCostToRunner fails, we want to report the failure.
         gTestRunnerState.state = STATE_REPORT_RESULT;
@@ -267,8 +266,7 @@ top:
 
     case STATE_RUN_TEST:
         gTestRunnerState.state = STATE_REPORT_RESULT;
-        gPersistentTestRunnerState.state = CURRENT_TEST_STATE_RUN;
-        gPersistentTestRunnerState.expectCrash = FALSE;
+        sCurrentTest.state = CURRENT_TEST_STATE_RUN;
         SeedRng(0);
         SeedRng2(0);
         if (gTestRunnerState.test->runner->setUp)
@@ -423,13 +421,6 @@ void Test_ExpectedResult(enum TestResult result)
 void Test_ExpectLeaks(bool32 expectLeaks)
 {
     gTestRunnerState.expectLeaks = expectLeaks;
-}
-
-void Test_ExpectCrash(bool32 expectCrash)
-{
-    gPersistentTestRunnerState.expectCrash = expectCrash;
-    if (expectCrash)
-        Test_ExpectedResult(TEST_RESULT_CRASH);
 }
 
 static void FunctionTest_SetUp(void *data)

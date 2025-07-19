@@ -281,7 +281,7 @@ int ExtractData(const std::unique_ptr<unsigned char[]>& buffer, int offset, int 
 
 void CFile::TryConvertIncbin()
 {
-    std::string idents[8] = { "INCBIN_S8", "INCBIN_U8", "INCBIN_S16", "INCBIN_U16", "INCBIN_S32", "INCBIN_U32", "DUMMY", "INCBIN_COMP"};
+    std::string idents[8] = { "INCBIN_S8", "INCBIN_U8", "INCBIN_S16", "INCBIN_U16", "INCBIN_S32", "INCBIN_U32", "DUMMY_PLACEHOLDER", "INCBIN_COMP"};
     int incbinType = -1;
 
     for (int i = 0; i < 8; i++)

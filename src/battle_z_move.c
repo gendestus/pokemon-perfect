@@ -113,7 +113,7 @@ bool32 IsZMove(u32 move)
 
 bool32 CanUseZMove(u32 battler)
 {
-    enum ItemHoldEffect holdEffect = GetBattlerHoldEffect(battler, FALSE);
+    u32 holdEffect = GetBattlerHoldEffect(battler, FALSE);
 
     // Check if Player has Z-Power Ring.
     if (!TESTING && (battler == B_POSITION_PLAYER_LEFT
@@ -122,7 +122,7 @@ bool32 CanUseZMove(u32 battler)
         return FALSE;
 
     // Add '| BATTLE_TYPE_FRONTIER' to below if issues occur
-    if (gBattleTypeFlags & (BATTLE_TYPE_SAFARI | BATTLE_TYPE_WALLY_TUTORIAL))
+    if (gBattleTypeFlags & (BATTLE_TYPE_SAFARI | BATTLE_TYPE_OLD_MAN_TUTORIAL | BATTLE_TYPE_FIRST_BATTLE))
         return FALSE;
 
     // Check if Trainer has already used a Z-Move.
@@ -144,7 +144,7 @@ bool32 CanUseZMove(u32 battler)
 u32 GetUsableZMove(u32 battler, u32 move)
 {
     u32 item = gBattleMons[battler].item;
-    enum ItemHoldEffect holdEffect = GetBattlerHoldEffect(battler, FALSE);
+    u32 holdEffect = GetBattlerHoldEffect(battler, FALSE);
 
     if (holdEffect == HOLD_EFFECT_Z_CRYSTAL)
     {
@@ -168,7 +168,7 @@ void ActivateZMove(u32 battler)
 bool32 IsViableZMove(u32 battler, u32 move)
 {
     u32 item;
-    enum ItemHoldEffect holdEffect = GetBattlerHoldEffect(battler, FALSE);
+    u32 holdEffect = GetBattlerHoldEffect(battler, FALSE);
     int moveSlotIndex;
 
     item = gBattleMons[battler].item;
@@ -273,7 +273,7 @@ bool32 MoveSelectionDisplayZMove(u16 zmove, u32 battler)
         for (i = 0; i < MAX_MON_MOVES; ++i)
         {
             MoveSelectionDestroyCursorAt(i);
-            StringCopy(gDisplayedStringBattle, gText_EmptyString2);
+            StringCopy(gDisplayedStringBattle, gText_EmptyString3);
             BattlePutTextOnWindow(gDisplayedStringBattle, i + 3);
         }
 
@@ -364,7 +364,7 @@ bool32 MoveSelectionDisplayZMove(u16 zmove, u32 battler)
             gDisplayedStringBattle[1] = CHAR_HYPHEN;
             StringCopy(gDisplayedStringBattle + 2, GetMoveName(move));
         }
-        else if (GetMoveEffect(zmove) == EFFECT_EXTREME_EVOBOOST)
+        else if (zmove == MOVE_EXTREME_EVOBOOST)
         {
             // Damaging move -> status z move
             StringCopy(gDisplayedStringBattle, sText_StatsPlus2);

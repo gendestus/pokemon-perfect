@@ -1,12 +1,13 @@
 #include "global.h"
-#include "palette.h"
+#include "gflib.h"
+#include "overworld.h"
 #include "palette_util.h"
 #include "util.h"
-#include "overworld.h"
 
-// "RouletteFlash" is more accurately a general flashing/fading util
-// this file handles fading the palettes for the color/icon selections on the Roulette wheel
-// but it also handles the "pulse blend" effect of Mirage Tower
+// "RouletteFlash" is more accurately a general flashing/fading util.
+// This file handles fading the palettes for the color/icon selections on the Roulette wheel
+// but it also handles the "pulse blend" effect of Mirage Tower.
+// Neither exist in FRLG, so everything in this file goes unused.
 
 void RouletteFlash_Reset(struct RouletteFlashUtil *flash)
 {
@@ -37,17 +38,6 @@ u8 RouletteFlash_Add(struct RouletteFlashUtil *flash, u8 id, const struct Roulet
     else
         flash->palettes[id].colorDelta = 1;
 
-    return id;
-}
-
-static u8 UNUSED RouletteFlash_Remove(struct RouletteFlashUtil *flash, u8 id)
-{
-    if (id >= ARRAY_COUNT(flash->palettes))
-        return 0xFF;
-    if (!flash->palettes[id].available)
-        return 0xFF;
-
-    memset(&flash->palettes[id], 0, sizeof(flash->palettes[id]));
     return id;
 }
 
@@ -115,17 +105,18 @@ static u8 RouletteFlash_FadePalette(struct RouletteFlashPalette *pal)
 static u8 RouletteFlash_FlashPalette(struct RouletteFlashPalette *pal)
 {
     u8 i = 0;
+
     switch (pal->state)
     {
     case 1:
         // Flash to color
-        for (; i < pal->settings.numColors; i++)
+        for (i = 0; i < pal->settings.numColors; i++)
             gPlttBufferFaded[pal->settings.paletteOffset + i] = pal->settings.color;
         pal->state++;
         break;
     case 2:
         // Restore to original color
-        for (; i < pal->settings.numColors; i++)
+        for (i = 0; i < pal->settings.numColors; i++)
             gPlttBufferFaded[pal->settings.paletteOffset + i] = gPlttBufferUnfaded[pal->settings.paletteOffset + i];
         pal->state--;
         break;
@@ -202,7 +193,6 @@ void RouletteFlash_Stop(struct RouletteFlashUtil *flash, u16 flags)
             }
         }
     }
-
     if (flags == 0xFFFF)
     {
         // Stopped all
@@ -247,7 +237,7 @@ int InitPulseBlendPaletteSettings(struct PulseBlend *pulseBlend, const struct Pu
 
     if (pulseBlendPalette == NULL)
         return 0xFF;
-
+    
     pulseBlendPalette->blendCoeff = 0;
     pulseBlendPalette->fadeDirection = 0;
     pulseBlendPalette->available = 1;
@@ -322,7 +312,7 @@ void MarkUsedPulseBlendPalettes(struct PulseBlend *pulseBlend, u16 pulseBlendPal
                 pulseBlend->usedPulseBlendPalettes |= 1 << i;
             }
         }
-    }
+    }    
 }
 
 void UnmarkUsedPulseBlendPalettes(struct PulseBlend *pulseBlend, u16 pulseBlendPaletteSelector, u8 multiSelection)
@@ -387,9 +377,7 @@ void UpdatePulseBlend(struct PulseBlend *pulseBlend)
                     pulseBlendPalette->delayCounter = pulseBlendPalette->pulseBlendSettings.delay;
                     CpuFastCopy(gPlttBufferUnfaded + pulseBlendPalette->pulseBlendSettings.paletteOffset, gPlttBufferFaded + pulseBlendPalette->pulseBlendSettings.paletteOffset, PLTT_SIZE_4BPP);
                     UpdatePalettesWithTime(1 << (pulseBlendPalette->pulseBlendSettings.paletteOffset >> 4));
-                    // pulseBlendSettings has a numColors field, but it is only ever set to 16 (for Mirage Tower)
-                    // So, it's ok to use the fine blending here which blends the entire palette
-                    BlendPalettesFine(1, gPlttBufferFaded + pulseBlendPalette->pulseBlendSettings.paletteOffset, gPlttBufferFaded + pulseBlendPalette->pulseBlendSettings.paletteOffset, pulseBlendPalette->blendCoeff, pulseBlendPalette->pulseBlendSettings.blendColor);
+                    BlendPalette(pulseBlendPalette->pulseBlendSettings.paletteOffset, pulseBlendPalette->pulseBlendSettings.numColors, pulseBlendPalette->blendCoeff, pulseBlendPalette->pulseBlendSettings.blendColor);
                     switch (pulseBlendPalette->pulseBlendSettings.fadeType)
                     {
                     case 0: // Fade all the way to the max blend amount, then wrap around
@@ -421,13 +409,12 @@ void UpdatePulseBlend(struct PulseBlend *pulseBlend)
                             }
                         }
                         break;
-                    case (MODERN ? -2 : 2): // Flip back and forth
-                        // This code is never reached in vanilla
+                    case 2: // Flip back and forth
                         if (pulseBlendPalette->fadeDirection)
                             pulseBlendPalette->blendCoeff = 0;
                         else
                             pulseBlendPalette->blendCoeff = pulseBlendPalette->pulseBlendSettings.maxBlendCoeff & 0xF;
-
+                        
                         pulseBlendPalette->fadeDirection ^= 1;
                         pulseBlendPalette->fadeCycleCounter++;
                         break;
@@ -443,7 +430,7 @@ void UpdatePulseBlend(struct PulseBlend *pulseBlend)
 }
 
 // Below used for the Roulette grid
-void FillTilemapRect(u16 *dest, u16 value, u8 left, u8 top, u8 width, u8 height)
+void FillTilemapRect(u16 *dest, u16 src, u8 left, u8 top, u8 width, u8 height)
 {
     u16 *_dest;
     u8 i;
@@ -454,7 +441,9 @@ void FillTilemapRect(u16 *dest, u16 value, u8 left, u8 top, u8 width, u8 height)
     {
         _dest = dest + i * 32;
         for (j = 0; j < width; j++)
-            *_dest++ = value;
+        {
+            *_dest++ = src;
+        }
     }
 }
 
@@ -470,39 +459,8 @@ void SetTilemapRect(u16 *dest, u16 *src, u8 left, u8 top, u8 width, u8 height)
     {
         _dest = dest + i * 32;
         for (j = 0; j < width; j++)
+        {
             *_dest++ = *_src++;
-    }
-}
-
-static void UNUSED FillTilemapRect_Unused(void *dest, u16 value, u8 left, u8 top, u8 width, u8 height)
-{
-    u8 i, j;
-    u8 x, y;
-
-    for (i = 0, y = top; i < height; i++)
-    {
-        for (x = left, j = 0; j < width; j++)
-        {
-            *(u16 *)((dest) + (y * 64 + x * 2)) = value;
-            x = (x + 1) % 32;
         }
-        y = (y + 1) % 32;
-    }
-}
-
-static void UNUSED SetTilemapRect_Unused(void *dest, const u16 *src, u8 left, u8 top, u8 width, u8 height)
-{
-    u8 i, j;
-    u8 x, y;
-    const u16 *_src;
-
-    for (i = 0, _src = src, y = top; i < height; i++)
-    {
-        for (x = left, j = 0; j < width; j++)
-        {
-            *(u16 *)((dest) + (y * 64 + x * 2)) = *(_src++);
-            x = (x + 1) % 32;
-        }
-        y = (y + 1) % 32;
     }
 }

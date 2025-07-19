@@ -1,13 +1,13 @@
 #include "global.h"
 #include "malloc.h"
-#include "apprentice.h"
+// #include "apprentice.h"
 #include "battle.h"
 #include "battle_ai_switch_items.h"
 #include "battle_anim.h"
 #include "battle_controllers.h"
 #include "battle_message.h"
-#include "battle_pike.h"
-#include "battle_pyramid.h"
+// #include "battle_pike.h"
+// #include "battle_pyramid.h"
 #include "battle_setup.h"
 #include "battle_tower.h"
 #include "battle_z_move.h"
@@ -29,7 +29,7 @@
 #include "m4a.h"
 #include "party_menu.h"
 #include "pokedex.h"
-#include "pokeblock.h"
+// #include "pokeblock.h"
 #include "pokemon.h"
 #include "pokemon_animation.h"
 #include "pokemon_icon.h"
@@ -44,10 +44,10 @@
 #include "task.h"
 #include "test_runner.h"
 #include "text.h"
-#include "trainer_hill.h"
+// #include "trainer_hill.h"
 #include "util.h"
 #include "constants/abilities.h"
-#include "constants/battle_frontier.h"
+// #include "constants/battle_frontier.h"
 #include "constants/battle_move_effects.h"
 #include "constants/battle_script_commands.h"
 #include "constants/battle_partner.h"
@@ -117,9 +117,271 @@ static const struct CombinedMove sCombinedMoves[2] =
 // To reorder the pokedex, see the values in include/constants/pokedex.h.
 
 #define HOENN_TO_NATIONAL(name)     [HOENN_DEX_##name - 1] = NATIONAL_DEX_##name
+#define KANTO_TO_NATIONAL(name)     [KANTO_DEX_##name] = NATIONAL_DEX_##name
+
+static const enum NationalDexOrder sKantoDexNumToNationalDexNum[KANTO_DEX_COUNT + 1] =
+{
+    // Kanto
+    KANTO_TO_NATIONAL(BULBASAUR),
+    KANTO_TO_NATIONAL(IVYSAUR),
+    KANTO_TO_NATIONAL(VENUSAUR),
+    KANTO_TO_NATIONAL(CHARMANDER),
+    KANTO_TO_NATIONAL(CHARMELEON),
+    KANTO_TO_NATIONAL(CHARIZARD),
+    KANTO_TO_NATIONAL(SQUIRTLE),
+    KANTO_TO_NATIONAL(WARTORTLE),
+    KANTO_TO_NATIONAL(BLASTOISE),
+    KANTO_TO_NATIONAL(CATERPIE),
+    KANTO_TO_NATIONAL(METAPOD),
+    KANTO_TO_NATIONAL(BUTTERFREE),
+    KANTO_TO_NATIONAL(WEEDLE),
+    KANTO_TO_NATIONAL(KAKUNA),
+    KANTO_TO_NATIONAL(BEEDRILL),
+    KANTO_TO_NATIONAL(PIDGEY),
+    KANTO_TO_NATIONAL(PIDGEOTTO),
+    KANTO_TO_NATIONAL(PIDGEOT),
+    KANTO_TO_NATIONAL(RATTATA),
+    KANTO_TO_NATIONAL(RATICATE),
+    KANTO_TO_NATIONAL(SPEAROW),
+    KANTO_TO_NATIONAL(FEAROW),
+    KANTO_TO_NATIONAL(EKANS),
+    KANTO_TO_NATIONAL(ARBOK),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(PICHU),
+#endif
+    KANTO_TO_NATIONAL(PIKACHU),
+    KANTO_TO_NATIONAL(RAICHU),
+    KANTO_TO_NATIONAL(SANDSHREW),
+    KANTO_TO_NATIONAL(SANDSLASH),
+    KANTO_TO_NATIONAL(NIDORAN_F),
+    KANTO_TO_NATIONAL(NIDORINA),
+    KANTO_TO_NATIONAL(NIDOQUEEN),
+    KANTO_TO_NATIONAL(NIDORAN_M),
+    KANTO_TO_NATIONAL(NIDORINO),
+    KANTO_TO_NATIONAL(NIDOKING),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(CLEFFA),
+#endif
+    KANTO_TO_NATIONAL(CLEFAIRY),
+    KANTO_TO_NATIONAL(CLEFABLE),
+    KANTO_TO_NATIONAL(VULPIX),
+    KANTO_TO_NATIONAL(NINETALES),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(IGGLYBUFF),
+#endif
+    KANTO_TO_NATIONAL(JIGGLYPUFF),
+    KANTO_TO_NATIONAL(WIGGLYTUFF),
+    KANTO_TO_NATIONAL(ZUBAT),
+    KANTO_TO_NATIONAL(GOLBAT),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(CROBAT),
+#endif
+    KANTO_TO_NATIONAL(ODDISH),
+    KANTO_TO_NATIONAL(GLOOM),
+    KANTO_TO_NATIONAL(VILEPLUME),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(BELLOSSOM),
+#endif
+    KANTO_TO_NATIONAL(PARAS),
+    KANTO_TO_NATIONAL(PARASECT),
+    KANTO_TO_NATIONAL(VENONAT),
+    KANTO_TO_NATIONAL(VENOMOTH),
+    KANTO_TO_NATIONAL(DIGLETT),
+    KANTO_TO_NATIONAL(DUGTRIO),
+    KANTO_TO_NATIONAL(MEOWTH),
+    KANTO_TO_NATIONAL(PERSIAN),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GALARIAN_FORMS
+    KANTO_TO_NATIONAL(PERRSERKER),
+#endif
+    KANTO_TO_NATIONAL(PSYDUCK),
+    KANTO_TO_NATIONAL(GOLDUCK),
+    KANTO_TO_NATIONAL(MANKEY),
+    KANTO_TO_NATIONAL(PRIMEAPE),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_9_CROSS_EVOS
+    KANTO_TO_NATIONAL(ANNIHILAPE),
+#endif
+    KANTO_TO_NATIONAL(GROWLITHE),
+    KANTO_TO_NATIONAL(ARCANINE),
+    KANTO_TO_NATIONAL(POLIWAG),
+    KANTO_TO_NATIONAL(POLIWHIRL),
+    KANTO_TO_NATIONAL(POLIWRATH),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(POLITOED),
+#endif
+    KANTO_TO_NATIONAL(ABRA),
+    KANTO_TO_NATIONAL(KADABRA),
+    KANTO_TO_NATIONAL(ALAKAZAM),
+    KANTO_TO_NATIONAL(MACHOP),
+    KANTO_TO_NATIONAL(MACHOKE),
+    KANTO_TO_NATIONAL(MACHAMP),
+    KANTO_TO_NATIONAL(BELLSPROUT),
+    KANTO_TO_NATIONAL(WEEPINBELL),
+    KANTO_TO_NATIONAL(VICTREEBEL),
+    KANTO_TO_NATIONAL(TENTACOOL),
+    KANTO_TO_NATIONAL(TENTACRUEL),
+    KANTO_TO_NATIONAL(GEODUDE),
+    KANTO_TO_NATIONAL(GRAVELER),
+    KANTO_TO_NATIONAL(GOLEM),
+    KANTO_TO_NATIONAL(PONYTA),
+    KANTO_TO_NATIONAL(RAPIDASH),
+    KANTO_TO_NATIONAL(SLOWPOKE),
+    KANTO_TO_NATIONAL(SLOWBRO),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(SLOWKING),
+#endif
+    KANTO_TO_NATIONAL(MAGNEMITE),
+    KANTO_TO_NATIONAL(MAGNETON),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(MAGNEZONE),
+#endif
+    KANTO_TO_NATIONAL(FARFETCHD),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GALARIAN_FORMS
+    KANTO_TO_NATIONAL(SIRFETCHD),
+#endif
+    KANTO_TO_NATIONAL(DODUO),
+    KANTO_TO_NATIONAL(DODRIO),
+    KANTO_TO_NATIONAL(SEEL),
+    KANTO_TO_NATIONAL(DEWGONG),
+    KANTO_TO_NATIONAL(GRIMER),
+    KANTO_TO_NATIONAL(MUK),
+    KANTO_TO_NATIONAL(SHELLDER),
+    KANTO_TO_NATIONAL(CLOYSTER),
+    KANTO_TO_NATIONAL(GASTLY),
+    KANTO_TO_NATIONAL(HAUNTER),
+    KANTO_TO_NATIONAL(GENGAR),
+    KANTO_TO_NATIONAL(ONIX),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(STEELIX),
+#endif
+    KANTO_TO_NATIONAL(DROWZEE),
+    KANTO_TO_NATIONAL(HYPNO),
+    KANTO_TO_NATIONAL(KRABBY),
+    KANTO_TO_NATIONAL(KINGLER),
+    KANTO_TO_NATIONAL(VOLTORB),
+    KANTO_TO_NATIONAL(ELECTRODE),
+    KANTO_TO_NATIONAL(EXEGGCUTE),
+    KANTO_TO_NATIONAL(EXEGGUTOR),
+    KANTO_TO_NATIONAL(CUBONE),
+    KANTO_TO_NATIONAL(MAROWAK),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(TYROGUE),
+#endif
+    KANTO_TO_NATIONAL(HITMONLEE),
+    KANTO_TO_NATIONAL(HITMONCHAN),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(HITMONTOP),
+#endif
+    KANTO_TO_NATIONAL(LICKITUNG),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(LICKILICKY),
+#endif
+    KANTO_TO_NATIONAL(KOFFING),
+    KANTO_TO_NATIONAL(WEEZING),
+    KANTO_TO_NATIONAL(RHYHORN),
+    KANTO_TO_NATIONAL(RHYDON),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(RHYPERIOR),
+    KANTO_TO_NATIONAL(HAPPINY),
+#endif
+    KANTO_TO_NATIONAL(CHANSEY),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(BLISSEY),
+#endif
+    KANTO_TO_NATIONAL(TANGELA),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(TANGROWTH),
+#endif
+    KANTO_TO_NATIONAL(KANGASKHAN),
+    KANTO_TO_NATIONAL(HORSEA),
+    KANTO_TO_NATIONAL(SEADRA),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(KINGDRA),
+#endif
+    KANTO_TO_NATIONAL(GOLDEEN),
+    KANTO_TO_NATIONAL(SEAKING),
+    KANTO_TO_NATIONAL(STARYU),
+    KANTO_TO_NATIONAL(STARMIE),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(MIME_JR),
+#endif
+    KANTO_TO_NATIONAL(MR_MIME),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GALARIAN_FORMS
+    KANTO_TO_NATIONAL(MR_RIME),
+#endif
+    KANTO_TO_NATIONAL(SCYTHER),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(SCIZOR),
+#endif
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_8_CROSS_EVOS
+    KANTO_TO_NATIONAL(KLEAVOR),
+#endif
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(SMOOCHUM),
+#endif
+    KANTO_TO_NATIONAL(JYNX),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(ELEKID),
+#endif
+    KANTO_TO_NATIONAL(ELECTABUZZ),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(ELECTIVIRE),
+#endif
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(MAGBY),
+#endif
+    KANTO_TO_NATIONAL(MAGMAR),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(MAGMORTAR),
+#endif
+    KANTO_TO_NATIONAL(PINSIR),
+    KANTO_TO_NATIONAL(TAUROS),
+    KANTO_TO_NATIONAL(MAGIKARP),
+    KANTO_TO_NATIONAL(GYARADOS),
+    KANTO_TO_NATIONAL(LAPRAS),
+    KANTO_TO_NATIONAL(DITTO),
+    KANTO_TO_NATIONAL(EEVEE),
+    KANTO_TO_NATIONAL(VAPOREON),
+    KANTO_TO_NATIONAL(JOLTEON),
+    KANTO_TO_NATIONAL(FLAREON),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(ESPEON),
+    KANTO_TO_NATIONAL(UMBREON),
+#endif
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(LEAFEON),
+    KANTO_TO_NATIONAL(GLACEON),
+#endif
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_6_CROSS_EVOS
+    KANTO_TO_NATIONAL(SYLVEON),
+#endif
+    KANTO_TO_NATIONAL(PORYGON),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_2_CROSS_EVOS
+    KANTO_TO_NATIONAL(PORYGON2),
+#endif
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(PORYGON_Z),
+#endif
+    KANTO_TO_NATIONAL(OMANYTE),
+    KANTO_TO_NATIONAL(OMASTAR),
+    KANTO_TO_NATIONAL(KABUTO),
+    KANTO_TO_NATIONAL(KABUTOPS),
+    KANTO_TO_NATIONAL(AERODACTYL),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
+    KANTO_TO_NATIONAL(MUNCHLAX),
+#endif
+    KANTO_TO_NATIONAL(SNORLAX),
+    KANTO_TO_NATIONAL(ARTICUNO),
+    KANTO_TO_NATIONAL(ZAPDOS),
+    KANTO_TO_NATIONAL(MOLTRES),
+    KANTO_TO_NATIONAL(DRATINI),
+    KANTO_TO_NATIONAL(DRAGONAIR),
+    KANTO_TO_NATIONAL(DRAGONITE),
+    KANTO_TO_NATIONAL(MEWTWO),
+    KANTO_TO_NATIONAL(MEW),
+};
 
 // Assigns all Hoenn Dex Indexes to a National Dex Index
-static const u16 sHoennToNationalOrder[HOENN_DEX_COUNT - 1] =
+static const enum NationalDexOrder sHoennToNationalOrder[HOENN_DEX_COUNT - 1] =
 {
     HOENN_TO_NATIONAL(TREECKO),
     HOENN_TO_NATIONAL(GROVYLE),
@@ -361,12 +623,12 @@ static const u16 sHoennToNationalOrder[HOENN_DEX_COUNT - 1] =
     HOENN_TO_NATIONAL(DEOXYS),
 };
 
-const struct SpindaSpot gSpindaSpotGraphics[] =
+static const struct SpindaSpot sSpindaSpotGraphics[] =
 {
-    {.x = 16, .y =  7, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_0.1bpp")},
-    {.x = 40, .y =  8, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_1.1bpp")},
-    {.x = 22, .y = 25, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_2.1bpp")},
-    {.x = 34, .y = 26, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_3.1bpp")}
+    {.x = 16, .y = 7, .image = INCBIN_U16("graphics/spinda_spots/spot_0.bin")},
+    {.x = 40, .y = 8, .image = INCBIN_U16("graphics/spinda_spots/spot_1.bin")},
+    {.x = 22, .y = 25, .image = INCBIN_U16("graphics/spinda_spots/spot_2.bin")},
+    {.x = 34, .y = 26, .image = INCBIN_U16("graphics/spinda_spots/spot_3.bin")}
 };
 
 // In Battle Palace, moves are chosen based on the pokemons nature rather than by the player
@@ -385,11 +647,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_ATK,
         .statDown = STAT_ATK,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_HARDY, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(61, 7, 61, 7), //32% support >= 50% HP, 32% support < 50% HP
-        .battlePalaceFlavorText = B_MSG_EAGER_FOR_MORE,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_LONELY] =
     {
@@ -397,11 +654,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_ATK,
         .statDown = STAT_DEF,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_LONELY, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlSupportHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(20, 25, 84, 8), //55%,  8%
-        .battlePalaceFlavorText = B_MSG_GLINT_IN_EYE,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_BRAVE] =
     {
@@ -409,11 +661,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_ATK,
         .statDown = STAT_SPEED,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_BRAVE, AFFINE_TURN_UP},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighDefenseLow,
-        .battlePalacePercents = PALACE_STYLE(70, 15, 32, 60), //15%, 8%
-        .battlePalaceFlavorText = B_MSG_GETTING_IN_POS,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_ADAMANT] =
     {
@@ -421,11 +668,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_ATK,
         .statDown = STAT_SPATK,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_ADAMANT, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(38, 31, 70, 15), //31%, 15%
-        .battlePalaceFlavorText = B_MSG_GLINT_IN_EYE,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_NAUGHTY] =
     {
@@ -433,11 +675,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_ATK,
         .statDown = STAT_SPDEF,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_NAUGHTY, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlDefenseHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(20, 70, 70, 22), //10%, 8%
-        .battlePalaceFlavorText = B_MSG_GLINT_IN_EYE,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_BOLD] =
     {
@@ -445,11 +682,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_DEF,
         .statDown = STAT_ATK,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_BOLD, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlSupportHighDefenseLow,
-        .battlePalacePercents = PALACE_STYLE(30, 20, 32, 58), //50%, 10%
-        .battlePalaceFlavorText = B_MSG_GETTING_IN_POS,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_DOCILE] =
     {
@@ -457,11 +689,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_DEF,
         .statDown = STAT_DEF,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_DOCILE, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(56, 22, 56, 22), //22%, 22%
-        .battlePalaceFlavorText = B_MSG_EAGER_FOR_MORE,
-        .battlePalaceSmokescreen = PALACE_TARGET_RANDOM,
     },
     [NATURE_RELAXED] =
     {
@@ -469,11 +696,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_DEF,
         .statDown = STAT_SPEED,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_RELAXED, AFFINE_TURN_UP_AND_DOWN},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlSupportHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(25, 15, 75, 15), //60%, 10%
-        .battlePalaceFlavorText = B_MSG_GLINT_IN_EYE,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_IMPISH] =
     {
@@ -481,11 +703,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_DEF,
         .statDown = STAT_SPATK,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_IMPISH, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighDefenseLow,
-        .battlePalacePercents = PALACE_STYLE(69, 6, 28, 55), //25%, 17%
-        .battlePalaceFlavorText = B_MSG_GETTING_IN_POS,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_LAX] =
     {
@@ -493,11 +710,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_DEF,
         .statDown = STAT_SPDEF,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_LAX, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlSupportHighSupportLow,
-        .battlePalacePercents = PALACE_STYLE(35, 10, 29, 6), //55%, 65%
-        .battlePalaceFlavorText = B_MSG_GROWL_DEEPLY,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_TIMID] =
     {
@@ -505,11 +717,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPEED,
         .statDown = STAT_ATK,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_TIMID, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighSupportLow,
-        .battlePalacePercents = PALACE_STYLE(62, 10, 30, 20), //28%, 50%
-        .battlePalaceFlavorText = B_MSG_GROWL_DEEPLY,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_HASTY] =
     {
@@ -517,11 +724,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPEED,
         .statDown = STAT_DEF,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_HASTY, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(58, 37, 88, 6), //5%, 6%
-        .battlePalaceFlavorText = B_MSG_GLINT_IN_EYE,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_SERIOUS] =
     {
@@ -529,11 +731,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPEED,
         .statDown = STAT_SPEED,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_SERIOUS, AFFINE_TURN_DOWN},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlSupportHighSupportLow,
-        .battlePalacePercents = PALACE_STYLE(34, 11, 29, 11), //55%, 60%
-        .battlePalaceFlavorText = B_MSG_EAGER_FOR_MORE,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_JOLLY] =
     {
@@ -541,11 +738,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPEED,
         .statDown = STAT_SPATK,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_JOLLY, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlSupportHighDefenseLow,
-        .battlePalacePercents = PALACE_STYLE(35, 5, 35, 60), //60%, 5%
-        .battlePalaceFlavorText = B_MSG_GETTING_IN_POS,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_NAIVE] =
     {
@@ -553,11 +745,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPEED,
         .statDown = STAT_SPDEF,
         .backAnim = 0,
-        .pokeBlockAnim = {ANIM_NAIVE, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(56, 22, 56, 22), //22%, 22%
-        .battlePalaceFlavorText = B_MSG_EAGER_FOR_MORE,
-        .battlePalaceSmokescreen = PALACE_TARGET_RANDOM,
     },
     [NATURE_MODEST] =
     {
@@ -565,11 +752,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPATK,
         .statDown = STAT_ATK,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_MODEST, AFFINE_TURN_DOWN_SLOW},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlDefenseHighDefenseLow,
-        .battlePalacePercents = PALACE_STYLE(35, 45, 34, 60), //20%, 6%
-        .battlePalaceFlavorText = B_MSG_GETTING_IN_POS,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_MILD] =
     {
@@ -577,11 +759,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPATK,
         .statDown = STAT_DEF,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_MILD, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlDefenseHighSupportLow,
-        .battlePalacePercents = PALACE_STYLE(44, 50, 34, 6), //6%, 60%
-        .battlePalaceFlavorText = B_MSG_GROWL_DEEPLY,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_QUIET] =
     {
@@ -589,11 +766,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPATK,
         .statDown = STAT_SPEED,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_QUIET, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(56, 22, 56, 22), //22%, 22%
-        .battlePalaceFlavorText = B_MSG_EAGER_FOR_MORE,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_BASHFUL] =
     {
@@ -601,11 +773,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPATK,
         .statDown = STAT_SPATK,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_BASHFUL, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlDefenseHighDefenseLow,
-        .battlePalacePercents = PALACE_STYLE(30, 58, 30, 58), //12%, 12%
-        .battlePalaceFlavorText = B_MSG_EAGER_FOR_MORE,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_RASH] =
     {
@@ -613,11 +780,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPATK,
         .statDown = STAT_SPDEF,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_RASH, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlSupportHighSupportLow,
-        .battlePalacePercents = PALACE_STYLE(30, 13, 27, 6), //57%, 67%
-        .battlePalaceFlavorText = B_MSG_GROWL_DEEPLY,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_CALM] =
     {
@@ -625,11 +787,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPDEF,
         .statDown = STAT_ATK,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_CALM, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlDefenseHighDefenseLow,
-        .battlePalacePercents = PALACE_STYLE(40, 50, 25, 62), //10%, 13%
-        .battlePalaceFlavorText = B_MSG_GETTING_IN_POS,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_GENTLE] =
     {
@@ -637,11 +794,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPDEF,
         .statDown = STAT_DEF,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_GENTLE, AFFINE_TURN_DOWN_SLIGHT},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlDefenseHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(18, 70, 90, 5), //12%, 5%
-        .battlePalaceFlavorText = B_MSG_GLINT_IN_EYE,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
     [NATURE_SASSY] =
     {
@@ -649,11 +801,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPDEF,
         .statDown = STAT_SPEED,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_SASSY, AFFINE_TURN_UP_HIGH},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighSupportLow,
-        .battlePalacePercents = PALACE_STYLE(88, 6, 22, 20), //6%, 58%
-        .battlePalaceFlavorText = B_MSG_GROWL_DEEPLY,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_CAREFUL] =
     {
@@ -661,11 +808,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPDEF,
         .statDown = STAT_SPATK,
         .backAnim = 2,
-        .pokeBlockAnim = {ANIM_CAREFUL, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlDefenseHighSupportLow,
-        .battlePalacePercents = PALACE_STYLE(42, 50, 42, 5), //8%, 53%
-        .battlePalaceFlavorText = B_MSG_GROWL_DEEPLY,
-        .battlePalaceSmokescreen = PALACE_TARGET_WEAKER,
     },
     [NATURE_QUIRKY] =
     {
@@ -673,11 +815,6 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
         .statUp = STAT_SPDEF,
         .statDown = STAT_SPDEF,
         .backAnim = 1,
-        .pokeBlockAnim = {ANIM_QUIRKY, AFFINE_NONE},
-        .natureGirlMessage = BattleFrontier_Lounge5_Text_NatureGirlAttackHighAttackLow,
-        .battlePalacePercents = PALACE_STYLE(56, 22, 56, 22), //22%, 22%
-        .battlePalaceFlavorText = B_MSG_EAGER_FOR_MORE,
-        .battlePalaceSmokescreen = PALACE_TARGET_STRONGER,
     },
 };
 
@@ -714,6 +851,36 @@ const struct NatureInfo gNaturesInfo[NUM_NATURES] =
 #include "data/object_events/object_event_pic_tables_followers.h"
 
 #include "data/pokemon/species_info.h"
+
+static const s8 gPokeblockFlavorCompatibilityTable[NUM_NATURES * FLAVOR_COUNT] =
+{
+    // Cool, Beauty, Cute, Smart, Tough
+          0,      0,    0,     0,     0, // Hardy
+          1,      0,    0,     0,    -1, // Lonely
+          1,      0,   -1,     0,     0, // Brave
+          1,     -1,    0,     0,     0, // Adamant
+          1,      0,    0,    -1,     0, // Naughty
+         -1,      0,    0,     0,     1, // Bold
+          0,      0,    0,     0,     0, // Docile
+          0,      0,   -1,     0,     1, // Relaxed
+          0,     -1,    0,     0,     1, // Impish
+          0,      0,    0,    -1,     1, // Lax
+         -1,      0,    1,     0,     0, // Timid
+          0,      0,    1,     0,    -1, // Hasty
+          0,      0,    0,     0,     0, // Serious
+          0,     -1,    1,     0,     0, // Jolly
+          0,      0,    1,    -1,     0, // Naive
+         -1,      1,    0,     0,     0, // Modest
+          0,      1,    0,     0,    -1, // Mild
+          0,      1,   -1,     0,     0, // Quiet
+          0,      0,    0,     0,     0, // Bashful
+          0,      1,    0,    -1,     0, // Rash
+         -1,      0,    0,     1,     0, // Calm
+          0,      0,    0,     1,    -1, // Gentle
+          0,      0,   -1,     1,     0, // Sassy
+          0,     -1,    0,     1,     0, // Careful
+          0,      0,    0,     0,     0  // Quirky
+};
 
 #define PP_UP_SHIFTS(val)           val,        (val) << 2,        (val) << 4,        (val) << 6
 #define PP_UP_SHIFTS_INV(val) (u8)~(val), (u8)~((val) << 2), (u8)~((val) << 4), (u8)~((val) << 6)
@@ -757,17 +924,17 @@ const u16 gUnionRoomFacilityClasses[NUM_UNION_ROOM_CLASSES * GENDER_COUNT] =
     FACILITY_CLASS_YOUNGSTER,
     FACILITY_CLASS_PSYCHIC_M,
     FACILITY_CLASS_BUG_CATCHER,
-    FACILITY_CLASS_PKMN_BREEDER_M,
-    FACILITY_CLASS_GUITARIST,
-    // Female classes
+    FACILITY_CLASS_TAMER,
+    FACILITY_CLASS_JUGGLER,
+    // Female
     FACILITY_CLASS_COOLTRAINER_F,
-    FACILITY_CLASS_HEX_MANIAC,
+    FACILITY_CLASS_CHANNELER,
     FACILITY_CLASS_PICNICKER,
     FACILITY_CLASS_LASS,
     FACILITY_CLASS_PSYCHIC_F,
-    FACILITY_CLASS_BATTLE_GIRL,
-    FACILITY_CLASS_PKMN_BREEDER_F,
-    FACILITY_CLASS_BEAUTY
+    FACILITY_CLASS_CRUSH_GIRL,
+    FACILITY_CLASS_PKMN_BREEDER,
+    FACILITY_CLASS_BEAUTY,
 };
 
 const struct SpriteTemplate gBattlerSpriteTemplates[MAX_BATTLERS_COUNT] =
@@ -812,24 +979,6 @@ const struct SpriteTemplate gBattlerSpriteTemplates[MAX_BATTLERS_COUNT] =
 
 static const struct SpriteTemplate sTrainerBackSpriteTemplates[] =
 {
-    [TRAINER_BACK_PIC_BRENDAN] = {
-        .tileTag = TAG_NONE,
-        .paletteTag = 0,
-        .oam = &gOamData_BattleSpritePlayerSide,
-        .anims = NULL,
-        .images = gTrainerBackPicTable_Brendan,
-        .affineAnims = gAffineAnims_BattleSpritePlayerSide,
-        .callback = SpriteCB_BattleSpriteStartSlideLeft,
-    },
-    [TRAINER_BACK_PIC_MAY] = {
-        .tileTag = TAG_NONE,
-        .paletteTag = 0,
-        .oam = &gOamData_BattleSpritePlayerSide,
-        .anims = NULL,
-        .images = gTrainerBackPicTable_May,
-        .affineAnims = gAffineAnims_BattleSpritePlayerSide,
-        .callback = SpriteCB_BattleSpriteStartSlideLeft,
-    },
     [TRAINER_BACK_PIC_RED] = {
         .tileTag = TAG_NONE,
         .paletteTag = 0,
@@ -853,7 +1002,7 @@ static const struct SpriteTemplate sTrainerBackSpriteTemplates[] =
         .paletteTag = 0,
         .oam = &gOamData_BattleSpritePlayerSide,
         .anims = NULL,
-        .images = gTrainerBackPicTable_RubySapphireBrendan,
+        .images = gTrainerBackPicTable_RSBrendan,
         .affineAnims = gAffineAnims_BattleSpritePlayerSide,
         .callback = SpriteCB_BattleSpriteStartSlideLeft,
     },
@@ -862,16 +1011,25 @@ static const struct SpriteTemplate sTrainerBackSpriteTemplates[] =
         .paletteTag = 0,
         .oam = &gOamData_BattleSpritePlayerSide,
         .anims = NULL,
-        .images = gTrainerBackPicTable_RubySapphireMay,
+        .images = gTrainerBackPicTable_RSMay,
         .affineAnims = gAffineAnims_BattleSpritePlayerSide,
         .callback = SpriteCB_BattleSpriteStartSlideLeft,
     },
-    [TRAINER_BACK_PIC_WALLY] = {
+    [TRAINER_BACK_PIC_POKEDUDE] = {
         .tileTag = TAG_NONE,
         .paletteTag = 0,
         .oam = &gOamData_BattleSpritePlayerSide,
         .anims = NULL,
-        .images = gTrainerBackPicTable_Wally,
+        .images = gTrainerBackPicTable_Pokedude,
+        .affineAnims = gAffineAnims_BattleSpritePlayerSide,
+        .callback = SpriteCB_BattleSpriteStartSlideLeft,
+    },
+    [TRAINER_BACK_PIC_OLD_MAN] = {
+        .tileTag = TAG_NONE,
+        .paletteTag = 0,
+        .oam = &gOamData_BattleSpritePlayerSide,
+        .anims = NULL,
+        .images = gTrainerBackPicTable_OldMan,
         .affineAnims = gAffineAnims_BattleSpritePlayerSide,
         .callback = SpriteCB_BattleSpriteStartSlideLeft,
     },
@@ -925,15 +1083,16 @@ static const u8 sStatsToRaise[] =
 // 0-99, 100-199, 200+
 static const s8 sFriendshipEventModifiers[][3] =
 {
-    [FRIENDSHIP_EVENT_GROW_LEVEL]      = { 5,  3,  2},
-    [FRIENDSHIP_EVENT_VITAMIN]         = { 5,  3,  2},
-    [FRIENDSHIP_EVENT_BATTLE_ITEM]     = { 1,  1,  0},
-    [FRIENDSHIP_EVENT_LEAGUE_BATTLE]   = { 3,  2,  1},
-    [FRIENDSHIP_EVENT_LEARN_TMHM]      = { 1,  1,  0},
-    [FRIENDSHIP_EVENT_WALKING]         = { 1,  1,  1},
-    [FRIENDSHIP_EVENT_FAINT_SMALL]     = {-1, -1, -1},
-    [FRIENDSHIP_EVENT_FAINT_FIELD_PSN] = {-5, -5, -10},
-    [FRIENDSHIP_EVENT_FAINT_LARGE]     = {-5, -5, -10},
+    [FRIENDSHIP_EVENT_GROW_LEVEL]           = { 5,  3,  2 },
+    [FRIENDSHIP_EVENT_VITAMIN]              = { 5,  3,  2 },
+    [FRIENDSHIP_EVENT_BATTLE_ITEM]          = { 1,  1,  0 },
+    [FRIENDSHIP_EVENT_LEAGUE_BATTLE]        = { 3,  2,  1 },
+    [FRIENDSHIP_EVENT_LEARN_TMHM]           = { 1,  1,  0 },
+    [FRIENDSHIP_EVENT_WALKING]              = { 1,  1,  1 },
+    [FRIENDSHIP_EVENT_MASSAGE]              = { 3,  3,  3 },
+    [FRIENDSHIP_EVENT_FAINT_SMALL]          = {-1, -1, -1 },
+    [FRIENDSHIP_EVENT_FAINT_OUTSIDE_BATTLE] = {-5, -5, -10 },
+    [FRIENDSHIP_EVENT_FAINT_LARGE]          = {-5, -5, -10 },
 };
 
 #define HM_MOVES_END 0xFFFF
@@ -1146,10 +1305,10 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
         {
             isShiny = TRUE;
         }
-        else if (P_ONLY_OBTAINABLE_SHINIES && InBattlePyramid())
-        {
-            isShiny = FALSE;
-        }
+        // else if (P_ONLY_OBTAINABLE_SHINIES && InBattlePyramid())
+        // {
+        //     isShiny = FALSE;
+        // }
         else if (P_NO_SHINIES_WITHOUT_POKEBALLS && !HasAtLeastOnePokeBall())
         {
             isShiny = FALSE;
@@ -1201,7 +1360,7 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
     SetBoxMonData(boxMon, MON_DATA_POKEBALL, &value);
     SetBoxMonData(boxMon, MON_DATA_OT_GENDER, &gSaveBlock2Ptr->playerGender);
 
-    u32 teraType = (boxMon->personality & 0x1) == 0 ? gSpeciesInfo[species].types[0] : gSpeciesInfo[species].types[1];
+    u32 teraType = (boxMon->personality & 0x1) == 0 ? GetSpeciesType(species, 0) : GetSpeciesType(species, 1);
     SetBoxMonData(boxMon, MON_DATA_TERA_TYPE, &teraType);
 
     if (fixedIV < USE_RANDOM_IVS)
@@ -1278,7 +1437,7 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
         }
     }
 
-    if (gSpeciesInfo[species].abilities[1])
+    if (GetSpeciesAbility(species, 1))
     {
         value = personality & 1;
         SetBoxMonData(boxMon, MON_DATA_ABILITY_NUM, &value);
@@ -1330,7 +1489,7 @@ void CreateMonWithGenderNatureLetter(struct Pokemon *mon, u16 species, u8 level,
     CreateMon(mon, species, level, fixedIV, TRUE, personality, OT_ID_PLAYER_ID, 0);
 }
 
-// This is only used to create Wally's Ralts.
+// Used to create the Old Man's Weedle?
 void CreateMaleMon(struct Pokemon *mon, u16 species, u8 level)
 {
     u32 personality;
@@ -1450,99 +1609,99 @@ void CreateBattleTowerMon(struct Pokemon *mon, struct BattleTowerPokemon *src)
     CalculateMonStats(mon);
 }
 
-void CreateBattleTowerMon_HandleLevel(struct Pokemon *mon, struct BattleTowerPokemon *src, bool8 lvl50)
-{
-    s32 i;
-    u8 nickname[max(32, POKEMON_NAME_BUFFER_SIZE)];
-    u8 level;
-    u8 language;
-    u8 value;
+// void CreateBattleTowerMon_HandleLevel(struct Pokemon *mon, struct BattleTowerPokemon *src, bool8 lvl50)
+// {
+//     s32 i;
+//     u8 nickname[max(32, POKEMON_NAME_BUFFER_SIZE)];
+//     u8 level;
+//     u8 language;
+//     u8 value;
 
-    if (gSaveBlock2Ptr->frontier.lvlMode != FRONTIER_LVL_50)
-        level = GetFrontierEnemyMonLevel(gSaveBlock2Ptr->frontier.lvlMode);
-    else if (lvl50)
-        level = FRONTIER_MAX_LEVEL_50;
-    else
-        level = src->level;
+//     if (gSaveBlock2Ptr->frontier.lvlMode != FRONTIER_LVL_50)
+//         level = GetFrontierEnemyMonLevel(gSaveBlock2Ptr->frontier.lvlMode);
+//     else if (lvl50)
+//         level = FRONTIER_MAX_LEVEL_50;
+//     else
+//         level = src->level;
 
-    CreateMon(mon, src->species, level, 0, TRUE, src->personality, OT_ID_PRESET, src->otId);
+//     CreateMon(mon, src->species, level, 0, TRUE, src->personality, OT_ID_PRESET, src->otId);
 
-    for (i = 0; i < MAX_MON_MOVES; i++)
-        SetMonMoveSlot(mon, src->moves[i], i);
+//     for (i = 0; i < MAX_MON_MOVES; i++)
+//         SetMonMoveSlot(mon, src->moves[i], i);
 
-    SetMonData(mon, MON_DATA_PP_BONUSES, &src->ppBonuses);
-    SetMonData(mon, MON_DATA_HELD_ITEM, &src->heldItem);
-    SetMonData(mon, MON_DATA_FRIENDSHIP, &src->friendship);
+//     SetMonData(mon, MON_DATA_PP_BONUSES, &src->ppBonuses);
+//     SetMonData(mon, MON_DATA_HELD_ITEM, &src->heldItem);
+//     SetMonData(mon, MON_DATA_FRIENDSHIP, &src->friendship);
 
-    StringCopy(nickname, src->nickname);
+//     StringCopy(nickname, src->nickname);
 
-    if (nickname[0] == EXT_CTRL_CODE_BEGIN && nickname[1] == EXT_CTRL_CODE_JPN)
-    {
-        language = LANGUAGE_JAPANESE;
-        StripExtCtrlCodes(nickname);
-    }
-    else
-    {
-        language = GAME_LANGUAGE;
-    }
+//     if (nickname[0] == EXT_CTRL_CODE_BEGIN && nickname[1] == EXT_CTRL_CODE_JPN)
+//     {
+//         language = LANGUAGE_JAPANESE;
+//         StripExtCtrlCodes(nickname);
+//     }
+//     else
+//     {
+//         language = GAME_LANGUAGE;
+//     }
 
-    SetMonData(mon, MON_DATA_LANGUAGE, &language);
-    SetMonData(mon, MON_DATA_NICKNAME, nickname);
-    SetMonData(mon, MON_DATA_HP_EV, &src->hpEV);
-    SetMonData(mon, MON_DATA_ATK_EV, &src->attackEV);
-    SetMonData(mon, MON_DATA_DEF_EV, &src->defenseEV);
-    SetMonData(mon, MON_DATA_SPEED_EV, &src->speedEV);
-    SetMonData(mon, MON_DATA_SPATK_EV, &src->spAttackEV);
-    SetMonData(mon, MON_DATA_SPDEF_EV, &src->spDefenseEV);
-    value = src->abilityNum;
-    SetMonData(mon, MON_DATA_ABILITY_NUM, &value);
-    value = src->hpIV;
-    SetMonData(mon, MON_DATA_HP_IV, &value);
-    value = src->attackIV;
-    SetMonData(mon, MON_DATA_ATK_IV, &value);
-    value = src->defenseIV;
-    SetMonData(mon, MON_DATA_DEF_IV, &value);
-    value = src->speedIV;
-    SetMonData(mon, MON_DATA_SPEED_IV, &value);
-    value = src->spAttackIV;
-    SetMonData(mon, MON_DATA_SPATK_IV, &value);
-    value = src->spDefenseIV;
-    SetMonData(mon, MON_DATA_SPDEF_IV, &value);
-    MonRestorePP(mon);
-    CalculateMonStats(mon);
-}
+//     SetMonData(mon, MON_DATA_LANGUAGE, &language);
+//     SetMonData(mon, MON_DATA_NICKNAME, nickname);
+//     SetMonData(mon, MON_DATA_HP_EV, &src->hpEV);
+//     SetMonData(mon, MON_DATA_ATK_EV, &src->attackEV);
+//     SetMonData(mon, MON_DATA_DEF_EV, &src->defenseEV);
+//     SetMonData(mon, MON_DATA_SPEED_EV, &src->speedEV);
+//     SetMonData(mon, MON_DATA_SPATK_EV, &src->spAttackEV);
+//     SetMonData(mon, MON_DATA_SPDEF_EV, &src->spDefenseEV);
+//     value = src->abilityNum;
+//     SetMonData(mon, MON_DATA_ABILITY_NUM, &value);
+//     value = src->hpIV;
+//     SetMonData(mon, MON_DATA_HP_IV, &value);
+//     value = src->attackIV;
+//     SetMonData(mon, MON_DATA_ATK_IV, &value);
+//     value = src->defenseIV;
+//     SetMonData(mon, MON_DATA_DEF_IV, &value);
+//     value = src->speedIV;
+//     SetMonData(mon, MON_DATA_SPEED_IV, &value);
+//     value = src->spAttackIV;
+//     SetMonData(mon, MON_DATA_SPATK_IV, &value);
+//     value = src->spDefenseIV;
+//     SetMonData(mon, MON_DATA_SPDEF_IV, &value);
+//     MonRestorePP(mon);
+//     CalculateMonStats(mon);
+// }
 
-void CreateApprenticeMon(struct Pokemon *mon, const struct Apprentice *src, u8 monId)
-{
-    s32 i;
-    u16 evAmount;
-    u8 language;
-    u32 otId = gApprentices[src->id].otId;
-    u32 personality = ((gApprentices[src->id].otId >> 8) | ((gApprentices[src->id].otId & 0xFF) << 8))
-                    + src->party[monId].species + src->number;
+// void CreateApprenticeMon(struct Pokemon *mon, const struct Apprentice *src, u8 monId)
+// {
+//     s32 i;
+//     u16 evAmount;
+//     u8 language;
+//     u32 otId = gApprentices[src->id].otId;
+//     u32 personality = ((gApprentices[src->id].otId >> 8) | ((gApprentices[src->id].otId & 0xFF) << 8))
+//                     + src->party[monId].species + src->number;
 
-    CreateMon(mon,
-              src->party[monId].species,
-              GetFrontierEnemyMonLevel(src->lvlMode - 1),
-              MAX_PER_STAT_IVS,
-              TRUE,
-              personality,
-              OT_ID_PRESET,
-              otId);
+//     CreateMon(mon,
+//               src->party[monId].species,
+//               GetFrontierEnemyMonLevel(src->lvlMode - 1),
+//               MAX_PER_STAT_IVS,
+//               TRUE,
+//               personality,
+//               OT_ID_PRESET,
+//               otId);
 
-    SetMonData(mon, MON_DATA_HELD_ITEM, &src->party[monId].item);
-    for (i = 0; i < MAX_MON_MOVES; i++)
-        SetMonMoveSlot(mon, src->party[monId].moves[i], i);
+//     SetMonData(mon, MON_DATA_HELD_ITEM, &src->party[monId].item);
+//     for (i = 0; i < MAX_MON_MOVES; i++)
+//         SetMonMoveSlot(mon, src->party[monId].moves[i], i);
 
-    evAmount = MAX_TOTAL_EVS / NUM_STATS;
-    for (i = 0; i < NUM_STATS; i++)
-        SetMonData(mon, MON_DATA_HP_EV + i, &evAmount);
+//     evAmount = MAX_TOTAL_EVS / NUM_STATS;
+//     for (i = 0; i < NUM_STATS; i++)
+//         SetMonData(mon, MON_DATA_HP_EV + i, &evAmount);
 
-    language = src->language;
-    SetMonData(mon, MON_DATA_LANGUAGE, &language);
-    SetMonData(mon, MON_DATA_OT_NAME, GetApprenticeNameInLanguage(src->id, language));
-    CalculateMonStats(mon);
-}
+//     language = src->language;
+//     SetMonData(mon, MON_DATA_LANGUAGE, &language);
+//     SetMonData(mon, MON_DATA_OT_NAME, GetApprenticeNameInLanguage(src->id, language));
+//     CalculateMonStats(mon);
+// }
 
 void CreateMonWithEVSpreadNatureOTID(struct Pokemon *mon, u16 species, u8 level, u8 nature, u8 fixedIV, u8 evSpread, u32 otId)
 {
@@ -1695,7 +1854,7 @@ u16 GetUnionRoomTrainerPic(void)
     return FacilityClassToPicIndex(gUnionRoomFacilityClasses[arrId]);
 }
 
-u16 GetUnionRoomTrainerClass(void)
+enum TrainerClassID GetUnionRoomTrainerClass(void)
 {
     u8 linkId;
     u32 arrId;
@@ -1792,7 +1951,7 @@ void CalculateMonStats(struct Pokemon *mon)
     }
     else
     {
-        s32 n = 2 * gSpeciesInfo[species].baseHP + hpIV;
+        s32 n = 2 * GetSpeciesBaseHP(species) + hpIV;
         newMaxHP = (((n + hpEV / 4) * level) / 100) + level + 10;
     }
 
@@ -3460,7 +3619,7 @@ u8 GetMonsStateToDoubles_2(void)
     s32 i;
 
     if (OW_DOUBLE_APPROACH_WITH_ONE_MON
-     || FollowerNPCIsBattlePartner())
+     /* || FollowerNPCIsBattlePartner() */)
         return PLAYER_HAS_TWO_USABLE_MONS;
 
     for (i = 0; i < PARTY_SIZE; i++)
@@ -3482,7 +3641,7 @@ u16 GetAbilityBySpecies(u16 species, u8 abilityNum)
     int i;
 
     if (abilityNum < NUM_ABILITY_SLOTS)
-        gLastUsedAbility = gSpeciesInfo[species].abilities[abilityNum];
+        gLastUsedAbility = GetSpeciesAbility(species, abilityNum);
     else
         gLastUsedAbility = ABILITY_NONE;
 
@@ -3490,13 +3649,13 @@ u16 GetAbilityBySpecies(u16 species, u8 abilityNum)
     {
         for (i = NUM_NORMAL_ABILITY_SLOTS; i < NUM_ABILITY_SLOTS && gLastUsedAbility == ABILITY_NONE; i++)
         {
-            gLastUsedAbility = gSpeciesInfo[species].abilities[i];
+            gLastUsedAbility = GetSpeciesAbility(species, i);
         }
     }
 
     for (i = 0; i < NUM_ABILITY_SLOTS && gLastUsedAbility == ABILITY_NONE; i++) // look for any non-empty ability
     {
-        gLastUsedAbility = gSpeciesInfo[species].abilities[i];
+        gLastUsedAbility = GetSpeciesAbility(species, i);
     }
 
     return gLastUsedAbility;
@@ -3509,40 +3668,40 @@ u16 GetMonAbility(struct Pokemon *mon)
     return GetAbilityBySpecies(species, abilityNum);
 }
 
-void CreateSecretBaseEnemyParty(struct SecretBase *secretBaseRecord)
-{
-    s32 i, j;
+// void CreateSecretBaseEnemyParty(struct SecretBase *secretBaseRecord)
+// {
+//     s32 i, j;
 
-    ZeroEnemyPartyMons();
-    *gBattleResources->secretBase = *secretBaseRecord;
+//     ZeroEnemyPartyMons();
+//     *gBattleResources->secretBase = *secretBaseRecord;
 
-    for (i = 0; i < PARTY_SIZE; i++)
-    {
-        if (gBattleResources->secretBase->party.species[i])
-        {
-            CreateMon(&gEnemyParty[i],
-                gBattleResources->secretBase->party.species[i],
-                gBattleResources->secretBase->party.levels[i],
-                15,
-                TRUE,
-                gBattleResources->secretBase->party.personality[i],
-                OT_ID_RANDOM_NO_SHINY,
-                0);
+//     for (i = 0; i < PARTY_SIZE; i++)
+//     {
+//         if (gBattleResources->secretBase->party.species[i])
+//         {
+//             CreateMon(&gEnemyParty[i],
+//                 gBattleResources->secretBase->party.species[i],
+//                 gBattleResources->secretBase->party.levels[i],
+//                 15,
+//                 TRUE,
+//                 gBattleResources->secretBase->party.personality[i],
+//                 OT_ID_RANDOM_NO_SHINY,
+//                 0);
 
-            SetMonData(&gEnemyParty[i], MON_DATA_HELD_ITEM, &gBattleResources->secretBase->party.heldItems[i]);
+//             SetMonData(&gEnemyParty[i], MON_DATA_HELD_ITEM, &gBattleResources->secretBase->party.heldItems[i]);
 
-            for (j = 0; j < NUM_STATS; j++)
-                SetMonData(&gEnemyParty[i], MON_DATA_HP_EV + j, &gBattleResources->secretBase->party.EVs[i]);
+//             for (j = 0; j < NUM_STATS; j++)
+//                 SetMonData(&gEnemyParty[i], MON_DATA_HP_EV + j, &gBattleResources->secretBase->party.EVs[i]);
 
-            for (j = 0; j < MAX_MON_MOVES; j++)
-            {
-                SetMonData(&gEnemyParty[i], MON_DATA_MOVE1 + j, &gBattleResources->secretBase->party.moves[i * MAX_MON_MOVES + j]);
-                u32 pp = GetMovePP(gBattleResources->secretBase->party.moves[i * MAX_MON_MOVES + j]);
-                SetMonData(&gEnemyParty[i], MON_DATA_PP1 + j, &pp);
-            }
-        }
-    }
-}
+//             for (j = 0; j < MAX_MON_MOVES; j++)
+//             {
+//                 SetMonData(&gEnemyParty[i], MON_DATA_MOVE1 + j, &gBattleResources->secretBase->party.moves[i * MAX_MON_MOVES + j]);
+//                 u32 pp = GetMovePP(gBattleResources->secretBase->party.moves[i * MAX_MON_MOVES + j]);
+//                 SetMonData(&gEnemyParty[i], MON_DATA_PP1 + j, &pp);
+//             }
+//         }
+//     }
+// }
 
 u8 GetSecretBaseTrainerPicIndex(void)
 {
@@ -3550,7 +3709,7 @@ u8 GetSecretBaseTrainerPicIndex(void)
     return gFacilityClassToPicIndex[facilityClass];
 }
 
-u8 GetSecretBaseTrainerClass(void)
+enum TrainerClassID GetSecretBaseTrainerClass(void)
 {
     u8 facilityClass = sSecretBaseFacilityClasses[gBattleResources->secretBase->gender][gBattleResources->secretBase->trainerId[0] % NUM_SECRET_BASE_CLASSES];
     return gFacilityClassToTrainerClass[facilityClass];
@@ -3603,14 +3762,54 @@ const u8 *GetSpeciesPokedexDescription(u16 species)
     return gSpeciesInfo[species].description;
 }
 
-u16 GetSpeciesHeight(u16 species)
+u32 GetSpeciesHeight(u16 species)
 {
     return gSpeciesInfo[SanitizeSpeciesId(species)].height;
 }
 
-u16 GetSpeciesWeight(u16 species)
+u32 GetSpeciesWeight(u16 species)
 {
     return gSpeciesInfo[SanitizeSpeciesId(species)].weight;
+}
+
+u32 GetSpeciesType(u16 species, u8 slot)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].types[slot];
+}
+
+u32 GetSpeciesAbility(u16 species, u8 slot)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].abilities[slot];
+}
+
+u32 GetSpeciesBaseHP(u16 species)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].baseHP;
+}
+
+u32 GetSpeciesBaseAttack(u16 species)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].baseAttack;
+}
+
+u32 GetSpeciesBaseDefense(u16 species)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].baseDefense;
+}
+
+u32 GetSpeciesBaseSpAttack(u16 species)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].baseSpAttack;
+}
+
+u32 GetSpeciesBaseSpDefense(u16 species)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].baseSpDefense;
+}
+
+u32 GetSpeciesBaseSpeed(u16 species)
+{
+    return gSpeciesInfo[SanitizeSpeciesId(species)].baseSpeed;
 }
 
 const struct LevelUpMove *GetSpeciesLevelUpLearnset(u16 species)
@@ -3713,8 +3912,8 @@ void PokemonToBattleMon(struct Pokemon *src, struct BattlePokemon *dst)
     dst->spDefense = GetMonData(src, MON_DATA_SPDEF, NULL);
     dst->abilityNum = GetMonData(src, MON_DATA_ABILITY_NUM, NULL);
     dst->otId = GetMonData(src, MON_DATA_OT_ID, NULL);
-    dst->types[0] = gSpeciesInfo[dst->species].types[0];
-    dst->types[1] = gSpeciesInfo[dst->species].types[1];
+    dst->types[0] = GetSpeciesType(dst->species, 0);
+    dst->types[1] = GetSpeciesType(dst->species, 1);
     dst->types[2] = TYPE_MYSTERY;
     dst->isShiny = IsMonShiny(src);
     dst->ability = GetAbilityBySpecies(dst->species, dst->abilityNum);
@@ -4083,7 +4282,8 @@ bool8 PokemonUseItemEffects(struct Pokemon *mon, u16 item, u8 partyIndex, u8 mov
                             if (targetSpecies != SPECIES_NONE)
                             {
                                 GetEvolutionTargetSpecies(mon, EVO_MODE_ITEM_USE, item, NULL, &canStopEvo, DO_EVO);
-                                BeginEvolutionScene(mon, targetSpecies, canStopEvo, partyIndex);
+                                // already called in item use special (differs from emerald)
+                                // BeginEvolutionScene(mon, targetSpecies, canStopEvo, partyIndex);
                                 return FALSE;
                             }
                         }
@@ -4641,8 +4841,8 @@ bool32 DoesMonMeetAdditionalConditions(struct Pokemon *mon, const struct Evoluti
             for (j = 0; j < PARTY_SIZE; j++)
             {
                 u16 currSpecies = GetMonData(&gPlayerParty[j], MON_DATA_SPECIES, NULL);
-                if (gSpeciesInfo[currSpecies].types[0] == params[i].arg1
-                 || gSpeciesInfo[currSpecies].types[1] == params[i].arg1)
+                if (GetSpeciesType(currSpecies, 0) == params[i].arg1
+                 || GetSpeciesType(currSpecies, 1) == params[i].arg1)
                 {
                     currentCondition = TRUE;
                     break;
@@ -5001,7 +5201,7 @@ bool8 IsMonPastEvolutionLevel(struct Pokemon *mon)
     return FALSE;
 }
 
-u16 NationalPokedexNumToSpecies(u16 nationalNum)
+u16 NationalPokedexNumToSpecies(enum NationalDexOrder nationalNum)
 {
     u16 species;
 
@@ -5019,7 +5219,7 @@ u16 NationalPokedexNumToSpecies(u16 nationalNum)
     return GET_BASE_SPECIES_ID(species);
 }
 
-u16 NationalToHoennOrder(u16 nationalNum)
+enum HoennDexOrder NationalToHoennOrder(enum NationalDexOrder nationalNum)
 {
     u16 hoennNum;
 
@@ -5037,7 +5237,7 @@ u16 NationalToHoennOrder(u16 nationalNum)
     return hoennNum + 1;
 }
 
-u16 SpeciesToNationalPokedexNum(u16 species)
+enum NationalDexOrder SpeciesToNationalPokedexNum(u16 species)
 {
     species = SanitizeSpeciesId(species);
     if (!species)
@@ -5046,19 +5246,75 @@ u16 SpeciesToNationalPokedexNum(u16 species)
     return gSpeciesInfo[species].natDexNum;
 }
 
-u16 SpeciesToHoennPokedexNum(u16 species)
+enum HoennDexOrder SpeciesToHoennPokedexNum(u16 species)
 {
     if (!species)
         return 0;
     return NationalToHoennOrder(gSpeciesInfo[species].natDexNum);
 }
 
-u16 HoennToNationalOrder(u16 hoennNum)
+enum NationalDexOrder HoennToNationalOrder(enum HoennDexOrder hoennNum)
 {
     if (!hoennNum || hoennNum >= HOENN_DEX_COUNT)
         return 0;
 
     return sHoennToNationalOrder[hoennNum - 1];
+}
+
+enum NationalDexOrder HoennToNationalDexNum(enum HoennDexOrder hoennNum)
+{
+    if (HOENN_DEX_START <= hoennNum && hoennNum < HOENN_DEX_END)
+        return sHoennToNationalOrder[hoennNum];
+    return NATIONAL_DEX_NONE;
+}
+
+u16 HoennNumToSpecies(enum HoennDexOrder hoennNum)
+{
+    return NationalPokedexNumToSpecies(HoennToNationalDexNum(hoennNum));
+}
+
+enum KantoDexOrder NationalToKantoDexNum(enum NationalDexOrder natDexNum)
+{
+    enum KantoDexOrder i;
+
+    if (natDexNum == 0)
+    {
+        return KANTO_DEX_NONE;
+    }
+
+    for (i = KANTO_DEX_BULBASAUR; i < KANTO_DEX_END; i++)
+    {
+        if (sKantoDexNumToNationalDexNum[i] == natDexNum)
+        {
+            return i;
+        }
+    }
+    return KANTO_DEX_NONE;
+}
+
+enum KantoDexOrder SpeciesToKantoDexNum(u16 species)
+{
+    if (!species)
+        return KANTO_DEX_NONE;
+
+    return NationalToKantoDexNum(SpeciesToNationalPokedexNum(species));
+}
+
+bool32 IsSpeciesInKantoDex(u16 species)
+{
+    return SpeciesToKantoDexNum(species) != KANTO_DEX_NONE;
+}
+
+enum NationalDexOrder KantoToNationalDexNum(enum KantoDexOrder kantoNum)
+{
+    if (KANTO_DEX_START <= kantoNum && kantoNum < KANTO_DEX_END)
+        return sKantoDexNumToNationalDexNum[kantoNum];
+    return NATIONAL_DEX_NONE;
+}
+
+u16 KantoNumToSpecies(enum KantoDexOrder kantoNum)
+{
+    return NationalPokedexNumToSpecies(KantoToNationalDexNum(kantoNum));
 }
 
 // Spots can be drawn on Spinda's color indexes 1, 2, or 3
@@ -5091,74 +5347,63 @@ u16 HoennToNationalOrder(u16 hoennNum)
     (destPixels) is an 8 bit pointer, so it addresses two pixels. Shifting by 4 accesses the 2nd
     of these pixels, so this is done every other time.
 */
+#define DRAW_SPINDA_SPOTS(personality, dest)                                    \
+{                                                                               \
+    s32 i;                                                                      \
+    for (i = 0; i < (s32)ARRAY_COUNT(sSpindaSpotGraphics); i++)                 \
+    {                                                                           \
+        s32 row;                                                                \
+        u8 x = sSpindaSpotGraphics[i].x + ((personality & 0x0F) - 8);           \
+        u8 y = sSpindaSpotGraphics[i].y + (((personality & 0xF0) >> 4) - 8);    \
+                                                                                \
+        for (row = 0; row < SPINDA_SPOT_HEIGHT; row++)                          \
+        {                                                                       \
+            s32 column;                                                         \
+            s32 spotPixelRow = sSpindaSpotGraphics[i].image[row];               \
+                                                                                \
+            for (column = x; column < x + SPINDA_SPOT_WIDTH; column++)          \
+            {                                                                   \
+                /* Get target pixels on Spinda's sprite */                      \
+                u8 *destPixels = dest + ((column / 8) * TILE_SIZE_4BPP) +       \
+                                        ((column % 8) / 2) +                    \
+                                             ((y / 8) * TILE_SIZE_4BPP * 8) +   \
+                                             ((y % 8) * 4);                     \
+                                                                                \
+                /* Is this pixel in the 16x16 spot image part of the spot? */   \
+                if (spotPixelRow & 1)                                           \
+                {                                                               \
+                    /* destPixels addressess two pixels, alternate which */     \
+                    /* of the two pixels is being considered for drawing */     \
+                    if (column & 1)                                             \
+                    {                                                           \
+                        /* Draw spot pixel if this is Spinda's body color */    \
+                        if ((u8)((*destPixels & 0xF0) - (FIRST_SPOT_COLOR << 4))\
+                                 <= ((LAST_SPOT_COLOR - FIRST_SPOT_COLOR) << 4))\
+                            *destPixels += (SPOT_COLOR_ADJUSTMENT << 4);        \
+                    }                                                           \
+                    else                                                        \
+                    {                                                           \
+                        /* Draw spot pixel if this is Spinda's body color */    \
+                        if ((u8)((*destPixels & 0xF) - FIRST_SPOT_COLOR)        \
+                                 <= (LAST_SPOT_COLOR - FIRST_SPOT_COLOR))       \
+                            *destPixels += SPOT_COLOR_ADJUSTMENT;               \
+                    }                                                           \
+                }                                                               \
+                                                                                \
+                spotPixelRow >>= 1;                                             \
+            }                                                                   \
+                                                                                \
+            y++;                                                                \
+        }                                                                       \
+                                                                                \
+        personality >>= 8;                                                      \
+    }                                                                           \
+}
 
-// Draw spot pixel if this is Spinda's body color
-#define TRY_DRAW_SPOT_PIXEL(pixels, shift) \
-    if (((*(pixels) & (0xF << (shift))) >= (FIRST_SPOT_COLOR << (shift))) \
-     && ((*(pixels) & (0xF << (shift))) <= (LAST_SPOT_COLOR << (shift)))) \
-    { \
-        *(pixels) += (SPOT_COLOR_ADJUSTMENT << (shift)); \
-    }
-
-
-void DrawSpindaSpots(u32 personality, u8 *dest, bool32 isSecondFrame)
+void DrawSpindaSpots(u32 species, u32 personality, u8 *dest, bool8 isFrontPic)
 {
-    s32 i;
-    for (i = 0; i < (s32)ARRAY_COUNT(gSpindaSpotGraphics); i++)
-    {
-        s32 row;
-        u8 x = gSpindaSpotGraphics[i].x + (personality & 0x0F);
-        u8 y = gSpindaSpotGraphics[i].y + ((personality & 0xF0) >> 4);
-
-        if (isSecondFrame)
-        {
-            x -= 12;
-            y += 56;
-        }
-        else
-        {
-            x -= 8;
-            y -= 8;
-        }
-
-        for (row = 0; row < SPINDA_SPOT_HEIGHT; row++)
-        {
-            s32 column;
-            s32 spotPixelRow = gSpindaSpotGraphics[i].image[row];
-
-            for (column = x; column < x + SPINDA_SPOT_WIDTH; column++)
-            {
-                /* Get target pixels on Spinda's sprite */
-                u8 *destPixels = dest + ((column / 8) * TILE_SIZE_4BPP) +
-                    ((column % 8) / 2) +
-                    ((y / 8) * TILE_SIZE_4BPP * 8) +
-                    ((y % 8) * 4);
-
-                /* Is this pixel in the 16x16 spot image part of the spot? */
-                if (spotPixelRow & 1)
-                {
-                    /* destPixels addressess two pixels, alternate which */
-                    /* of the two pixels is being considered for drawing */
-                    if (column & 1)
-                    {
-                        /* Draw spot pixel if this is Spinda's body color */
-                        TRY_DRAW_SPOT_PIXEL(destPixels, 4);
-                    }
-                    else
-                    {
-                        /* Draw spot pixel if this is Spinda's body color */
-                        TRY_DRAW_SPOT_PIXEL(destPixels, 0);
-                    }
-                }
-
-                spotPixelRow >>= 1;
-            }
-
-            y++;
-        }
-
-        personality >>= 8;
-    }
+    if (species == SPECIES_SPINDA && isFrontPic)
+        DRAW_SPINDA_SPOTS(personality, dest);
 }
 
 void EvolutionRenameMon(struct Pokemon *mon, u16 oldSpecies, u16 newSpecies)
@@ -5220,12 +5465,7 @@ u8 GetTrainerEncounterMusicId(u16 trainerOpponentId)
     u32 sanitizedTrainerId = SanitizeTrainerId(trainerOpponentId);
     enum DifficultyLevel difficulty = GetTrainerDifficultyLevel(sanitizedTrainerId);
 
-    if (InBattlePyramid())
-        return GetTrainerEncounterMusicIdInBattlePyramid(trainerOpponentId);
-    else if (InTrainerHillChallenge())
-        return GetTrainerEncounterMusicIdInTrainerHill(trainerOpponentId);
-    else
-        return gTrainers[difficulty][sanitizedTrainerId].encounterMusic_gender & (F_TRAINER_FEMALE - 1);
+    return gTrainers[difficulty][sanitizedTrainerId].encounterMusic_gender & (F_TRAINER_FEMALE - 1);
 }
 
 u16 ModifyStatByNature(u8 nature, u16 stat, u8 statIndex)
@@ -5273,7 +5513,7 @@ void AdjustFriendship(struct Pokemon *mon, u8 event)
     {
         u8 friendshipLevel = 0;
         s16 friendship = GetMonData(mon, MON_DATA_FRIENDSHIP, 0);
-        u32 opponentTrainerClass = GetTrainerClassFromId(TRAINER_BATTLE_PARAM.opponentA);
+        enum TrainerClassID opponentTrainerClass = GetTrainerClassFromId(TRAINER_BATTLE_PARAM.opponentA);
 
         if (friendship > 99)
             friendshipLevel++;
@@ -5789,16 +6029,11 @@ u8 GetNumberOfRelearnableMoves(struct Pokemon *mon)
 u16 SpeciesToPokedexNum(u16 species)
 {
     if (IsNationalPokedexEnabled())
-    {
         return SpeciesToNationalPokedexNum(species);
-    }
-    else
-    {
-        species = SpeciesToHoennPokedexNum(species);
-        if (species <= HOENN_DEX_COUNT)
-            return species;
-        return 0xFFFF;
-    }
+    species = SpeciesToKantoDexNum(species);
+    if (species <= KANTO_DEX_COUNT)
+        return species;
+    return 0xFFFF;
 }
 
 bool32 IsSpeciesInHoennDex(u16 species)
@@ -5815,67 +6050,37 @@ u16 GetBattleBGM(void)
     {
         switch (GetMonData(&gEnemyParty[0], MON_DATA_SPECIES, NULL))
         {
-        case SPECIES_RAYQUAZA:
-            return MUS_VS_RAYQUAZA;
-        case SPECIES_KYOGRE:
-        case SPECIES_GROUDON:
-            return MUS_VS_KYOGRE_GROUDON;
         case SPECIES_REGIROCK:
         case SPECIES_REGICE:
         case SPECIES_REGISTEEL:
         case SPECIES_REGIGIGAS:
         case SPECIES_REGIELEKI:
         case SPECIES_REGIDRAGO:
-            return MUS_VS_REGI;
+            return MUS_RS_VS_TRAINER;
         default:
-            return MUS_RG_VS_LEGEND;
+            return MUS_VS_WILD;
         }
     }
     else if (gBattleTypeFlags & (BATTLE_TYPE_LINK | BATTLE_TYPE_RECORDED_LINK))
     {
-        return MUS_VS_TRAINER;
+        return MUS_RS_VS_TRAINER;
     }
     else if (gBattleTypeFlags & BATTLE_TYPE_TRAINER)
     {
-        u8 trainerClass;
-
-        if (gBattleTypeFlags & BATTLE_TYPE_FRONTIER)
-            trainerClass = GetFrontierOpponentClass(TRAINER_BATTLE_PARAM.opponentA);
-        else if (gBattleTypeFlags & BATTLE_TYPE_TRAINER_HILL)
-            trainerClass = TRAINER_CLASS_EXPERT;
-        else
-            trainerClass = GetTrainerClassFromId(TRAINER_BATTLE_PARAM.opponentA);
+        enum TrainerClassID trainerClass = GetTrainerClassFromId(TRAINER_BATTLE_PARAM.opponentA);
 
         switch (trainerClass)
         {
-        case TRAINER_CLASS_AQUA_LEADER:
-        case TRAINER_CLASS_MAGMA_LEADER:
-            return MUS_VS_AQUA_MAGMA_LEADER;
-        case TRAINER_CLASS_TEAM_AQUA:
-        case TRAINER_CLASS_TEAM_MAGMA:
-        case TRAINER_CLASS_AQUA_ADMIN:
-        case TRAINER_CLASS_MAGMA_ADMIN:
-            return MUS_VS_AQUA_MAGMA;
-        case TRAINER_CLASS_LEADER:
-            return MUS_VS_GYM_LEADER;
         case TRAINER_CLASS_CHAMPION:
             return MUS_VS_CHAMPION;
-        case TRAINER_CLASS_RIVAL:
-            if (gBattleTypeFlags & BATTLE_TYPE_FRONTIER)
-                return MUS_VS_RIVAL;
-            if (!StringCompare(GetTrainerNameFromId(TRAINER_BATTLE_PARAM.opponentA), gText_BattleWallyName))
-                return MUS_VS_TRAINER;
-            return MUS_VS_RIVAL;
+        case TRAINER_CLASS_LEADER:
         case TRAINER_CLASS_ELITE_FOUR:
-            return MUS_VS_ELITE_FOUR;
-        case TRAINER_CLASS_SALON_MAIDEN:
-        case TRAINER_CLASS_DOME_ACE:
-        case TRAINER_CLASS_PALACE_MAVEN:
-        case TRAINER_CLASS_ARENA_TYCOON:
-        case TRAINER_CLASS_FACTORY_HEAD:
-        case TRAINER_CLASS_PIKE_QUEEN:
-        case TRAINER_CLASS_PYRAMID_KING:
-            return MUS_VS_FRONTIER_BRAIN;
+            return MUS_VS_GYM_LEADER;
+        case TRAINER_CLASS_BOSS:
+        case TRAINER_CLASS_TEAM_ROCKET:
+        case TRAINER_CLASS_COOLTRAINER:
+        case TRAINER_CLASS_GENTLEMAN:
+        case TRAINER_CLASS_RIVAL_LATE:
         default:
             return MUS_VS_TRAINER;
         }
@@ -5975,7 +6180,7 @@ bool8 IsMoveHM(u16 move)
 {
     int i = 0;
 
-    if (P_CAN_FORGET_HIDDEN_MOVE)
+    if (P_CAN_FORGET_HIDDEN_MOVE && B_CATCH_SWAP_CHECK_HMS == FALSE)
         return FALSE;
 
     while (sHMMoves[i] != HM_MOVES_END)
@@ -6095,7 +6300,7 @@ static inline bool32 CanFirstMonBoostHeldItemRarity(void)
 
 void SetWildMonHeldItem(void)
 {
-    if (!(gBattleTypeFlags & (BATTLE_TYPE_LEGENDARY | BATTLE_TYPE_TRAINER | BATTLE_TYPE_PYRAMID | BATTLE_TYPE_PIKE)))
+    if (!(gBattleTypeFlags & (BATTLE_TYPE_POKEDUDE | BATTLE_TYPE_LEGENDARY | BATTLE_TYPE_TRAINER | BATTLE_TYPE_PYRAMID | BATTLE_TYPE_PIKE)))
     {
         u16 rnd;
         u16 species;
@@ -6112,7 +6317,7 @@ void SetWildMonHeldItem(void)
 
             rnd = Random() % 100;
             species = GetMonData(&gEnemyParty[i], MON_DATA_SPECIES, 0);
-            if (gMapHeader.mapLayoutId == LAYOUT_ALTERING_CAVE)
+            if (gMapHeader.mapLayoutId == LAYOUT_SIX_ISLAND_ALTERING_CAVE)
             {
                 s32 alteringCaveId = GetWildMonTableIdInAlteringCave(species);
                 if (alteringCaveId != 0)
@@ -6163,8 +6368,7 @@ const u8 *GetTrainerPartnerName(void)
 {
     if (gBattleTypeFlags & BATTLE_TYPE_INGAME_PARTNER)
     {
-        GetFrontierTrainerName(gStringVar1, gPartnerTrainerId);
-        return gStringVar1;
+        return GetTrainerNameFromId(gPartnerTrainerId);
     }
     else
     {
@@ -6196,15 +6400,15 @@ static void Task_AnimateAfterDelay(u8 taskId)
     }
 }
 
-static void Task_PokemonSummaryAnimateAfterDelay(u8 taskId)
-{
-    if (--gTasks[taskId].sAnimDelay == 0)
-    {
-        StartMonSummaryAnimation(READ_PTR_FROM_TASK(taskId, 0), gTasks[taskId].sAnimId);
-        SummaryScreen_SetAnimDelayTaskId(TASK_NONE);
-        DestroyTask(taskId);
-    }
-}
+// static void Task_PokemonSummaryAnimateAfterDelay(u8 taskId)
+// {
+//     if (--gTasks[taskId].sAnimDelay == 0)
+//     {
+//         StartMonSummaryAnimation(READ_PTR_FROM_TASK(taskId, 0), gTasks[taskId].sAnimId);
+//         SummaryScreen_SetAnimDelayTaskId(TASK_NONE);
+//         DestroyTask(taskId);
+//     }
+// }
 
 void BattleAnimateFrontSprite(struct Sprite *sprite, u16 species, bool8 noCry, u8 panMode)
 {
@@ -6261,33 +6465,33 @@ void DoMonFrontSpriteAnimation(struct Sprite *sprite, u16 species, bool8 noCry, 
     }
 }
 
-void PokemonSummaryDoMonAnimation(struct Sprite *sprite, u16 species, bool8 oneFrame)
-{
-    if (!oneFrame && HasTwoFramesAnimation(species))
-        StartSpriteAnim(sprite, 1);
-    if (gSpeciesInfo[species].frontAnimDelay != 0)
-    {
-        // Animation has delay, start delay task
-        u8 taskId = CreateTask(Task_PokemonSummaryAnimateAfterDelay, 0);
-        STORE_PTR_IN_TASK(sprite, taskId, 0);
-        gTasks[taskId].sAnimId = gSpeciesInfo[species].frontAnimId;
-        gTasks[taskId].sAnimDelay = gSpeciesInfo[species].frontAnimDelay;
-        SummaryScreen_SetAnimDelayTaskId(taskId);
-        SetSpriteCB_MonAnimDummy(sprite);
-    }
-    else
-    {
-        // No delay, start animation
-        StartMonSummaryAnimation(sprite, gSpeciesInfo[species].frontAnimId);
-    }
-}
+// void PokemonSummaryDoMonAnimation(struct Sprite *sprite, u16 species, bool8 oneFrame)
+// {
+//     if (!oneFrame && HasTwoFramesAnimation(species))
+//         StartSpriteAnim(sprite, 1);
+//     if (gSpeciesInfo[species].frontAnimDelay != 0)
+//     {
+//         // Animation has delay, start delay task
+//         u8 taskId = CreateTask(Task_PokemonSummaryAnimateAfterDelay, 0);
+//         STORE_PTR_IN_TASK(sprite, taskId, 0);
+//         gTasks[taskId].sAnimId = gSpeciesInfo[species].frontAnimId;
+//         gTasks[taskId].sAnimDelay = gSpeciesInfo[species].frontAnimDelay;
+//         SummaryScreen_SetAnimDelayTaskId(taskId);
+//         SetSpriteCB_MonAnimDummy(sprite);
+//     }
+//     else
+//     {
+//         // No delay, start animation
+//         StartMonSummaryAnimation(sprite, gSpeciesInfo[species].frontAnimId);
+//     }
+// }
 
-void StopPokemonAnimationDelayTask(void)
-{
-    u8 delayTaskId = FindTaskIdByFunc(Task_PokemonSummaryAnimateAfterDelay);
-    if (delayTaskId != TASK_NONE)
-        DestroyTask(delayTaskId);
-}
+// void StopPokemonAnimationDelayTask(void)
+// {
+//     u8 delayTaskId = FindTaskIdByFunc(Task_PokemonSummaryAnimateAfterDelay);
+//     if (delayTaskId != TASK_NONE)
+//         DestroyTask(delayTaskId);
+// }
 
 void BattleAnimateBackSprite(struct Sprite *sprite, u16 species)
 {
@@ -6359,12 +6563,12 @@ u16 FacilityClassToPicIndex(u16 facilityClass)
 u16 PlayerGenderToFrontTrainerPicId(u8 playerGender)
 {
     if (playerGender != MALE)
-        return FacilityClassToPicIndex(FACILITY_CLASS_MAY);
+        return FacilityClassToPicIndex(FACILITY_CLASS_LEAF);
     else
-        return FacilityClassToPicIndex(FACILITY_CLASS_BRENDAN);
+        return FacilityClassToPicIndex(FACILITY_CLASS_RED);
 }
 
-void HandleSetPokedexFlag(u16 nationalNum, u8 caseId, u32 personality)
+void HandleSetPokedexFlag(enum NationalDexOrder nationalNum, u8 caseId, u32 personality)
 {
     u8 getFlagCaseId = (caseId == FLAG_SET_SEEN) ? FLAG_GET_SEEN : FLAG_GET_CAUGHT;
     if (!GetSetPokedexFlag(nationalNum, getFlagCaseId)) // don't set if it's already set
@@ -6389,8 +6593,8 @@ static bool8 ShouldSkipFriendshipChange(void)
 {
     if (gMain.inBattle && gBattleTypeFlags & (BATTLE_TYPE_FRONTIER))
         return TRUE;
-    if (!gMain.inBattle && (InBattlePike() || InBattlePyramid()))
-        return TRUE;
+    // if (!gMain.inBattle && (InBattlePike() || InBattlePyramid()))
+    //     return TRUE;
     return FALSE;
 }
 
@@ -6633,7 +6837,7 @@ u32 GetFormChangeTargetSpeciesBoxMon(struct BoxPokemon *boxMon, enum FormChanges
                         // This is to prevent reverting to base form when giving the item to the corresponding form.
                         // Eg. Giving a Zap Plate to an Electric Arceus without an item (most likely to happen when using givemon)
                         bool32 currentItemForm = FALSE;
-                        for (int j = 0; formChanges[j].method != FORM_CHANGE_TERMINATOR; j++)
+                        for (u32 j = 0; formChanges[j].method != FORM_CHANGE_TERMINATOR; j++)
                         {
                             if (species == formChanges[j].targetSpecies
                                 && formChanges[j].param1 == heldItem
@@ -6686,7 +6890,7 @@ u32 GetFormChangeTargetSpeciesBoxMon(struct BoxPokemon *boxMon, enum FormChanges
                     if (heldItem == formChanges[i].param1 || formChanges[i].param1 == ITEM_NONE)
                         targetSpecies = formChanges[i].targetSpecies;
                     break;
-                case FORM_CHANGE_END_BATTLE_TERRAIN:
+                case FORM_CHANGE_END_BATTLE_ENVIRONMENT:
                     if (gBattleEnvironment == formChanges[i].param1)
                         targetSpecies = formChanges[i].targetSpecies;
                     break;
@@ -6883,6 +7087,7 @@ u16 SanitizeSpeciesId(u16 species)
 
 bool32 IsSpeciesEnabled(u16 species)
 {
+    // This function should not use the GetSpeciesBaseHP function, as the included sanitation will result in an infinite loop
     return gSpeciesInfo[species].baseHP > 0 || species == SPECIES_EGG;
 }
 
@@ -7018,7 +7223,7 @@ void HealBoxPokemon(struct BoxPokemon *boxMon)
     BoxMonRestorePP(boxMon);
 }
 
-u16 GetCryIdBySpecies(u16 species)
+enum PokemonCry GetCryIdBySpecies(u16 species)
 {
     species = SanitizeSpeciesId(species);
     if (P_CRIES_ENABLED == FALSE || gSpeciesInfo[species].cryId >= CRY_COUNT || gTestRunnerHeadless)
@@ -7167,4 +7372,96 @@ u32 GetTeraTypeFromPersonality(struct Pokemon *mon)
 {
     const u8 *types = gSpeciesInfo[GetMonData(mon, MON_DATA_SPECIES)].types;
     return (GetMonData(mon, MON_DATA_PERSONALITY) & 0x1) == 0 ? types[0] : types[1];
+}
+
+struct Pokemon *GetSavedPlayerPartyMon(u32 index)
+{
+    return &gSaveBlock1Ptr->playerParty[index];
+}
+
+u8 *GetSavedPlayerPartyCount(void)
+{
+    return &gSaveBlock1Ptr->playerPartyCount;
+}
+
+void SavePlayerPartyMon(u32 index, struct Pokemon *mon)
+{
+    gSaveBlock1Ptr->playerParty[index] = *mon;
+}
+
+//pokefirered specific
+u8 GetPlayerPartyHighestLevel(void)
+{
+    s32 slot;
+    u8 level, monLevel;
+
+    level = 1;
+    for (slot = 0; slot < PARTY_SIZE; ++slot)
+    {
+        if (GetMonData(&gPlayerParty[slot], MON_DATA_SANITY_HAS_SPECIES, NULL) == 1 && !GetMonData(&gPlayerParty[slot], MON_DATA_SANITY_IS_EGG, NULL))
+        {
+            monLevel = GetMonData(&gPlayerParty[slot], MON_DATA_LEVEL, NULL);
+            if (monLevel > level)
+                level = monLevel;
+        }
+    }
+    return level;
+}
+
+bool8 CheckBattleTypeGhost(struct Pokemon *mon, u8 battlerId)
+{
+    u8 nickname[POKEMON_NAME_LENGTH + 1];
+
+    if (gBattleTypeFlags & BATTLE_TYPE_GHOST && GetBattlerSide(battlerId) != B_SIDE_PLAYER)
+    {
+        GetMonData(mon, MON_DATA_NICKNAME, nickname);
+        StringGet_Nickname(nickname);
+        if (!StringCompare(nickname, gText_Ghost))
+            return TRUE;
+    }
+    return FALSE;
+}
+
+u16 GetFirstPartnerMove(u16 species)
+{
+    switch(species)
+    {
+        case SPECIES_VENUSAUR:
+        case SPECIES_MEGANIUM:
+        case SPECIES_SCEPTILE:
+        case SPECIES_TORTERRA:
+        case SPECIES_SERPERIOR:
+        case SPECIES_CHESNAUGHT:
+        case SPECIES_DECIDUEYE:
+        case SPECIES_DECIDUEYE_HISUI:
+        case SPECIES_RILLABOOM:
+        case SPECIES_MEOWSCARADA:
+            return MOVE_FRENZY_PLANT;
+        case SPECIES_CHARIZARD:
+        case SPECIES_TYPHLOSION:
+        case SPECIES_TYPHLOSION_HISUI:
+        case SPECIES_BLAZIKEN:
+        case SPECIES_INFERNAPE:
+        case SPECIES_EMBOAR:
+        case SPECIES_DELPHOX:
+        case SPECIES_INCINEROAR:
+        case SPECIES_CINDERACE:
+        case SPECIES_SKELEDIRGE:
+            return MOVE_BLAST_BURN;
+        case SPECIES_BLASTOISE:
+        case SPECIES_FERALIGATR:
+        case SPECIES_SWAMPERT:
+        case SPECIES_EMPOLEON:
+        case SPECIES_SAMUROTT:
+        case SPECIES_SAMUROTT_HISUI:
+        case SPECIES_GRENINJA:
+        case SPECIES_GRENINJA_ASH:
+        case SPECIES_GRENINJA_BATTLE_BOND:
+        case SPECIES_PRIMARINA:
+        case SPECIES_INTELEON:
+        case SPECIES_QUAQUAVAL:
+            return MOVE_HYDRO_CANNON;
+        default:
+            return MOVE_NONE;
+    }
 }

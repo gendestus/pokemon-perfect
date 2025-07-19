@@ -1,42 +1,26 @@
 #include "global.h"
-#include "malloc.h"
-#include "decompress.h"
-#include "ereader_helpers.h"
 #include "link.h"
-#include "main.h"
-#include "union_room.h"
-#include "save.h"
-#include "sprite.h"
-#include "task.h"
-#include "util.h"
-#include "trainer_hill.h"
-#include "constants/trainers.h"
-#include "constants/moves.h"
-#include "constants/items.h"
-#include "constants/trainer_hill.h"
-
-// Save data using TryWriteSpecialSaveSector is allowed to exceed SECTOR_DATA_SIZE (up to the counter field)
-STATIC_ASSERT(sizeof(struct TrainerHillChallenge) <= SECTOR_COUNTER_OFFSET, TrainerHillChallengeFreeSpace);
+#include "ereader_helpers.h"
 
 struct SendRecvMgr
 {
-    bool8 isParent;
+    u8 master_slave;       // 0: clock slave; 1: clock master
     u8 state;              // EREADER_XFR_STATE_*
     u8 xferState;          // EREADER_XFER_*
     u8 checksumResult;     // EREADER_CHECKSUM_*
     u8 cancellationReason; // EREADER_CANCEL_*
-    u32 *data;             // Payload source or destination
+    u32 * dataptr;         // Payload source or destination
     int cursor;            // Index of the next word
     int size;              // Last word index
-    int checksum;
+    u32 checksum;          // Validation checksum
 };
 
-static void GetKeyInput(void);
-static u16 DetermineSendRecvState(u8);
-static void EnableSio(void);
-static void DisableTm3(void);
+static bool16 DetermineSendRecvState(u8);
 static void SetUpTransferManager(size_t, const void *, void *);
 static void StartTm3(void);
+static void EnableSio(void);
+static void DisableTm3(void);
+static void GetKeyInput(void);
 
 static struct SendRecvMgr sSendRecvMgr;
 static u16 sJoyNewOrRepeated;
@@ -50,486 +34,29 @@ static u16 sSavedTm3Cnt;
 static u16 sSavedSioCnt;
 static u16 sSavedRCnt;
 
-static const struct TrainerHillTrainer sTrainerHillTrainerTemplates_JP[] = {
-    [0] = {
-        .name = __("マキエ$$$$$   "),
-        .facilityClass = FACILITY_CLASS_HEX_MANIAC,
-        .unused = 0x1,
-        .speechBefore = { EC_WORD_PREPOSTEROUS, EC_WORD_CASE, EC_WORD_THERE, EC_WORD_TO_HER, EC_WORD_CHALLENGE, EC_WORD_JOKING },
-        .speechWin = { EC_WORD_HERS, EC_WORD_TRUMP_CARD, EC_MOVE2(SECRET_POWER), EC_WORD_USING, EC_WORD_WON, EC_WORD_EXCL_EXCL },
-        .speechLose = { EC_WORD_TO_HER, EC_WORD_WIN, EC_WORD_JOKING, EC_WORD_HIGHS, EC_WORD_SCARY, EC_WORD_ELLIPSIS_EXCL },
-        .speechAfter = { EC_WORD_IGNORANT, EC_WORD_SO, EC_WORD_TODAY, EC_WORD_NIGHTTIME, EC_WORD_YOU_RE, EC_WORD_ELLIPSIS_ELLIPSIS_ELLIPSIS },
-        .mons = {
-            [0] = DUMMY_HILL_MON,
-            [1] = DUMMY_HILL_MON,
-            [2] = DUMMY_HILL_MON,
-            [3] = {
-                .species = SPECIES_SWALOT,
-                .heldItem = ITEM_SHELL_BELL,
-                .moves = { MOVE_SLUDGE_BOMB, MOVE_SHADOW_BALL, MOVE_PAIN_SPLIT, MOVE_YAWN },
-                .hpEV = 55,
-                .attackEV = 255,
-                .defenseEV = 100,
-                .speedEV = 0,
-                .spAttackEV = 0,
-                .spDefenseEV = 100,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 1,
-                .personality = 0x80,
-                .nickname = __("マルノーム$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [4] = {
-                .species = SPECIES_DUSTOX,
-                .heldItem = ITEM_BRIGHT_POWDER,
-                .moves = { MOVE_SILVER_WIND, MOVE_SLUDGE_BOMB, MOVE_SHADOW_BALL, MOVE_GIGA_DRAIN },
-                .hpEV = 0,
-                .attackEV = 255,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 255,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x6,
-                .nickname = __("ドクケイル$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [5] = {
-                .species = SPECIES_RELICANTH,
-                .heldItem = ITEM_QUICK_CLAW,
-                .moves = { MOVE_ANCIENT_POWER, MOVE_SURF, MOVE_EARTHQUAKE, MOVE_AMNESIA },
-                .hpEV = 100,
-                .attackEV = 0,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 155,
-                .spDefenseEV = 255,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x2f,
-                .nickname = __("ジーランス$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-        }
-    },
-    [1] = {
-        .name = __("ハルヒト$$$$   "),
-        .facilityClass = FACILITY_CLASS_CAMPER,
-        .unused = 0x1,
-        .speechBefore = { EC_MOVE2(BOUNCE), EC_WORD_AS_MUCH_AS, EC_EMPTY_WORD, EC_WORD_THEY_RE, EC_WORD_STRONG, EC_WORD_EXCL },
-        .speechWin = { EC_MOVE(FLY), EC_WORD_AS_MUCH_AS, EC_EMPTY_WORD, EC_WORD_THEY_RE, EC_WORD_HAPPY, EC_WORD_EXCL },
-        .speechLose = { EC_MOVE2(MINIMIZE), EC_WORD_AS_MUCH_AS, EC_EMPTY_WORD, EC_WORD_THEY_RE, EC_WORD_SAD, EC_WORD_EXCL },
-        .speechAfter = { EC_MOVE(BITE), EC_WORD_AS_MUCH_AS, EC_EMPTY_WORD, EC_WORD_THEY_RE, EC_WORD_ANGRY, EC_WORD_EXCL },
-        .mons = {
-            [0] = DUMMY_HILL_MON,
-            [1] = DUMMY_HILL_MON,
-            [2] = DUMMY_HILL_MON,
-            [3] = {
-                .species = SPECIES_CACTURNE,
-                .heldItem = ITEM_QUICK_CLAW,
-                .moves = { MOVE_GIGA_DRAIN, MOVE_FEINT_ATTACK, MOVE_THUNDER_PUNCH, MOVE_GROWTH },
-                .hpEV = 55,
-                .attackEV = 0,
-                .defenseEV = 100,
-                .speedEV = 0,
-                .spAttackEV = 255,
-                .spDefenseEV = 100,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x8c,
-                .nickname = __("ノクタス$$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [4] = {
-                .species = SPECIES_SWELLOW,
-                .heldItem = ITEM_BRIGHT_POWDER,
-                .moves = { MOVE_FACADE, MOVE_AERIAL_ACE, MOVE_QUICK_ATTACK, MOVE_DOUBLE_TEAM },
-                .hpEV = 255,
-                .attackEV = 255,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 0,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x80,
-                .nickname = __("オオスバメ$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [5] = {
-                .species = SPECIES_WHISCASH,
-                .heldItem = ITEM_CHESTO_BERRY,
-                .moves = { MOVE_SURF, MOVE_EARTHQUAKE, MOVE_AMNESIA, MOVE_REST },
-                .hpEV = 0,
-                .attackEV = 255,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 255,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x0,
-                .nickname = __("ナマズン$$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-        }
-    },
-    [2] = {
-        .name = __("メイコ$$$$$   "),
-        .facilityClass = FACILITY_CLASS_SCHOOL_KID_F,
-        .unused = 0x1,
-        .speechBefore = { EC_WORD_SHINE, EC_WORD_POKEMON, EC_WORD_RELEASE, EC_WORD_WAS, EC_MOVE2(FRUSTRATION), EC_WORD_WITHOUT },
-        .speechWin = { EC_WORD_SHINE, EC_WORD_POKEMON, EC_WORD_TO_HER, EC_MOVE2(PRESENT), EC_WORD_KNOWS, EC_WORD_WITHOUT },
-        .speechLose = { EC_WORD_THAT, EC_WORD_ABOVE, EC_WORD_LOST, EC_WORD_STORES, EC_WORD_JOKING, EC_WORD_ELLIPSIS_ELLIPSIS_ELLIPSIS },
-        .speechAfter = { EC_WORD_ENTERTAINING, EC_WORD_NONE, EC_WORD_HEY_QUES, EC_WORD_ALMOST, EC_WORD_EXCL, EC_EMPTY_WORD },
-        .mons = {
-            [0] = DUMMY_HILL_MON,
-            [1] = DUMMY_HILL_MON,
-            [2] = DUMMY_HILL_MON,
-            [3] = {
-                .species = SPECIES_DELCATTY,
-                .heldItem = ITEM_LUM_BERRY,
-                .moves = { MOVE_SING, MOVE_BODY_SLAM, MOVE_SHADOW_BALL, MOVE_IRON_TAIL },
-                .hpEV = 0,
-                .attackEV = 255,
-                .defenseEV = 0,
-                .speedEV = 255,
-                .spAttackEV = 0,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x3,
-                .nickname = __("エネコロロ$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [4] = {
-                .species = SPECIES_ROSELIA,
-                .heldItem = ITEM_LEFTOVERS,
-                .moves = { MOVE_GIGA_DRAIN, MOVE_GRASS_WHISTLE, MOVE_TOXIC, MOVE_LEECH_SEED },
-                .hpEV = 255,
-                .attackEV = 0,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 255,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 1,
-                .personality = 0x6,
-                .nickname = __("ロゼリア$$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [5] = {
-                .species = SPECIES_BEAUTIFLY,
-                .heldItem = ITEM_BRIGHT_POWDER,
-                .moves = { MOVE_SILVER_WIND, MOVE_AERIAL_ACE, MOVE_ATTRACT, MOVE_PSYCHIC },
-                .hpEV = 100,
-                .attackEV = 200,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 200,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x6,
-                .nickname = __("アゲハント$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-        }
-    },
-    [3] = {
-        .name = __("ピエール$$$$   "),
-        .facilityClass = FACILITY_CLASS_GENTLEMAN,
-        .unused = 0x1,
-        .speechBefore = { EC_WORD_SHE_WAS, EC_WORD_NO_1, EC_WORD_STRONG, EC_WORD_UNCLE, EC_WORD_THERE, EC_WORD_EXCL },
-        .speechWin = { EC_WORD_HAHAHA, EC_WORD_TEACHER, EC_WORD_BECOMES, EC_WORD_GIVE, EC_WORD_IS_IT_QUES, EC_EMPTY_WORD },
-        .speechLose = { EC_WORD_OUTSIDE, EC_WORD_UNCLE, EC_WORD_SURPRISE, EC_WORD_THESE, EC_WORD_HEY_QUES, EC_WORD_ELLIPSIS_EXCL },
-        .speechAfter = { EC_WORD_HE_S, EC_WORD_NO_1, EC_WORD_STRONG, EC_WORD_CHILDREN, EC_WORD_CAN_T, EC_WORD_EXCL_EXCL },
-        .mons = {
-            [0] = DUMMY_HILL_MON,
-            [1] = DUMMY_HILL_MON,
-            [2] = DUMMY_HILL_MON,
-            [3] = {
-                .species = SPECIES_MAWILE,
-                .heldItem = ITEM_BRIGHT_POWDER,
-                .moves = { MOVE_CRUNCH, MOVE_FLAMETHROWER, MOVE_THUNDER_PUNCH, MOVE_COMET_PUNCH },
-                .hpEV = 0,
-                .attackEV = 0,
-                .defenseEV = 100,
-                .speedEV = 0,
-                .spAttackEV = 255,
-                .spDefenseEV = 155,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 1,
-                .personality = 0x0,
-                .nickname = __("クチート$$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [4] = {
-                .species = SPECIES_SHARPEDO,
-                .heldItem = ITEM_SCOPE_LENS,
-                .moves = { MOVE_SURF, MOVE_CRUNCH, MOVE_DOUBLE_EDGE, MOVE_EARTHQUAKE },
-                .hpEV = 255,
-                .attackEV = 0,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 255,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x96,
-                .nickname = __("サメハダー$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-            [5] = {
-                .species = SPECIES_BANETTE,
-                .heldItem = ITEM_LUM_BERRY,
-                .moves = { MOVE_PSYCHIC, MOVE_SHADOW_BALL, MOVE_THUNDERBOLT, MOVE_WILL_O_WISP },
-                .hpEV = 255,
-                .attackEV = 0,
-                .defenseEV = 0,
-                .speedEV = 0,
-                .spAttackEV = 255,
-                .spDefenseEV = 0,
-                .otId = TRAINER_HILL_OTID,
-                .hpIV = 5,
-                .attackIV = 5,
-                .defenseIV = 5,
-                .speedIV = 5,
-                .spAttackIV = 5,
-                .spDefenseIV = 5,
-                .abilityNum = 0,
-                .personality = 0x96,
-                .nickname = __("ジュペッタ$$$$$$"),
-                .friendship = MAX_FRIENDSHIP
-            },
-        }
-    },
-};
-
-static u8 GetTrainerHillUnkVal(void)
-{
-#if FREE_TRAINER_HILL == FALSE
-    return (gSaveBlock1Ptr->trainerHill.unused + 1) % 256;
-#else
-    return 0;
-#endif //FREE_TRAINER_HILL
-}
-
-static bool32 ValidateTrainerChecksum(struct EReaderTrainerHillTrainer *hillTrainer)
-{
-    int checksum = CalcByteArraySum((u8 *)hillTrainer, offsetof(typeof(*hillTrainer), checksum));
-    if (checksum != hillTrainer->checksum)
-        return FALSE;
-
-    return TRUE;
-}
-
-bool8 ValidateTrainerHillData(struct EReaderTrainerHillSet *hillSet)
-{
-    u32 i;
-    u32 checksum;
-    int numTrainers = hillSet->numTrainers;
-
-    // Validate number of trainers
-    if (numTrainers < 1 || numTrainers > NUM_TRAINER_HILL_TRAINERS)
-        return FALSE;
-
-    // Validate trainers
-    for (i = 0; i < numTrainers; i++)
-    {
-        if (!ValidateTrainerChecksum(&hillSet->trainers[i]))
-            return FALSE;
-    }
-
-    // Validate checksum
-    checksum = CalcByteArraySum((u8 *)hillSet->trainers, numTrainers * sizeof(struct EReaderTrainerHillTrainer));
-    if (checksum != hillSet->checksum)
-        return FALSE;
-
-    return TRUE;
-}
-
-static bool32 ValidateTrainerHillChecksum(struct EReaderTrainerHillSet *hillSet)
-{
-    u32 checksum;
-    int numTrainers = hillSet->numTrainers;
-    if (numTrainers < 1 || numTrainers > NUM_TRAINER_HILL_TRAINERS)
-        return FALSE;
-
-    checksum = CalcByteArraySum((u8 *)hillSet->trainers, sizeof(struct EReaderTrainerHillSet) - offsetof(struct EReaderTrainerHillSet, trainers));
-    if (checksum != hillSet->checksum)
-        return FALSE;
-
-    return TRUE;
-}
-
-static bool32 TryWriteTrainerHill_Internal(struct EReaderTrainerHillSet *hillSet, struct TrainerHillChallenge *challenge)
-{
-    int i;
-
-    AGB_ASSERT_EX(hillSet->dummy == 0, "cereader_tool.c", 450);
-    AGB_ASSERT_EX(hillSet->id == 0, "cereader_tool.c", 452);
-
-    memset(challenge, 0, SECTOR_SIZE);
-    challenge->numTrainers = hillSet->numTrainers;
-    challenge->unused1 = GetTrainerHillUnkVal();
-    challenge->numFloors = (hillSet->numTrainers + 1) / HILL_TRAINERS_PER_FLOOR;
-
-    for (i = 0; i < hillSet->numTrainers; i++)
-    {
-        if (!(i & 1))
-        {
-            challenge->floors[i / HILL_TRAINERS_PER_FLOOR].trainerNum1 = hillSet->trainers[i].trainerNum;
-            challenge->floors[i / HILL_TRAINERS_PER_FLOOR].map = hillSet->trainers[i].map;
-            challenge->floors[i / HILL_TRAINERS_PER_FLOOR].trainers[0] = hillSet->trainers[i].trainer;
-        }
-        else
-        {
-            challenge->floors[i / HILL_TRAINERS_PER_FLOOR].trainerNum2 = hillSet->trainers[i].trainerNum;
-            challenge->floors[i / HILL_TRAINERS_PER_FLOOR].trainers[1] = hillSet->trainers[i].trainer;
-        }
-    }
-
-    if (i & 1)
-    {
-        challenge->floors[i / HILL_TRAINERS_PER_FLOOR].trainers[1] = sTrainerHillTrainerTemplates_JP[i / HILL_TRAINERS_PER_FLOOR];
-    }
-
-    challenge->checksum = CalcByteArraySum((u8 *)challenge->floors, NUM_TRAINER_HILL_FLOORS * sizeof(struct TrainerHillFloor));
-    if (TryWriteSpecialSaveSector(SECTOR_ID_TRAINER_HILL, (u8 *)challenge) != SAVE_STATUS_OK)
-        return FALSE;
-
-    return TRUE;
-}
-
-bool32 TryWriteTrainerHill(struct EReaderTrainerHillSet *hillSet)
-{
-    void *buffer = AllocZeroed(SECTOR_SIZE);
-    bool32 result = TryWriteTrainerHill_Internal(hillSet, buffer);
-    Free(buffer);
-    return result;
-}
-
-static bool32 TryReadTrainerHill_Internal(struct EReaderTrainerHillSet *dest, u8 *buffer)
-{
-    if (TryReadSpecialSaveSector(SECTOR_ID_TRAINER_HILL, buffer) != SAVE_STATUS_OK)
-        return FALSE;
-
-    memcpy(dest, buffer, sizeof(struct EReaderTrainerHillSet));
-    if (!ValidateTrainerHillChecksum(dest))
-        return FALSE;
-
-    return TRUE;
-}
-
-static bool32 TryReadTrainerHill(struct EReaderTrainerHillSet *hillSet)
-{
-    u8 *buffer = AllocZeroed(SECTOR_SIZE);
-    bool32 result = TryReadTrainerHill_Internal(hillSet, buffer);
-    Free(buffer);
-    return result;
-}
-
-bool32 ReadTrainerHillAndValidate(void)
-{
-    struct EReaderTrainerHillSet *hillSet = AllocZeroed(SECTOR_SIZE);
-    bool32 result = TryReadTrainerHill(hillSet);
-    Free(hillSet);
-    return result;
-}
-
-int EReader_Send(int size, const void *src)
+int EReader_Send(size_t size, const void *src)
 {
     int result;
-    int sendStatus;
-
     EReaderHelper_SaveRegsState();
+
     while (1)
     {
         GetKeyInput();
-        if (sJoyNew & B_BUTTON)
+        if (TEST_BUTTON(sJoyNew, B_BUTTON))
             gShouldAdvanceLinkState = 2;
 
-        sendStatus = EReaderHandleTransfer(1, size, src, NULL);
-        sSendRecvStatus = sendStatus;
-        if ((sSendRecvStatus & EREADER_XFER_MASK) == 0 && sSendRecvStatus & EREADER_CHECKSUM_OK_MASK)
+        sSendRecvStatus = EReaderHandleTransfer(1, size, src, NULL);
+        if ((sSendRecvStatus & 0x13) == 0x10) // checksum OK and xfer off
         {
             result = 0;
             break;
         }
-        else if (sSendRecvStatus & EREADER_CANCEL_KEY_MASK)
+        else if (sSendRecvStatus & 8) // cancelled by player
         {
             result = 1;
             break;
         }
-        else if (sSendRecvStatus & EREADER_CANCEL_TIMEOUT_MASK)
+        else if (sSendRecvStatus & 4) // timed out
         {
             result = 2;
             break;
@@ -549,28 +76,26 @@ int EReader_Send(int size, const void *src)
 int EReader_Recv(void *dest)
 {
     int result;
-    int recvStatus;
-
     EReaderHelper_SaveRegsState();
+
     while (1)
     {
         GetKeyInput();
-        if (sJoyNew & B_BUTTON)
+        if (TEST_BUTTON(sJoyNew, B_BUTTON))
             gShouldAdvanceLinkState = 2;
 
-        recvStatus = EReaderHandleTransfer(0, 0, NULL, dest);
-        sSendRecvStatus = recvStatus;
-        if ((sSendRecvStatus & EREADER_XFER_MASK) == 0 && sSendRecvStatus & EREADER_CHECKSUM_OK_MASK)
+        sSendRecvStatus = EReaderHandleTransfer(0, 0, NULL, dest);
+        if ((sSendRecvStatus & 0x13) == 0x10) // checksum OK and xfer off
         {
             result = 0;
             break;
         }
-        else if (sSendRecvStatus & EREADER_CANCEL_KEY_MASK)
+        else if (sSendRecvStatus & 8) // cancelled by player
         {
             result = 1;
             break;
         }
-        else if (sSendRecvStatus & EREADER_CANCEL_TIMEOUT_MASK)
+        else if (sSendRecvStatus & 4) // timed out
         {
             result = 2;
             break;
@@ -608,7 +133,6 @@ static void OpenSerialMulti(void)
     REG_IME = 0;
     REG_IE |= INTR_FLAG_SERIAL;
     REG_IME = 1;
-
     if (sSendRecvMgr.state == 0)
         CpuFill32(0, &sSendRecvMgr, sizeof(sSendRecvMgr));
 }
@@ -616,14 +140,14 @@ static void OpenSerialMulti(void)
 static void OpenSerial32(void)
 {
     REG_RCNT = 0;
-    REG_SIOCNT = SIO_32BIT_MODE | SIO_INTR_ENABLE;
+    REG_SIOCNT = SIO_INTR_ENABLE | SIO_32BIT_MODE;
     REG_SIOCNT |= SIO_MULTI_SD;
     gShouldAdvanceLinkState = 0;
     sCounter1 = 0;
     sCounter2 = 0;
 }
 
-int EReaderHandleTransfer(u8 mode, size_t size, const void *data, void *recvBuffer)
+u16 EReaderHandleTransfer(u8 mode, size_t size, const void *data, void *recvBuffer)
 {
     switch (sSendRecvMgr.state)
     {
@@ -635,18 +159,18 @@ int EReaderHandleTransfer(u8 mode, size_t size, const void *data, void *recvBuff
     case EREADER_XFR_STATE_HANDSHAKE:
         if (DetermineSendRecvState(mode))
             EnableSio();
-
         if (gShouldAdvanceLinkState == 2)
         {
             sSendRecvMgr.cancellationReason = EREADER_CANCEL_KEY;
             sSendRecvMgr.state = EREADER_XFR_STATE_DONE;
         }
+        // Progression is handled by the serial callback
         break;
     case EREADER_XFR_STATE_START:
         OpenSerial32();
         SetUpTransferManager(size, data, recvBuffer);
         sSendRecvMgr.state = EREADER_XFR_STATE_TRANSFER;
-        // fall through
+        // fallthrough
     case EREADER_XFR_STATE_TRANSFER:
         if (gShouldAdvanceLinkState == 2)
         {
@@ -657,71 +181,79 @@ int EReaderHandleTransfer(u8 mode, size_t size, const void *data, void *recvBuff
         {
             sCounter1++;
             sCounter2++;
-            if (!sSendRecvMgr.isParent && sCounter2 > 60)
+            if (sSendRecvMgr.master_slave == 0 && sCounter2 > 60)
             {
                 sSendRecvMgr.cancellationReason = EREADER_CANCEL_TIMEOUT;
                 sSendRecvMgr.state = EREADER_XFR_STATE_DONE;
             }
-
             if (sSendRecvMgr.xferState != EREADER_XFER_CHK)
             {
-                EnableSio();
-                sSendRecvMgr.xferState = EREADER_XFER_CHK;
+                if (sSendRecvMgr.master_slave != 0 && sCounter1 > 2)
+                {
+                    EnableSio();
+                    sSendRecvMgr.xferState = EREADER_XFER_CHK;
+                }
+                else
+                {
+                    EnableSio();
+                    sSendRecvMgr.xferState = EREADER_XFER_CHK;
+                }
             }
         }
+        // Progression is handled by the serial callback
         break;
     case EREADER_XFR_STATE_TRANSFER_DONE:
         OpenSerialMulti();
         sSendRecvMgr.state = EREADER_XFR_STATE_CHECKSUM;
         break;
     case EREADER_XFR_STATE_CHECKSUM:
-        if (sSendRecvMgr.isParent == TRUE && sCounter1 > 2)
+        if (sSendRecvMgr.master_slave == 1 && sCounter1 > 2)
             EnableSio();
-
         if (++sCounter1 > 60)
         {
             sSendRecvMgr.cancellationReason = EREADER_CANCEL_TIMEOUT;
             sSendRecvMgr.state = EREADER_XFR_STATE_DONE;
         }
         break;
+        // Progression is handled by the serial callback
     case EREADER_XFR_STATE_DONE:
-        if (sSendRecvMgr.xferState)
+        if (sSendRecvMgr.xferState != 0)
         {
             CloseSerial();
             sSendRecvMgr.xferState = 0;
         }
         break;
     }
-
-    return (sSendRecvMgr.xferState << EREADER_XFER_SHIFT)
-         | (sSendRecvMgr.cancellationReason << EREADER_CANCEL_SHIFT)
-         | (sSendRecvMgr.checksumResult << EREADER_CHECKSUM_SHIFT);
+    return
+        (sSendRecvMgr.xferState << EREADER_XFER_SHIFT)
+      | (sSendRecvMgr.cancellationReason << EREADER_CANCEL_SHIFT)
+      | (sSendRecvMgr.checksumResult << EREADER_CHECKSUM_SHIFT);
 }
 
-static u16 DetermineSendRecvState(u8 mode)
+static bool16 DetermineSendRecvState(u8 mode)
 {
     bool16 resp;
     if ((*(vu32 *)REG_ADDR_SIOCNT & (SIO_MULTI_SI | SIO_MULTI_SD)) == SIO_MULTI_SD && mode)
-        resp = sSendRecvMgr.isParent = TRUE;
+        resp = sSendRecvMgr.master_slave = TRUE;
     else
-        resp = sSendRecvMgr.isParent = FALSE;
+        resp = sSendRecvMgr.master_slave = FALSE;
     return resp;
 }
 
 static void SetUpTransferManager(size_t size, const void *data, void *recvBuffer)
 {
-    if (sSendRecvMgr.isParent)
+    if (sSendRecvMgr.master_slave)
     {
         REG_SIOCNT |= SIO_38400_BPS;
-        sSendRecvMgr.data = (void *)data;
+        sSendRecvMgr.dataptr = (void *)data;
         REG_SIODATA32 = size;
         sSendRecvMgr.size = size / 4 + 1;
         StartTm3();
     }
     else
     {
-        REG_SIOCNT = REG_SIOCNT;
-        sSendRecvMgr.data = recvBuffer;
+        REG_SIOCNT |= SIO_9600_BPS;
+        sSendRecvMgr.dataptr = recvBuffer;
     }
 }
 
@@ -742,69 +274,71 @@ void EReaderHelper_Timer3Callback(void)
 
 void EReaderHelper_SerialCallback(void)
 {
-    u16 i, cnt1, cnt2;
-    u32 recv32;
     u16 recv[4];
+    u16 i;
+    u16 cnt1;
+    u16 cnt2;
+    u32 recv32;
 
     switch (sSendRecvMgr.state)
     {
     case EREADER_XFR_STATE_HANDSHAKE:
-        REG_SIOMLT_SEND = EREADER_HANDSHAKE;
+        REG_SIOMLT_SEND = 0xCCD0;
         *(u64 *)recv = REG_SIOMLT_RECV;
         for (i = 0, cnt1 = 0, cnt2 = 0; i < 4; i++)
         {
-            if (recv[i] == EREADER_HANDSHAKE)
+            if (recv[i] == 0xCCD0)
                 cnt1++;
             else if (recv[i] != 0xFFFF)
                 cnt2++;
         }
-
         if (cnt1 == 2 && cnt2 == 0)
-            sSendRecvMgr.state = 2;
+            sSendRecvMgr.state = EREADER_XFR_STATE_START;
         break;
+        // Progression is handled by software
     case EREADER_XFR_STATE_TRANSFER:
         recv32 = REG_SIODATA32;
         // The first value sent by the EReader is the payload size
-        if (!sSendRecvMgr.cursor && !sSendRecvMgr.isParent)
+        if (sSendRecvMgr.cursor == 0 && sSendRecvMgr.master_slave == 0)
             sSendRecvMgr.size = recv32 / 4 + 1;
-
-        if (sSendRecvMgr.isParent == TRUE)
+        if (sSendRecvMgr.master_slave == 1)
         {
             // Send mode
             if (sSendRecvMgr.cursor < sSendRecvMgr.size)
             {
-                REG_SIODATA32 = sSendRecvMgr.data[sSendRecvMgr.cursor];
-                sSendRecvMgr.checksum += sSendRecvMgr.data[sSendRecvMgr.cursor];
+                REG_SIODATA32 = sSendRecvMgr.dataptr[sSendRecvMgr.cursor];
+                sSendRecvMgr.checksum += sSendRecvMgr.dataptr[sSendRecvMgr.cursor];
             }
             else
-            {
                 REG_SIODATA32 = sSendRecvMgr.checksum;
-            }
         }
         else
         {
             // Receive mode
             if (sSendRecvMgr.cursor > 0 && sSendRecvMgr.cursor < sSendRecvMgr.size + 1)
             {
-                sSendRecvMgr.data[sSendRecvMgr.cursor - 1] = recv32;
+                // Receive next word
+                sSendRecvMgr.dataptr[sSendRecvMgr.cursor - 1] = recv32;
                 sSendRecvMgr.checksum += recv32;
             }
-            else if (sSendRecvMgr.cursor)
+            else if (sSendRecvMgr.cursor != 0)
             {
+                // Reached the end, test the received checksum
                 if (sSendRecvMgr.checksum == recv32)
                     sSendRecvMgr.checksumResult = EREADER_CHECKSUM_OK;
                 else
                     sSendRecvMgr.checksumResult = EREADER_CHECKSUM_ERR;
             }
-
             sCounter2 = 0;
         }
-
-        if (++sSendRecvMgr.cursor < sSendRecvMgr.size + 2)
+        sSendRecvMgr.cursor++;
+        if (sSendRecvMgr.cursor < sSendRecvMgr.size + 2)
         {
-            if (sSendRecvMgr.isParent)
+            if (sSendRecvMgr.master_slave != 0)
+                // Clock master; start timer
                 REG_TM3CNT_H |= TIMER_ENABLE;
             else
+                // Clock slave; reset
                 EnableSio();
         }
         else
@@ -813,16 +347,17 @@ void EReaderHelper_SerialCallback(void)
             sCounter1 = 0;
         }
         break;
+        // Progression is handled by the software
     case EREADER_XFR_STATE_CHECKSUM:
-        if (!sSendRecvMgr.isParent)
-            REG_SIOMLT_SEND = sSendRecvMgr.checksumResult;
-
+        if (sSendRecvMgr.master_slave == 0)
+            // Clock slave
+            REG_SIODATA8 = sSendRecvMgr.checksumResult;
         *(vu64 *)recv = REG_SIOMLT_RECV;
         if (recv[1] == EREADER_CHECKSUM_OK || recv[1] == EREADER_CHECKSUM_ERR)
         {
-            if (sSendRecvMgr.isParent == TRUE)
-                sSendRecvMgr.checksumResult = recv[1]; // EReader has (in)validated the payload
-
+            if (sSendRecvMgr.master_slave == 1)
+                // EReader has (in)validated the payload
+                sSendRecvMgr.checksumResult = recv[1];
             sSendRecvMgr.state = EREADER_XFR_STATE_DONE;
         }
         break;
@@ -837,12 +372,12 @@ static void EnableSio(void)
 static void DisableTm3(void)
 {
     REG_TM3CNT_H &= ~TIMER_ENABLE;
-    REG_TM3CNT_L = 0xFDA7;
+    REG_TM3CNT_L = -601;
 }
 
 static void GetKeyInput(void)
 {
-    int rawKeys = REG_KEYINPUT ^ KEYS_MASK;
+    u16 rawKeys = REG_KEYINPUT ^ 0x3FF;
     sJoyNew = rawKeys & ~sJoyNewOrRepeated;
     sJoyNewOrRepeated = rawKeys;
 }
@@ -865,7 +400,7 @@ void EReaderHelper_RestoreRegsState(void)
     REG_RCNT = sSavedRCnt;
 }
 
-void EReaderHelper_ClearSendRecvMgr(void)
+void EReaderHelper_ClearsSendRecvMgr(void)
 {
     CpuFill32(0, &sSendRecvMgr, sizeof(sSendRecvMgr));
 }

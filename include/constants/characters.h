@@ -53,8 +53,8 @@
 #define CHAR_EQUALS            0x35
 #define CHAR_SEMICOLON         0x36
 #define CHAR_BARD_WORD_DELIMIT 0x37 // Empty space to separate words in Bard's song
-#define CHAR_V_D_ARROW         0x38
-#define CHAR_NBSP              0x39
+//
+#define CHAR_EMPTY_RECT        0x50
 #define CHAR_INV_QUESTION_MARK 0x51
 #define CHAR_INV_EXCL_MARK     0x52
 #define CHAR_PK                0x53
@@ -197,16 +197,30 @@
 #define CHAR_DPAD_NONE      0x0C
 
 // CHAR_EXTRA_SYMBOL chars
-#define CHAR_UP_ARROW_2    0x00
-#define CHAR_DOWN_ARROW_2  0x01
-#define CHAR_LEFT_ARROW_2  0x02
-#define CHAR_RIGHT_ARROW_2 0x03
-#define CHAR_PLUS_2        0x04
-#define CHAR_LV_2          0x05
-#define CHAR_PP            0x06
-#define CHAR_ID            0x07
-#define CHAR_NO            0x08
-#define CHAR_UNDERSCORE    0x09
+#define CHAR_UP_ARROW_2        0x00
+#define CHAR_DOWN_ARROW_2      0x01
+#define CHAR_LEFT_ARROW_2      0x02
+#define CHAR_RIGHT_ARROW_2     0x03
+#define CHAR_PLUS_2            0x04
+#define CHAR_LV_2              0x05
+#define CHAR_PP                0x06
+#define CHAR_ID                0x07
+#define CHAR_NO                0x08
+#define CHAR_UNDERSCORE        0x09
+#define CHAR_CIRCLED_1         0x0A
+#define CHAR_CIRCLED_2         0x0B
+#define CHAR_CIRCLED_3         0x0C
+#define CHAR_CIRCLED_4         0x0D
+#define CHAR_CIRCLED_5         0x0E
+#define CHAR_CIRCLED_6         0x0F
+#define CHAR_CIRCLED_7         0x10
+#define CHAR_CIRCLED_8         0x11
+#define CHAR_CIRCLED_9         0x12
+#define CHAR_LEFT_PAREN_SMALL  0x13
+#define CHAR_RIGHT_PAREN_SMALL 0x14
+#define CHAR_BULLSEYE          0x15
+#define CHAR_TRIANGLE          0x16
+#define CHAR_CROSS_X           0x17
 
 #define EXT_CTRL_CODE_COLOR                  0x01
 #define EXT_CTRL_CODE_HIGHLIGHT              0x02
@@ -258,12 +272,12 @@
 #define PLACEHOLDER_ID_KUN           0x5
 #define PLACEHOLDER_ID_RIVAL         0x6
 #define PLACEHOLDER_ID_VERSION       0x7
-#define PLACEHOLDER_ID_AQUA          0x8
-#define PLACEHOLDER_ID_MAGMA         0x9
-#define PLACEHOLDER_ID_ARCHIE        0xA
-#define PLACEHOLDER_ID_MAXIE         0xB
-#define PLACEHOLDER_ID_KYOGRE        0xC
-#define PLACEHOLDER_ID_GROUDON       0xD
+#define PLACEHOLDER_ID_MAGMA         0x8
+#define PLACEHOLDER_ID_AQUA          0x9
+#define PLACEHOLDER_ID_MAXIE         0xA
+#define PLACEHOLDER_ID_ARCHIE        0xB
+#define PLACEHOLDER_ID_GROUDON       0xC
+#define PLACEHOLDER_ID_KYOGRE        0xD
 
 // battle placeholders are located in battle_message.h
 

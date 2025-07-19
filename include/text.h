@@ -9,19 +9,19 @@
 
 enum {
     FONT_SMALL,
+    FONT_NORMAL_COPY_1,
     FONT_NORMAL,
-    FONT_SHORT,
-    FONT_SHORT_COPY_1,
-    FONT_SHORT_COPY_2,
-    FONT_SHORT_COPY_3,
+    FONT_NORMAL_COPY_2,
+    FONT_MALE,
+    FONT_FEMALE,
     FONT_BRAILLE,
+    FONT_BOLD,
     FONT_NARROW,
     FONT_SMALL_NARROW, // Very similar to FONT_SMALL, some glyphs are narrower
-    FONT_BOLD, // JP glyph set only
     FONT_NARROWER,
     FONT_SMALL_NARROWER,
     FONT_SHORT_NARROW,
-    FONT_SHORT_NARROWER,
+    FONT_SHORT
 };
 
 // Return values for font functions
@@ -43,7 +43,8 @@ enum {
     RENDER_STATE_PAUSE,
 };
 
-enum {
+enum
+{
     FONTATTR_MAX_LETTER_WIDTH,
     FONTATTR_MAX_LETTER_HEIGHT,
     FONTATTR_LETTER_SPACING,
@@ -53,6 +54,16 @@ enum {
     FONTATTR_COLOR_BACKGROUND,
     FONTATTR_COLOR_SHADOW
 };
+
+struct TextGlyph
+{
+    u32 gfxBufferTop[16];
+    u32 gfxBufferBottom[16];
+    u8 width;
+    u8 height;
+};
+
+extern struct TextGlyph gCurGlyph;
 
 struct TextPrinterSubStruct
 {
@@ -120,35 +131,31 @@ struct GlyphWidthFunc
 };
 
 typedef struct {
-    bool8 canABSpeedUpPrint:1;
-    bool8 useAlternateDownArrow:1;
-    bool8 autoScroll:1;
-    bool8 forceMidTextSpeed:1;
+    u8 canABSpeedUpPrint:1;
+    u8 useAlternateDownArrow:1;
+    u8 autoScroll:1;
+    u8 forceMidTextSpeed:1;
 } TextFlags;
-
-struct TextGlyph
-{
-    u32 gfxBufferTop[16];
-    u32 gfxBufferBottom[16];
-    u8 width;
-    u8 height;
-};
 
 extern TextFlags gTextFlags;
 
-extern u8 gDisableTextPrinters;
-extern struct TextGlyph gCurGlyph;
+extern u8 gStringVar1[];
+extern u8 gStringVar2[];
+extern u8 gStringVar3[];
+extern u8 gStringVar4[1000];
+
+extern const u8 gKeypadIconTiles[];
 
 void DeactivateAllTextPrinters(void);
 u16 AddTextPrinterParameterized(u8 windowId, u8 fontId, const u8 *str, u8 x, u8 y, u8 speed, void (*callback)(struct TextPrinterTemplate *, u16));
-bool32 AddTextPrinter(struct TextPrinterTemplate *printerTemplate, u8 speed, void (*callback)(struct TextPrinterTemplate *, u16));
+bool32 AddTextPrinter(struct TextPrinterTemplate *textSubPrinter, u8 speed, void (*callback)(struct TextPrinterTemplate *, u16));
 void RunTextPrinters(void);
 bool32 IsTextPrinterActive(u8 id);
 void GenerateFontHalfRowLookupTable(u8 fgColor, u8 bgColor, u8 shadowColor);
 void SaveTextColors(u8 *fgColor, u8 *bgColor, u8 *shadowColor);
 void RestoreTextColors(u8 *fgColor, u8 *bgColor, u8 *shadowColor);
 void DecompressGlyphTile(const void *src_, void *dest_);
-void CopyGlyphToWindow(struct TextPrinter *textPrinter);
+void CopyGlyphToWindow(struct TextPrinter *x);
 void ClearTextSpan(struct TextPrinter *textPrinter, u32 width);
 
 void TextPrinterInitDownArrowCounters(struct TextPrinter *textPrinter);
@@ -169,13 +176,18 @@ u8 GetKeypadIconHeight(u8 keypadIconId);
 void SetDefaultFontsPointer(void);
 u8 GetFontAttribute(u8 fontId, u8 attributeId);
 u8 GetMenuCursorDimensionByFont(u8 fontId, u8 whichDimension);
-
-// braille.c
-u16 FontFunc_Braille(struct TextPrinter *textPrinter);
-u32 GetGlyphWidth_Braille(u16 glyphId, bool32 isJapanese);
+void DecompressGlyph_Small(u16 glyphId, bool32 isJapanese);
+void DecompressGlyph_Normal(u16 glyphId, bool32 isJapanese);
+void DecompressGlyph_Female(u16 glyphId, bool32 isJapanese);
+u8 CreateTextCursorSprite(u8 sheetId, u16 x, u16 y, u8 priority, u8 subpriority);
+void DestroyTextCursorSprite(u8 spriteId);
 
 u32 GetFontIdToFit(const u8 *string, u32 widestFontId, u32 letterSpacing, u32 widthPx);
 u8 *PrependFontIdToFit(u8 *start, u8 *end, u32 fontId, u32 width);
 u8 *WrapFontIdToFit(u8 *start, u8 *end, u32 fontId, u32 width);
+
+// braille.c
+u16 FontFunc_Braille(struct TextPrinter *textPrinter);
+u32 GetGlyphWidth_Braille(u16 font_type, bool32 isJapanese);
 
 #endif // GUARD_TEXT_H

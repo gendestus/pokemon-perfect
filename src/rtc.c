@@ -1,13 +1,9 @@
 #include "global.h"
-#include "battle_pike.h"
-#include "battle_pyramid.h"
-#include "datetime.h"
-#include "rtc.h"
-#include "string_util.h"
-#include "strings.h"
-#include "text.h"
 #include "fake_rtc.h"
-#include "overworld.h"
+#include "rtc.h"
+#include "strings.h"
+#include "string_util.h"
+#include "text.h"
 
 // iwram bss
 static u16 sErrorStatus;
@@ -16,26 +12,59 @@ static u8 sProbeResult;
 static u16 sSavedIme;
 
 // iwram common
-COMMON_DATA struct Time gLocalTime = {0};
+struct Time gLocalTime;
+
+EWRAM_DATA enum Season gLoadedSeason = SEASON_SPRING;
 
 // const rom
+static const u8 sText_SpringName[] = _("Spring");
+static const u8 sText_SummerName[] = _("Summer");
+static const u8 sText_AutumnName[] = _("Autumn");
+static const u8 sText_WinterName[] = _("Winter");
 
 static const struct SiiRtcInfo sRtcDummy = {0, MONTH_JAN, 1}; // 2000 Jan 1
 
-const s32 sNumDaysInMonths[MONTH_COUNT] =
+const s32 sNumDaysInMonths[12] =
 {
-    [MONTH_JAN - 1] = 31,
-    [MONTH_FEB - 1] = 28,
-    [MONTH_MAR - 1] = 31,
-    [MONTH_APR - 1] = 30,
-    [MONTH_MAY - 1] = 31,
-    [MONTH_JUN - 1] = 30,
-    [MONTH_JUL - 1] = 31,
-    [MONTH_AUG - 1] = 31,
-    [MONTH_SEP - 1] = 30,
-    [MONTH_OCT - 1] = 31,
-    [MONTH_NOV - 1] = 30,
-    [MONTH_DEC - 1] = 31,
+    31,
+    28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+};
+
+static const u32 sTimeOfDayStarts[SEASON_WINTER + 1][TIME_NIGHT + 1] = {
+    [SEASON_SPRING] = {
+        [TIME_MORNING] = 5,
+        [TIME_DAY] = 10,
+        [TIME_EVENING] = 17,
+        [TIME_NIGHT] = 20,
+    },
+    [SEASON_SUMMER] = {
+        [TIME_MORNING] = 4,
+        [TIME_DAY] = 9,
+        [TIME_EVENING] = 19,
+        [TIME_NIGHT] = 21,
+    },
+    [SEASON_AUTUMN] = {
+        [TIME_MORNING] = 6,
+        [TIME_DAY] = 10,
+        [TIME_EVENING] = 18,
+        [TIME_NIGHT] = 20,
+    },
+    [SEASON_WINTER] = {
+        [TIME_MORNING] = 7,
+        [TIME_DAY] = 11,
+        [TIME_EVENING] = 17,
+        [TIME_NIGHT] = 19,
+    },
 };
 
 void RtcDisableInterrupts(void)
@@ -190,7 +219,7 @@ u16 RtcCheckInfo(struct SiiRtcInfo *rtc)
 
     month = ConvertBcdToBinary(rtc->month);
 
-    if (month == 0xFF || month == 0 || month > MONTH_COUNT)
+    if (month == 0xFF || month == 0 || month > 12)
         errorFlags |= RTC_ERR_INVALID_MONTH;
 
     value = ConvertBcdToBinary(rtc->day);
@@ -211,17 +240,17 @@ u16 RtcCheckInfo(struct SiiRtcInfo *rtc)
 
     value = ConvertBcdToBinary(rtc->hour);
 
-    if (value > HOURS_PER_DAY)
+    if (value > 24)
         errorFlags |= RTC_ERR_INVALID_HOUR;
 
     value = ConvertBcdToBinary(rtc->minute);
 
-    if (value > MINUTES_PER_HOUR)
+    if (value > 60)
         errorFlags |= RTC_ERR_INVALID_MINUTE;
 
     value = ConvertBcdToBinary(rtc->second);
 
-    if (value > SECONDS_PER_MINUTE)
+    if (value > 60)
         errorFlags |= RTC_ERR_INVALID_SECOND;
 
     return errorFlags;
@@ -295,27 +324,21 @@ void RtcCalcTimeDifference(struct SiiRtcInfo *rtc, struct Time *result, struct T
 
     if (result->seconds < 0)
     {
-        result->seconds += SECONDS_PER_MINUTE;
+        result->seconds += 60;
         --result->minutes;
     }
 
     if (result->minutes < 0)
     {
-        result->minutes += MINUTES_PER_HOUR;
+        result->minutes += 60;
         --result->hours;
     }
 
     if (result->hours < 0)
     {
-        result->hours += HOURS_PER_DAY;
+        result->hours += 24;
         --result->days;
     }
-}
-
-void RtcCalcLocalTime(void)
-{
-    RtcGetInfo(&sRtc);
-    RtcCalcTimeDifference(&sRtc, &gLocalTime, &gSaveBlock2Ptr->localTimeOffset);
 }
 
 bool8 IsBetweenHours(s32 hours, s32 begin, s32 end)
@@ -328,13 +351,80 @@ bool8 IsBetweenHours(s32 hours, s32 begin, s32 end)
 
 enum TimeOfDay GetTimeOfDay(void)
 {
-    UpdateTimeOfDay();
-    return gTimeOfDay;
+    RtcCalcLocalTime();
+    if (IsBetweenHours(gLocalTime.hours, MORNING_HOUR_BEGIN, MORNING_HOUR_END))
+        return TIME_MORNING;
+    else if (IsBetweenHours(gLocalTime.hours, EVENING_HOUR_BEGIN, EVENING_HOUR_END))
+        return TIME_EVENING;
+    else if (IsBetweenHours(gLocalTime.hours, NIGHT_HOUR_BEGIN, NIGHT_HOUR_END))
+        return TIME_NIGHT;
+    return TIME_DAY;
 }
 
-enum TimeOfDay GetTimeOfDayForDex(void)
+u8 GetCurrentHour(void)
 {
-    return OW_TIME_OF_DAY_ENCOUNTERS ? GetTimeOfDay() : TIME_OF_DAY_DEFAULT;
+    RtcCalcLocalTime();
+    return gLocalTime.hours;
+}
+
+u8 GetCurrentMinute(void)
+{
+    RtcCalcLocalTime();
+    return gLocalTime.minutes;
+}
+
+enum Season GetSeason(void)
+{
+    RtcGetInfo(&sRtc);
+    switch(ConvertBcdToBinary(sRtc.month))
+    {
+        case MONTH_JAN:
+        case MONTH_MAY:
+        case MONTH_SEP:
+        default:
+            return SEASON_SPRING;
+        case MONTH_FEB:
+        case MONTH_JUN:
+        case MONTH_OCT:
+            return SEASON_SUMMER;
+        case MONTH_MAR:
+        case MONTH_JUL:
+        case MONTH_NOV:
+            return SEASON_AUTUMN;
+        case MONTH_APR:
+        case MONTH_AUG:
+        case MONTH_DEC:
+            return SEASON_WINTER;
+    }
+}
+
+const u8* GetSeasonName(enum Season season)
+{
+    switch (season)
+    {
+        case SEASON_SPRING:
+        default:
+            return sText_SpringName;
+        case SEASON_SUMMER:
+            return sText_SummerName;
+        case SEASON_AUTUMN:
+            return sText_AutumnName;
+        case SEASON_WINTER:
+            return sText_WinterName;
+    }
+}
+
+u8 GetSeasonDay(void)
+{
+    RtcGetInfo(&sRtc);
+
+    return ConvertBcdToBinary(sRtc.day);
+}
+
+void RtcCalcLocalTime(void)
+{
+    RtcGetInfo(&sRtc);
+    RtcCalcTimeDifference(&sRtc, &gLocalTime, &gSaveBlock2Ptr->localTimeOffset);
 }
 
 void RtcInitLocalTimeOffset(s32 hour, s32 minute)
@@ -381,7 +471,7 @@ void CalcTimeDifference(struct Time *result, struct Time *t1, struct Time *t2)
 u32 RtcGetMinuteCount(void)
 {
     RtcGetInfo(&sRtc);
-    return (HOURS_PER_DAY * MINUTES_PER_HOUR) * RtcGetDayCount(&sRtc) + MINUTES_PER_HOUR * sRtc.hour + sRtc.minute;
+    return (24 * 60) * RtcGetDayCount(&sRtc) + 60 * sRtc.hour + sRtc.minute;
 }
 
 u32 RtcGetLocalDayCount(void)
@@ -408,7 +498,7 @@ void FormatDecimalTimeWithoutSeconds(u8 *txtPtr, s8 hour, s8 minute, bool32 is24
 
         *txtPtr++ = CHAR_COLON;
         txtPtr = ConvertIntToDecimalStringN(txtPtr, minute, STR_CONV_MODE_LEADING_ZEROS, 2);
-        txtPtr = StringAppend(txtPtr, gText_Space);
+        txtPtr = StringAppend(txtPtr, gText_RegionMap_Space);
         if (hour < 12)
             txtPtr = StringAppend(txtPtr, gText_AM);
         else
@@ -419,48 +509,12 @@ void FormatDecimalTimeWithoutSeconds(u8 *txtPtr, s8 hour, s8 minute, bool32 is24
     *txtPtr = EOS;
 }
 
-u16 GetFullYear(void)
+u32 GetGen5TimeOfDayStart(enum TimeOfDay timeOfDay)
 {
-    struct DateTime dateTime;
-    RtcCalcLocalTime();
-    ConvertTimeToDateTime(&dateTime, &gLocalTime);
-
-    return dateTime.year;
+    return sTimeOfDayStarts[GetSeason()][timeOfDay];
 }
 
-enum Month GetMonth(void)
+void UpdateLoadedSeason()
 {
-    struct DateTime dateTime;
-    RtcCalcLocalTime();
-    ConvertTimeToDateTime(&dateTime, &gLocalTime);
-
-    return dateTime.month;
-}
-
-u8 GetDay(void)
-{
-    struct DateTime dateTime;
-    RtcCalcLocalTime();
-    ConvertTimeToDateTime(&dateTime, &gLocalTime);
-
-    return dateTime.day;
-}
-
-enum Weekday GetDayOfWeek(void)
-{
-    struct DateTime dateTime;
-    RtcCalcLocalTime();
-    ConvertTimeToDateTime(&dateTime, &gLocalTime);
-
-    return dateTime.dayOfWeek;
-}
-
-enum TimeOfDay TryIncrementTimeOfDay(enum TimeOfDay timeOfDay)
-{
-    return timeOfDay == TIME_NIGHT ? TIME_MORNING : timeOfDay + 1;
-}
-
-enum TimeOfDay TryDecrementTimeOfDay(enum TimeOfDay timeOfDay)
-{
-    return timeOfDay == TIME_MORNING ? TIME_NIGHT : timeOfDay - 1;
+    gLoadedSeason = GetSeason();
 }

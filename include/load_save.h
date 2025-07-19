@@ -6,11 +6,6 @@
 
 #define SAVEBLOCK_MOVE_RANGE    128
 
-/**
- * These structs are to prevent them from being reordered on newer or modern
- * toolchains. If this is not done, the ClearSav functions will end up erasing
- * the wrong memory leading to various glitches.
- */
 struct SaveBlock2ASLR {
     struct SaveBlock2 block;
     u8 aslr[SAVEBLOCK_MOVE_RANGE];
@@ -36,26 +31,28 @@ extern struct SaveBlock1 *gSaveBlock1Ptr;
 extern struct SaveBlock2 *gSaveBlock2Ptr;
 extern struct PokemonStorage *gPokemonStoragePtr;
 
-void CheckForFlashMemory(void);
 void ClearSav3(void);
 void ClearSav2(void);
 void ClearSav1(void);
-void SetSaveBlocksPointers(u16 offset);
+void CheckForFlashMemory(void);
 void MoveSaveBlocks_ResetHeap(void);
-u32 UseContinueGameWarp(void);
-void ClearContinueGameWarpStatus(void);
-void SetContinueGameWarpStatus(void);
-void SetContinueGameWarpStatusToDynamicWarp(void);
-void ClearContinueGameWarpStatus2(void);
+bool32 GetSecretBase2Field_9(void);
+void ClearSecretBase2Field_9(void);
+void SetSecretBase2Field_9(void);
+void SetSecretBase2Field_9_AndHideBG(void);
+void ClearSecretBase2Field_9_2(void);
 void SavePlayerParty(void);
 void LoadPlayerParty(void);
-void SaveObjectEvents(void);
-void LoadObjectEvents(void);
 void CopyPartyAndObjectsToSave(void);
 void CopyPartyAndObjectsFromSave(void);
 void LoadPlayerBag(void);
 void SavePlayerBag(void);
-void ApplyNewEncryptionKeyToHword(u16 *hWord, u32 newKey);
-void ApplyNewEncryptionKeyToWord(u32 *word, u32 newKey);
+void SetSaveBlocksPointers(u16 offset);
+void MoveSaveBlocks_ResetHeap(void);
+void ClearContinueGameWarpStatus2(void);
+void SetContinueGameWarpStatusToDynamicWarp(void);
+void SetContinueGameWarpStatus(void);
+bool32 UseContinueGameWarp(void);
+void ClearContinueGameWarpStatus();
 
 #endif // GUARD_LOAD_SAVE_H

@@ -1,40 +1,34 @@
 #ifndef GUARD_FIELD_SPECIALS_H
 #define GUARD_FIELD_SPECIALS_H
 
-extern bool8 gBikeCyclingChallenge;
-extern u8 gBikeCollisions;
+#include "global.h"
+
 extern u16 gScrollableMultichoice_ScrollOffset;
 
 u8 GetLeadMonIndex(void);
-bool8 IsDestinationBoxFull(void);
+size_t CountDigits(s32 value);
+void TV_PrintIntToStringVar(u8 varidx, s32 number);
+u16 GetStarterSpecies(void);
+void StopPokemonLeagueLightingEffectTask(void);
+void FieldCB_ShowPortholeView(void);
+u8 ContextNpcGetTextColor(void);
+void SetPCBoxToSendMon(u8);
 u16 GetPCBoxToSendMon(void);
-bool8 InMultiPartnerRoom(void);
-void UpdateTrainerFansAfterLinkBattle(void);
-void IncrementBirthIslandRockStepCount(void);
-bool8 AbnormalWeatherHasExpired(void);
-bool8 ShouldDoBrailleRegicePuzzle(void);
-bool32 ShouldDoWallyCall(void);
-bool32 ShouldDoScottFortreeCall(void);
-bool32 ShouldDoScottBattleFrontierCall(void);
-bool32 ShouldDoRoxanneCall(void);
-bool32 ShouldDoRivalRayquazaCall(void);
-bool32 CountSSTidalStep(u16 delta);
-u8 GetSSTidalLocation(s8 *mapGroup, s8 *mapNum, s16 *x, s16 *y);
-void ShowScrollableMultichoice(void);
-void FrontierGamblerSetWonOrLost(bool8 won);
-u8 TryGainNewFanFromCounter(u8 incrementId);
-bool8 InPokemonCenter(void);
-void SetShoalItemFlag(u16 unused);
-void UpdateFrontierManiac(u16 daysSince);
-void UpdateFrontierGambler(u16 daysSince);
-void ResetCyclingRoadChallengeData(void);
-bool8 UsedPokemonCenterWarp(void);
-void ResetFanClub(void);
+bool8 IsDestinationBoxFull(void);
 bool8 ShouldShowBoxWasFullMessage(void);
-void SetPCBoxToSendMon(u8 boxId);
-void PreparePartyForSkyBattle(void);
-void GetObjectPosition(u16*, u16*, u32, u32);
-bool32 CheckObjectAtXY(u32, u32);
-bool32 CheckPartyHasSpecies(u32);
+u16 GetHiddenItemAttr(u32 hiddenItem, u8 attr);
+u8 GetUnlockedSeviiAreas(void);
+u32 GetPlayerTrainerId(void);
+bool8 CutMoveRuinValleyCheck(void);
+void CutMoveOpenDottedHoleDoor(void);
+void RunMassageCooldownStepCounter(void);
+void IncrementResortGorgeousStepCounter(void);
+void IncrementBirthIslandRockStepCount(void);
+void ResetCyclingRoadChallengeData(void);
+void ResetFieldTasksArgs(void);
+bool8 UsedPokemonCenterWarp(void);
+void QuestLog_CheckDepartingIndoorsMap(void);
+void QuestLog_TryRecordDepartedLocation(void);
+bool8 InPokemonCenter(void);
 
 #endif // GUARD_FIELD_SPECIALS_H

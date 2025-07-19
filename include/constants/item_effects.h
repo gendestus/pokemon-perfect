@@ -2,11 +2,11 @@
 #define GUARD_CONSTANTS_ITEM_EFFECTS_H
 
 // field 0 masks
-#define ITEM0_DIRE_HIT          0x30 // Works the same way as the move Focus Energy.
+#define ITEM0_DIRE_HIT          0x30 // Works the same way as move Focus Energy.
 #define ITEM0_SACRED_ASH        0x40
 #define ITEM0_INFATUATION       0x80
 
-// new field 1 masks
+// field 1 masks
 #define ITEM1_X_ATTACK          STAT_ATK
 #define ITEM1_X_DEFENSE         STAT_DEF
 #define ITEM1_X_SPEED           STAT_SPEED
@@ -50,7 +50,7 @@
 
 #define ITEM10_IS_VITAMIN       0x1
 
-// fields 6 and onwards (except field 10) are item-specific arguments
+// fields 6 and onwards are item-specific arguments
 #define ITEM_EFFECT_ARG_START 6
 
 // Special HP recovery amounts for ITEM4_HEAL_HP
@@ -75,7 +75,7 @@
 #define ITEM_EFFECT_CURE_POISON 3
 #define ITEM_EFFECT_CURE_SLEEP 4
 #define ITEM_EFFECT_CURE_BURN 5
-#define ITEM_EFFECT_CURE_FREEZE_FROSTBITE 6
+#define ITEM_EFFECT_CURE_FREEZE 6
 #define ITEM_EFFECT_CURE_PARALYSIS 7
 #define ITEM_EFFECT_CURE_CONFUSION 8
 #define ITEM_EFFECT_CURE_INFATUATION 9

@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <stdio.h>
-#include "gba/gba.h"
 #include "config/general.h"
+#include "gba/gba.h"
 #include "malloc.h"
 #include "mini_printf.h"
 
@@ -39,8 +39,8 @@ void AGBPrintFlush1Block(void);
 
 void AGBPrintInit(void)
 {
-    volatile struct AGBPrintStruct *pPrint = (struct AGBPrintStruct *)AGB_PRINT_STRUCT_ADDR;
-    vu16 *pWSCNT = &REG_WAITCNT;
+    struct AGBPrintStruct *pPrint = (struct AGBPrintStruct *)AGB_PRINT_STRUCT_ADDR;
+    u16 *pWSCNT = (u16 *)REG_ADDR_WAITCNT;
     u16 *pProtect = (u16 *)AGB_PRINT_PROTECT_ADDR;
     u16 nOldWSCNT = *pWSCNT;
     *pWSCNT = WSCNT_DATA;
@@ -66,9 +66,9 @@ static void AGBPutcInternal(const char cChr)
 
 void AGBPutc(const char cChr)
 {
-    vu16 *pWSCNT = &REG_WAITCNT;
+    u16 *pWSCNT = (u16 *)REG_ADDR_WAITCNT;
     u16 nOldWSCNT = *pWSCNT;
-    volatile struct AGBPrintStruct *pPrint;
+    struct AGBPrintStruct *pPrint;
     *pWSCNT = WSCNT_DATA;
     AGBPutcInternal(cChr);
     *pWSCNT = nOldWSCNT;
@@ -79,8 +79,8 @@ void AGBPutc(const char cChr)
 
 void AGBPrint(const char *pBuf)
 {
-    volatile struct AGBPrintStruct *pPrint = (struct AGBPrintStruct *)AGB_PRINT_STRUCT_ADDR;
-    vu16 *pWSCNT = &REG_WAITCNT;
+    struct AGBPrintStruct *pPrint = (struct AGBPrintStruct *)AGB_PRINT_STRUCT_ADDR;
+    u16 *pWSCNT = (u16 *)REG_ADDR_WAITCNT;
     u16 nOldWSCNT = *pWSCNT;
     *pWSCNT = WSCNT_DATA;
     while (*pBuf)
@@ -96,7 +96,9 @@ void AGBPrintf(const char *pBuf, ...)
     char bufPrint[0x100];
     va_list vArgv;
     va_start(vArgv, pBuf);
-    #if (PRETTY_PRINT_HANDLER == PRETTY_PRINT_MINI_PRINTF)
+    #if (PRETTY_PRINT_HANDLER == PRETTY_PRINT_OFF)
+    vsprintf(bufPrint, pBuf, vArgv);
+    #elif (PRETTY_PRINT_HANDLER == PRETTY_PRINT_MINI_PRINTF)
     mini_vsnprintf(bufPrint, 0x100, pBuf, vArgv);
     #elif (PRETTY_PRINT_HANDLER == PRETTY_PRINT_LIBC)
     vsnprintf(bufPrint, 0x100, pBuf, vArgv);
@@ -110,9 +112,9 @@ void AGBPrintf(const char *pBuf, ...)
 static void AGBPrintTransferDataInternal(u32 bAllData)
 {
     LPFN_PRINT_FLUSH lpfnFuncFlush;
-    vu16 *pIME;
+    u16 *pIME;
     u16 nIME;
-    vu16 *pWSCNT;
+    u16 *pWSCNT;
     u16 nOldWSCNT;
     u16 *pProtect;
     volatile struct AGBPrintStruct *pPrint;
@@ -120,9 +122,9 @@ static void AGBPrintTransferDataInternal(u32 bAllData)
     pProtect = (u16 *)AGB_PRINT_PROTECT_ADDR;
     pPrint = (struct AGBPrintStruct *)AGB_PRINT_STRUCT_ADDR;
     lpfnFuncFlush = (LPFN_PRINT_FLUSH)AGB_PRINT_FLUSH_ADDR;
-    pIME = &REG_IME;
+    pIME = (u16 *)REG_ADDR_IME;
     nIME = *pIME;
-    pWSCNT = &REG_WAITCNT;
+    pWSCNT = (u16 *)REG_ADDR_WAITCNT;
     nOldWSCNT = *pWSCNT;
     *pIME = nIME & ~1;
     *pWSCNT = WSCNT_DATA;
@@ -184,7 +186,9 @@ void NoCashGBAPrintf(const char *pBuf, ...)
     char bufPrint[0x100];
     va_list vArgv;
     va_start(vArgv, pBuf);
-    #if (PRETTY_PRINT_HANDLER == PRETTY_PRINT_MINI_PRINTF)
+    #if (PRETTY_PRINT_HANDLER == PRETTY_PRINT_OFF)
+    vsprintf(bufPrint, pBuf, vArgv);
+    #elif (PRETTY_PRINT_HANDLER == PRETTY_PRINT_MINI_PRINTF)
     mini_vsnprintf(bufPrint, 0x100, pBuf, vArgv);
     #elif (PRETTY_PRINT_HANDLER == PRETTY_PRINT_LIBC)
     vsnprintf(bufPrint, 0x100, pBuf, vArgv);
@@ -224,13 +228,15 @@ void MgbaClose(void)
     *REG_DEBUG_ENABLE = 0;
 }
 
-void MgbaPrintf(s32 level, const char *ptr, ...)
+void MgbaPrintf(s32 level, const char* ptr, ...)
 {
     va_list args;
 
     level &= 0x7;
     va_start(args, ptr);
-    #if (PRETTY_PRINT_HANDLER == PRETTY_PRINT_MINI_PRINTF)
+    #if (PRETTY_PRINT_HANDLER == PRETTY_PRINT_OFF)
+    vsprintf(REG_DEBUG_STRING, ptr, args);
+    #elif (PRETTY_PRINT_HANDLER == PRETTY_PRINT_MINI_PRINTF)
     mini_vsnprintf(REG_DEBUG_STRING, MGBA_REG_DEBUG_MAX, ptr, args);
     #elif (PRETTY_PRINT_HANDLER == PRETTY_PRINT_LIBC)
     vsnprintf(REG_DEBUG_STRING, MGBA_REG_DEBUG_MAX, ptr, args);
@@ -254,4 +260,5 @@ void MgbaAssert(const char *pFile, s32 nLine, const char *pExpression, bool32 nS
     }
 }
 #endif
+
 #endif

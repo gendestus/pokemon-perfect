@@ -1,35 +1,25 @@
 #include "global.h"
-#include "malloc.h"
+#include "gflib.h"
 #include "battle_anim.h"
-#include "bg.h"
-#include "data.h"
 #include "decompress.h"
+#include "digit_obj_util.h"
 #include "dynamic_placeholder_text_util.h"
 #include "event_data.h"
-#include "international_string_util.h"
 #include "item.h"
 #include "link.h"
 #include "link_rfu.h"
-#include "main.h"
 #include "menu.h"
 #include "minigame_countdown.h"
-#include "palette.h"
+#include "pokemon_jump.h"
 #include "random.h"
-#include "digit_obj_util.h"
 #include "save.h"
 #include "script.h"
-#include "sound.h"
-#include "sprite.h"
-#include "string_util.h"
 #include "strings.h"
 #include "task.h"
 #include "text_window.h"
 #include "trig.h"
-#include "pokemon.h"
-#include "pokemon_jump.h"
-#include "constants/rgb.h"
-#include "constants/songs.h"
 #include "constants/items.h"
+#include "constants/songs.h"
 
 #define MAX_JUMP_SCORE 99990
 #define MAX_JUMPS 9999
@@ -102,7 +92,7 @@ enum {
 // the lower 8 bits are a timer to the next state.
 // When the timer is incremented above 255, it increments
 // the vine state and the timer is reset.
-#define VINE_STATE_TIMER(vineState) (((vineState) << 8) | 0xFF)
+#define VINE_STATE_TIMER(vineState)(((vineState) << 8) | 0xFF)
 
 enum {
     MONSTATE_NORMAL, // Pokémon is either on the ground or in the middle of a jump
@@ -151,8 +141,8 @@ enum {
 
 struct PokemonJump_MonInfo
 {
-    u16 isShiny:1;
     u16 species:15;
+    u16 isShiny:1;
     u32 otId;
     u32 personality;
 };
@@ -191,7 +181,7 @@ struct PokemonJumpGfx
     u8 itemName[64];
     u8 itemQuantityStr[64];
     u8 prizeMsg[256];
-    u16 tilemapBuffer[0x4000];
+    u16 tilemapBuffer[0x4000]; // Bug: way larger than it should be
     struct Sprite *monSprites[MAX_RFU_PLAYERS];
     struct Sprite *starSprites[MAX_RFU_PLAYERS];
     struct Sprite *vineSprites[VINE_SPRITES_PER_SIDE * 2];
@@ -268,17 +258,21 @@ struct PokemonJump
     struct PokemonJump_Player *player;
 };
 
+static void Task_StaticCountdown_Init(u8 taskId);
+static void Task_StaticCountdown_Free(u8 taskId);
+static void Task_StaticCountdown_Start(u8 taskId);
+static void Task_StaticCountdown_Run(u8 taskId);
 static void InitGame(struct PokemonJump *);
 static void ResetForNewGame(struct PokemonJump *);
 static void InitPlayerAndJumpTypes(void);
 static void ResetPlayersForNewGame(void);
 static s16 GetSpeciesPokemonJumpType(u16 species);
-static void InitJumpMonInfo(struct PokemonJump_MonInfo *, struct Pokemon *);
+static void InitJumpMonInfo(struct PokemonJump_MonInfo *monInfo, struct Pokemon *mon);
 static void CB2_PokemonJump(void);
-static void Task_StartPokemonJump(u8);
-static void Task_PokemonJump_Leader(u8);
+static void Task_StartPokemonJump(u8 taskId);
+static void Task_PokemonJump_Leader(u8 taskId);
 static void SendLinkData_Leader(void);
-static void Task_PokemonJump_Member(u8);
+static void Task_PokemonJump_Member(u8 taskId);
 static void SendLinkData_Member(void);
 static bool32 GameIntro_Leader(void);
 static bool32 WaitRound_Leader(void);
@@ -303,8 +297,8 @@ static bool32 TryGivePrize(void);
 static bool32 DoPlayAgainPrompt(void);
 static bool32 ClosePokeJumpLink(void);
 static bool32 CloseMessageAndResetScore(void);
-static void Task_CommunicateMonInfo(u8);
-static void SetTaskWithPokeJumpStruct(TaskFunc, u8);
+static void Task_CommunicateMonInfo(u8 taskId);
+static void SetTaskWithPokeJumpStruct(TaskFunc func, u8 taskPriority);
 static void InitVineState(void);
 static void ResetVineState(void);
 static void UpdateVineState(void);
@@ -339,14 +333,41 @@ static u16 GetPrizeData(void);
 static void UnpackPrizeData(u16, u16 *, u16 *);
 static u16 GetPrizeItemId(void);
 static u16 GetPrizeQuantity(void);
-static u16 GetQuantityLimitedByBag(u16, u16);
-static void SpriteCB_Star(struct Sprite *);
-static void SpriteCB_MonHitShake(struct Sprite *);
-static void SpriteCB_MonHitFlash(struct Sprite *);
-static void SpriteCB_MonIntroBounce(struct Sprite *);
-static void UpdateVineSwing(int);
-static void StartPokeJumpGfx(struct PokemonJumpGfx *);
+static u16 GetQuantityLimitedByBag(u16 item, u16 quantity);
+static void SetUpPokeJumpGfxFunc(void (*func)(void));
+static void Task_RunPokeJumpGfxFunc(u8 taskId);
+static void LoadPokeJumpGfx(void);
+static void PrintPlayerNamesNoHighlight(void);
+static void PrintPlayerNamesWithHighlight(void);
+static void ErasePlayerNames(void);
+static void Msg_WantToPlayAgain(void);
+static void Msg_SavingDontTurnOff(void);
+static void EraseMessage(void);
+static void Msg_SomeoneDroppedOut(void);
+static void Msg_CommunicationStandby(void);
+static void DoPokeJumpCountdown(void);
+static u32 AddMessageWindow(u32 left, u32 top, u32 width, u32 height);
+static void CreatePokeJumpYesNoMenu(u16 left, u16 top, u8 cursorPos);
+static void PrintScoreSuffixes(void);
+static void CreateJumpMonSprites(void);
+static void InitDigitPrinters(void);
+static void AddPlayerNameWindows(void);
+static void PrintPokeJumpPlayerNames(bool32);
+static void DrawPlayerNameWindows(void);
+static void ShowBonus(u8);
+static void Task_UpdateBonus(u8 taskId);
 static void InitPokeJumpGfx(struct PokemonJumpGfx *);
+static void SpriteCB_Star(struct Sprite *sprite);
+static void SpriteCB_MonHitShake(struct Sprite *sprite);
+static void SpriteCB_MonHitFlash(struct Sprite *sprite);
+static void SpriteCB_MonIntroBounce(struct Sprite *sprite);
+static void Task_ShowPokemonJumpRecords(u8 taskId);
+#if FREE_POKEMON_JUMP == FALSE
+static void TruncateToFirstWordOnly(u8 *str);
+#endif //FREE_POKEMON_JUMP
+static void PrintRecordsText(u16 windowId);
+static void UpdateVineSwing(int id);
+static void StartPokeJumpGfx(struct PokemonJumpGfx *);
 static void FreeWindowsAndDigitObj(void);
 static void SetUpPokeJumpGfxFuncById(int);
 static bool32 IsPokeJumpGfxFuncFinished(void);
@@ -357,7 +378,7 @@ static void PrintPrizeFilledBagMessage(u16);
 static void PrintNoRoomForPrizeMessage(u16);
 static bool32 DoPrizeMessageAndFanfare(void);
 static void ClearMessageWindow(void);
-static void SetMonSpriteY(u32, s16);
+static void SetMonSpriteY(u32 , s16);
 static void StartMonHitShake(u8);
 static bool32 RemoveMessageWindow(void);
 static void PrintScore(int);
@@ -371,7 +392,7 @@ static void ResetMonSpriteSubpriorities(void);
 static void StartMonIntroBounce(int);
 static int IsMonIntroBounceActive(void);
 static void SendPacket_MonInfo(struct PokemonJump_MonInfo *);
-static bool32 RecvPacket_MonInfo(int, struct PokemonJump_MonInfo *);
+static bool32 RecvPacket_MonInfo(int multiplayerId, struct PokemonJump_MonInfo *);
 static void SendPacket_LeaderState(struct PokemonJump_Player *, struct PokemonJump_CommData *);
 static bool32 RecvPacket_LeaderState(struct PokemonJump_Player *, struct PokemonJump_CommData *);
 static void SendPacket_MemberState(struct PokemonJump_Player *, u8, u16);
@@ -379,34 +400,304 @@ static bool32 RecvPacket_MemberStateToLeader(struct PokemonJump_Player *, int, u
 static bool32 RecvPacket_MemberStateToMember(struct PokemonJump_Player *, int);
 static bool32 TryUpdateRecords(u32, u16, u16);
 static void IncrementGamesWithMaxPlayers(void);
-static void Task_RunPokeJumpGfxFunc(u8);
-static void ShowBonus(u8);
-static void Task_UpdateBonus(u8);
-static void LoadPokeJumpGfx(void);
-static void InitDigitPrinters(void);
-static void PrintScoreSuffixes(void);
-static void CreateJumpMonSprites(void);
-static void AddPlayerNameWindows(void);
-static void DrawPlayerNameWindows(void);
-static void SetUpPokeJumpGfxFunc(void (*func)(void));
-static void PrintPokeJumpPlayerNames(bool32);
-static u32 AddMessageWindow(u32, u32, u32, u32);
-static void CreatePokeJumpYesNoMenu(u16, u16, u8);
-static void PrintPlayerNamesNoHighlight(void);
-static void PrintPlayerNamesWithHighlight(void);
-static void ErasePlayerNames(void);
-static void Msg_WantToPlayAgain(void);
-static void Msg_SavingDontTurnOff(void);
-static void EraseMessage(void);
-static void Msg_SomeoneDroppedOut(void);
-static void DoPokeJumpCountdown(void);
-static void Msg_CommunicationStandby(void);
-static void Task_ShowPokemonJumpRecords(u8);
-static void PrintRecordsText(u16, int);
-static inline void TruncateToFirstWordOnly(u8 *);
+static void LoadSpriteSheetsAndPalettes(struct PokemonJumpGfx *);
+static void CreateVineSprites(struct PokemonJumpGfx *);
+static void StartPokeJumpCountdown(struct PokemonJumpGfx *);
+static bool32 IsPokeJumpCountdownRunning(void);
+static void UpdateVineAnim(struct PokemonJumpGfx *, int);
+static void DoStarAnim(struct PokemonJumpGfx *, int);
+static void CreateJumpMonSprite(struct PokemonJumpGfx *, struct PokemonJump_MonInfo *,s16, s16, u8);
+static void CreateStarSprite(struct PokemonJumpGfx *,s16, s16, u8);
+static void Gfx_StartMonHitShake(struct PokemonJumpGfx *, int);
+static void Gfx_StartMonHitFlash(struct PokemonJumpGfx *, int);
+static bool32 Gfx_IsMonHitShakeActive(struct PokemonJumpGfx *, int);
+static void Gfx_StopMonHitFlash(struct PokemonJumpGfx *);
+static void Gfx_ResetMonSpriteSubpriorities(struct PokemonJumpGfx *);
+static void Gfx_StartMonIntroBounce(struct PokemonJumpGfx *, int);
+static bool32 Gfx_IsMonIntroBounceActive(struct PokemonJumpGfx *);
 
 EWRAM_DATA static struct PokemonJump *sPokemonJump = NULL;
 EWRAM_DATA static struct PokemonJumpGfx *sPokemonJumpGfx = NULL;
+
+// Unused static version of the wireless minigame countdown
+
+#define TAG_STATIC_COUNTDOWN 0x2000
+
+enum {
+    STATE_IDLE = 1,
+    STATE_START,
+    STATE_RUN,
+    STATE_END,
+};
+
+enum {
+    FUNC_INIT,
+    FUNC_FREE,
+    FUNC_START,
+    FUNC_RUN,
+};
+
+enum {
+    ANIM_THREE,
+    ANIM_TWO,
+    ANIM_ONE,
+    ANIM_START_LEFT,
+    ANIM_START_MID,
+    ANIM_START_RIGHT,
+};
+
+static const u16 s321Start_Static_Pal[] = INCBIN_U16("graphics/link/321start.gbapal");
+static const u32 s321Start_Static_Gfx[] = INCBIN_U32("graphics/link/321start.4bpp.lz");
+
+static const struct CompressedSpriteSheet sSpriteSheet_321Start_Static[] = {
+    {s321Start_Static_Gfx, 0xC00, TAG_STATIC_COUNTDOWN},
+    {}
+};
+
+static const struct SpritePalette sSpritePalette_321Start_Static[] = {
+    {s321Start_Static_Pal, TAG_STATIC_COUNTDOWN},
+    {}
+};
+
+static const union AnimCmd sAnim_StaticCountdown_Three[] = {
+    ANIMCMD_FRAME(0, 0),
+    ANIMCMD_END
+};
+
+static const union AnimCmd sAnim_StaticCountdown_Two[] = {
+    ANIMCMD_FRAME(16, 0),
+    ANIMCMD_END
+};
+
+static const union AnimCmd sAnim_StaticCountdown_One[] = {
+    ANIMCMD_FRAME(32, 0),
+    ANIMCMD_END
+};
+
+static const union AnimCmd sAnim_StaticCountdown_StartLeft[] = {
+    ANIMCMD_FRAME(64, 0),
+    ANIMCMD_END
+};
+
+static const union AnimCmd sAnim_StaticCountdown_StartMid[] = {
+    ANIMCMD_FRAME(48, 0),
+    ANIMCMD_END
+};
+
+static const union AnimCmd sAnim_StaticCountdown_StartRight[] = {
+    ANIMCMD_FRAME(80, 0),
+    ANIMCMD_END
+};
+
+static const union AnimCmd *const sAnims_StaticCountdown[] = {
+    [ANIM_THREE]       = sAnim_StaticCountdown_Three,
+    [ANIM_TWO]         = sAnim_StaticCountdown_Two,
+    [ANIM_ONE]         = sAnim_StaticCountdown_One,
+    [ANIM_START_LEFT]  = sAnim_StaticCountdown_StartLeft,
+    [ANIM_START_MID]   = sAnim_StaticCountdown_StartMid,
+    [ANIM_START_RIGHT] = sAnim_StaticCountdown_StartRight
+};
+
+static const struct SpriteTemplate sSpriteTemplate_StaticCountdown[] = {
+    {
+        .tileTag = TAG_STATIC_COUNTDOWN,
+        .paletteTag = TAG_STATIC_COUNTDOWN,
+        .oam = &gOamData_AffineOff_ObjNormal_32x32,
+        .anims = sAnims_StaticCountdown,
+        .affineAnims = gDummySpriteAffineAnimTable,
+        .callback = SpriteCallbackDummy
+    },
+};
+
+static const TaskFunc sStaticCountdownFuncs[][4] =
+{
+    {
+        [FUNC_INIT]  = Task_StaticCountdown_Init,
+        [FUNC_FREE]  = Task_StaticCountdown_Free,
+        [FUNC_START] = Task_StaticCountdown_Start,
+        [FUNC_RUN]   = Task_StaticCountdown_Run
+    },
+};
+
+#define tState            data[0]
+#define tFuncSetId        data[1] // These 4 data elements are indexes into
+#define tSpriteTemplateId data[2] // arrays that only have 1 element with
+#define tSpriteSheetId    data[3] // data. As such their only legal value
+#define tSpritePalId      data[4] // is 0. Unclear why they were used.
+#define tInterval         data[5]
+#define tPriority         data[6]
+#define tSubpriority      data[7]
+#define tNumSprites       data[8]
+#define tX                data[9]
+#define tY                data[10]
+#define tPrevTime         data[10] // Re-used
+#define tTimer            data[11]
+#define tLinkTimer        data[12]
+// 13-15 hold sprite ids
+// tSpriteIds(0) is used for the number sprites, and the leftmost part of 'Start'
+// tSpriteIds(1) is used for the middle part of 'Start'
+// tSpriteIds(2) is used for for the rightmost part of 'Start'
+#define tSpriteIds(i)     data[13 + i]
+
+#define sInterval       data[1] // Never read
+#define sAnimNum        data[2]
+#define sTaskId         data[3]
+#define sId             data[4] // Never read
+#define sNumberSpriteId data[5] // Never read
+
+static void StaticCountdown_CreateSprites(u8 taskId, s16 *data)
+{
+    u8 i;
+    struct Sprite *sprite;
+
+    LoadCompressedSpriteSheet(&sSpriteSheet_321Start_Static[tSpriteSheetId]);
+    LoadSpritePalette(&sSpritePalette_321Start_Static[tSpritePalId]);
+    for (i = 0; i < tNumSprites; i++)
+        tSpriteIds(i) = CreateSprite(&sSpriteTemplate_StaticCountdown[tSpriteTemplateId], tX, tY, tSubpriority);
+    for (i = 0; i < tNumSprites; i++)
+    {
+        sprite = &gSprites[tSpriteIds(i)];
+        sprite->oam.priority = tPriority;
+        sprite->invisible = TRUE;
+        sprite->sInterval = tInterval;
+        sprite->sTaskId = taskId;
+        sprite->sId = i;
+        sprite->sNumberSpriteId = tSpriteIds(0);
+    }
+}
+
+static void Task_StaticCountdown_Init(u8 taskId)
+{
+    s16 *data = gTasks[taskId].data;
+    tSpriteTemplateId = 0;
+    tSpriteSheetId = 0;
+    tSpritePalId = 0;
+    tInterval = 60;
+    tPriority = 0;
+    tSubpriority = 0;
+    tNumSprites = 3;
+    tX = 120;
+    tY = 88;
+    StaticCountdown_CreateSprites(taskId, data);
+
+    StartSpriteAnim(&gSprites[tSpriteIds(1)], ANIM_START_MID);
+    gSprites[tSpriteIds(1)].x2 = -32;
+
+    StartSpriteAnim(&gSprites[tSpriteIds(2)], ANIM_START_RIGHT);
+    gSprites[tSpriteIds(2)].x2 = 32;
+}
+
+static void Task_StaticCountdown_Free(u8 taskId)
+{
+    u8 i = 0;
+    s16 *data = gTasks[taskId].data;
+
+    for (i = 0; i < tNumSprites; i++)
+        DestroySprite(&gSprites[tSpriteIds(i)]);
+    FreeSpriteTilesByTag(sSpriteSheet_321Start_Static[tSpriteSheetId].tag);
+    FreeSpritePaletteByTag(sSpritePalette_321Start_Static[tSpritePalId].tag);
+}
+
+static void SpriteCB_StaticCountdown(struct Sprite *sprite)
+{
+    s16 *data = gTasks[sprite->sTaskId].data;
+
+    if (tTimer % tInterval != 0)
+        return;
+    if (tTimer == tPrevTime)
+        return;
+
+    tPrevTime = tTimer;
+    switch (sprite->sAnimNum)
+    {
+    case ANIM_THREE:
+        sprite->invisible = FALSE;
+    case ANIM_TWO:
+    case ANIM_ONE:
+        // Set sprite to a number
+        PlaySE(SE_BALL_BOUNCE_1);
+        StartSpriteAnim(sprite, sprite->sAnimNum);
+        break;
+    case ANIM_START_LEFT:
+        // Set sprite to 'Start'
+        PlaySE(SE_PIN);
+        StartSpriteAnim(sprite, sprite->sAnimNum);
+        gSprites[tSpriteIds(1)].invisible = FALSE;
+        gSprites[tSpriteIds(2)].invisible = FALSE;
+        break;
+    case ANIM_START_LEFT + 1: // End
+        // Hide countdown
+        sprite->invisible = TRUE;
+        gSprites[tSpriteIds(1)].invisible = TRUE;
+        gSprites[tSpriteIds(2)].invisible = TRUE;
+        tState = STATE_END;
+        return;
+    }
+    sprite->sAnimNum++;
+}
+
+static void Task_StaticCountdown_Start(u8 taskId)
+{
+    s16 *data = gTasks[taskId].data;
+    PlaySE(SE_BALL_BOUNCE_1);
+    gSprites[tSpriteIds(0)].callback = SpriteCB_StaticCountdown;
+    gSprites[tSpriteIds(0)].invisible = FALSE;
+    gTasks[taskId].tState = STATE_RUN;
+}
+
+// Increment timer for progressing the countdown.
+// If the player is the link leader, increment a
+// separate timer and send it to group members for
+// them to read and use.
+static void Task_StaticCountdown_Run(u8 taskId)
+{
+    u16 packet[RFU_PACKET_SIZE];
+    s16 *data = gTasks[taskId].data;
+
+    if (gReceivedRemoteLinkPlayers)
+    {
+        // Read link timer
+        if (gRecvCmds[0][1] == LINKCMD_COUNTDOWN)
+            tTimer = gRecvCmds[0][2];
+
+        if (GetMultiplayerId() == 0)
+        {
+            // Player is link leader.
+            // Send timer to group members
+            tLinkTimer++;
+            memset(packet, 0, sizeof(packet));
+            packet[0] = LINKCMD_COUNTDOWN;
+            packet[1] = tLinkTimer;
+            Rfu_SendPacket(packet);
+        }
+    }
+    else
+    {
+        // Local, just increment own timer
+        tTimer++;
+    }
+}
+
+#undef tState
+#undef tFuncSetId
+#undef tSpriteTemplateId
+#undef tSpriteSheetId
+#undef tSpritePalId
+#undef tInterval
+#undef tPriority
+#undef tSubpriority
+#undef tNumSprites
+#undef tX
+#undef tY
+#undef tPrevTime
+#undef tTimer
+#undef tLinkTimer
+#undef tSpriteIds
+#undef sInterval
+#undef sAnimNum
+#undef sTaskId
+#undef sId
+#undef sNumberSpriteId
 
 void StartPokemonJump(u16 partyId, MainCallback exitCallback)
 {
@@ -425,7 +716,7 @@ void StartPokemonJump(u16 partyId, MainCallback exitCallback)
             sPokemonJump->multiplayerId = GetMultiplayerId();
             InitJumpMonInfo(&sPokemonJump->monInfo[sPokemonJump->multiplayerId], &gPlayerParty[partyId]);
             InitGame(sPokemonJump);
-            SetWordTaskArg(taskId, 2, (u32)sPokemonJump);
+            SetWordTaskArg(taskId, 2, (uintptr_t)sPokemonJump);
             SetMainCallback2(CB2_PokemonJump);
             return;
         }
@@ -529,8 +820,8 @@ static void InitJumpMonInfo(struct PokemonJump_MonInfo *monInfo, struct Pokemon 
 {
     monInfo->species = GetMonData(mon, MON_DATA_SPECIES);
     monInfo->otId = GetMonData(mon, MON_DATA_OT_ID);
-    monInfo->isShiny = GetMonData(mon, MON_DATA_IS_SHINY);
     monInfo->personality = GetMonData(mon, MON_DATA_PERSONALITY);
+    monInfo->isShiny = GetMonData(mon, MON_DATA_IS_SHINY, NULL);
 }
 
 static void VBlankCB_PokemonJump(void)
@@ -578,7 +869,7 @@ static void Task_StartPokemonJump(u8 taskId)
     case 2:
         if (!IsPokeJumpGfxFuncFinished() && IsNotWaitingForBGMStop() == TRUE)
         {
-            FadeOutAndPlayNewMapMusic(MUS_RG_POKE_JUMP, 8);
+            FadeOutAndPlayNewMapMusic(MUS_POKE_JUMP, 8);
             sPokemonJump->mainState++;
         }
         break;
@@ -621,7 +912,7 @@ static void SetLinkTimeInterval(int intervalId)
     {
         // Link data is sent when timer reaches 0.
         // Set timer to 1 and set limit to special
-        // 'stopped' value so timer won't change
+        // 'stopped' value so timer won't change        
         sPokemonJump->linkTimerLimit = LINK_TIMER_STOPPED;
         sPokemonJump->linkTimer = 1;
     }
@@ -663,7 +954,6 @@ static void RecvLinkData_Leader(void)
             sPokemonJump->players[i].prevMonState = monState;
         }
 
-        // Group member has finished currently assigned function
         if (sPokemonJump->players[i].funcFinished && sPokemonJump->memberFuncIds[i] == sPokemonJump->comm.funcId)
             numReady++;
     }
@@ -672,7 +962,7 @@ static void RecvLinkData_Leader(void)
         sPokemonJump->allPlayersReady = TRUE;
 }
 
-static bool32 (*const sPokeJumpLeaderFuncs[])(void) =
+static bool32 (* const sPokeJumpLeaderFuncs[])(void) =
 {
     [FUNC_GAME_INTRO]     = GameIntro_Leader,
     [FUNC_WAIT_ROUND]     = WaitRound_Leader,
@@ -771,7 +1061,7 @@ static void RecvLinkData_Member(void)
     }
 }
 
-static bool32 (*const sPokeJumpMemberFuncs[])(void) =
+static bool32 (* const sPokeJumpMemberFuncs[])(void) =
 {
     [FUNC_GAME_INTRO]     = GameIntro_Member,
     [FUNC_WAIT_ROUND]     = WaitRound_Member,
@@ -1552,7 +1842,7 @@ static void Task_CommunicateMonInfo(u8 taskId)
 static void SetTaskWithPokeJumpStruct(TaskFunc func, u8 taskPriority)
 {
     u8 taskId = CreateTask(func, taskPriority);
-    SetWordTaskArg(taskId, DATAIDX_GAME_STRUCT, (u32)sPokemonJump);
+    SetWordTaskArg(taskId, DATAIDX_GAME_STRUCT, (uintptr_t)sPokemonJump);
 }
 
 #undef tState
@@ -1597,7 +1887,7 @@ static void UpdateVineState(void)
         sPokemonJump->prevVineState = sPokemonJump->vineState;
         sPokemonJump->vineState = sPokemonJump->vineStateTimer >> 8;
 
-        // If beginning upswing
+         // If beginning upswing
         if (sPokemonJump->vineState > VINE_UPSWING_LOWER && sPokemonJump->prevVineState < VINE_UPSWING_LOW)
         {
             sPokemonJump->ignoreJumpInput++;
@@ -1745,7 +2035,7 @@ static void SetMonStateNormal(void)
     sPokemonJump->player->monState = MONSTATE_NORMAL;
 }
 
-static const u16 sSoundEffects[MAX_RFU_PLAYERS - 1] = {SE_SHOP, SE_SHINY, SE_M_MORNING_SUN, SE_RG_POKE_JUMP_SUCCESS};
+static const u16 sSoundEffects[MAX_RFU_PLAYERS - 1] = {SE_RS_SHOP, SE_SHINY, SE_M_MORNING_SUN, SE_POKE_JUMP_SUCCESS};
 
 static void UpdateGame(void)
 {
@@ -1826,7 +2116,7 @@ static void HandleMonState(void)
     }
 
     if (soundFlags & F_SE_FAIL)
-        PlaySE(SE_RG_POKE_JUMP_FAILURE);
+        PlaySE(SE_POKE_JUMP_FAILURE);
     else if (soundFlags & F_SE_JUMP)
         PlaySE(SE_LEDGE);
 }
@@ -2078,7 +2368,7 @@ static bool32 AreLinkQueuesEmpty(void)
     return !gRfu.recvQueue.count && !gRfu.sendQueue.count;
 }
 
-static int GetNumPlayersForBonus(u8 *atJumpPeak)
+static int GetNumPlayersForBonus(u8 *arg0)
 {
     int i = 0;
     int flags = 0;
@@ -2086,7 +2376,7 @@ static int GetNumPlayersForBonus(u8 *atJumpPeak)
 
     for (; i < MAX_RFU_PLAYERS; i++)
     {
-        if (atJumpPeak[i])
+        if (arg0[i])
         {
             flags |= 1 << i;
             count++;
@@ -2237,6 +2527,1082 @@ void IsPokemonJumpSpeciesInParty(void)
     }
 
     gSpecialVar_Result = FALSE;
+}
+
+struct MonInfoPacket
+{
+    u8 id;
+    u16 species:15;
+    u16 isShiny:1;
+    u32 personality;
+    u32 otId;
+};
+
+static void SendPacket_MonInfo(struct PokemonJump_MonInfo *monInfo)
+{
+    struct MonInfoPacket packet;
+    packet.id = PACKET_MON_INFO;
+    packet.species = monInfo->species;
+    packet.otId = monInfo->otId;
+    packet.personality = monInfo->personality;
+    packet.isShiny = monInfo->isShiny;
+    Rfu_SendPacket(&packet);
+}
+
+static bool32 RecvPacket_MonInfo(int multiplayerId, struct PokemonJump_MonInfo *monInfo)
+{
+    struct MonInfoPacket packet;
+
+    if ((gRecvCmds[multiplayerId][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
+        return FALSE;
+
+    memcpy(&packet, &gRecvCmds[multiplayerId][1], sizeof(packet));
+    if (packet.id == PACKET_MON_INFO)
+    {
+        monInfo->species = packet.species;
+        monInfo->otId = packet.otId;
+        monInfo->personality = packet.personality;
+        monInfo->isShiny = packet.isShiny;
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+struct LeaderStatePacket
+{
+    u8 id;
+    u8 funcId;
+    u8 monState;
+    u8 receivedBonusFlags:5; // 1 bit for each player (MAX_RFU_PLAYERS)
+    u8 jumpState:3;
+    u16 jumpTimeStart;
+    u16 vineTimer;
+    u32 jumpsInRow:15;
+    u32 jumpScore:17;
+};
+
+static void SendPacket_LeaderState(struct PokemonJump_Player *player, struct PokemonJump_CommData *comm)
+{
+    struct LeaderStatePacket packet;
+    packet.id = PACKET_LEADER_STATE;
+    packet.jumpScore = comm->jumpScore;
+    packet.receivedBonusFlags = comm->receivedBonusFlags;
+    packet.funcId = comm->funcId;
+    packet.vineTimer = comm->data;
+    packet.jumpsInRow = comm->jumpsInRow;
+    packet.monState = player->monState;
+    packet.jumpState = player->jumpState;
+    packet.jumpTimeStart = player->jumpTimeStart;
+    Rfu_SendPacket(&packet);
+}
+
+// Used by group members to read the state of the group leader
+static bool32 RecvPacket_LeaderState(struct PokemonJump_Player *player, struct PokemonJump_CommData *comm)
+{
+    struct LeaderStatePacket packet;
+
+    if ((gRecvCmds[0][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
+        return FALSE;
+
+    memcpy(&packet, &gRecvCmds[0][1], sizeof(packet));
+    if (packet.id != PACKET_LEADER_STATE)
+        return FALSE;
+
+    comm->jumpScore = packet.jumpScore;
+    comm->receivedBonusFlags = packet.receivedBonusFlags;
+    comm->funcId = packet.funcId;
+    comm->data = packet.vineTimer;
+    comm->jumpsInRow = packet.jumpsInRow;
+    player->monState = packet.monState;
+    player->jumpState = packet.jumpState;
+    player->jumpTimeStart = packet.jumpTimeStart;
+    return TRUE;
+}
+
+struct MemberStatePacket
+{
+    u8 id;
+    u8 monState;
+    u8 jumpState;
+    bool8 funcFinished;
+    u16 jumpTimeStart;
+    u8 funcId;
+    u16 playAgainState;
+};
+
+static void SendPacket_MemberState(struct PokemonJump_Player *player, u8 funcId, u16 playAgainState)
+{
+    struct MemberStatePacket packet;
+    packet.id = PACKET_MEMBER_STATE;
+    packet.monState = player->monState;
+    packet.jumpState = player->jumpState;
+    packet.funcFinished = player->funcFinished;
+    packet.jumpTimeStart = player->jumpTimeStart;
+    packet.funcId = funcId;
+    packet.playAgainState = playAgainState;
+    Rfu_SendPacket(&packet);
+}
+
+// Used by the group leader to read the state of group members
+static bool32 RecvPacket_MemberStateToLeader(struct PokemonJump_Player *player, int multiplayerId, u8 *funcId, u16 *playAgainState)
+{
+    struct MemberStatePacket packet;
+
+    if ((gRecvCmds[multiplayerId][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
+        return FALSE;
+
+    memcpy(&packet, &gRecvCmds[multiplayerId][1], sizeof(packet));
+    if (packet.id != PACKET_MEMBER_STATE)
+        return FALSE;
+
+    player->monState = packet.monState;
+    player->jumpState = packet.jumpState;
+    player->funcFinished = packet.funcFinished;
+    player->jumpTimeStart = packet.jumpTimeStart;
+    *funcId = packet.funcId;
+    *playAgainState = packet.playAgainState;
+    return TRUE;
+}
+
+// Used by group members to read the state of other group members
+static bool32 RecvPacket_MemberStateToMember(struct PokemonJump_Player *player, int multiplayerId)
+{
+    struct MemberStatePacket packet;
+
+    if ((gRecvCmds[multiplayerId][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
+        return FALSE;
+
+    memcpy(&packet, &gRecvCmds[multiplayerId][1], sizeof(packet));
+    if (packet.id != PACKET_MEMBER_STATE)
+        return FALSE;
+
+    player->monState = packet.monState;
+    player->jumpState = packet.jumpState;
+    player->funcFinished = packet.funcFinished;
+    player->jumpTimeStart = packet.jumpTimeStart;
+    return TRUE;
+}
+
+static void StartPokeJumpGfx(struct PokemonJumpGfx *jumpGfx)
+{
+    u8 taskId;
+
+    sPokemonJumpGfx = jumpGfx;
+    InitPokeJumpGfx(sPokemonJumpGfx);
+    taskId = CreateTask(Task_RunPokeJumpGfxFunc, 3);
+    sPokemonJumpGfx->taskId = taskId;
+    SetWordTaskArg(sPokemonJumpGfx->taskId, 2, (uintptr_t)sPokemonJumpGfx);
+    SetUpPokeJumpGfxFunc(LoadPokeJumpGfx);
+}
+
+static void FreeWindowsAndDigitObj(void)
+{
+    FreeAllWindowBuffers();
+    DigitObjUtil_Free();
+}
+
+static void InitPokeJumpGfx(struct PokemonJumpGfx *jumpGfx)
+{
+    jumpGfx->mainState = 0;
+    jumpGfx->funcFinished = FALSE;
+    jumpGfx->msgWindowId = WINDOW_NONE;
+}
+
+static const u16 sInterface_Pal[] = INCBIN_U16("graphics/pokemon_jump/interface.gbapal");
+
+static const u16 sBg_Pal[] = INCBIN_U16("graphics/pokemon_jump/bg.gbapal");
+static const u32 sBg_Gfx[] = INCBIN_U32("graphics/pokemon_jump/bg.4bpp.lz");
+static const u32 sBg_Tilemap[] = INCBIN_U32("graphics/pokemon_jump/bg.bin.lz");
+
+static const u16 sVenusaur_Pal[] = INCBIN_U16("graphics/pokemon_jump/venusaur.gbapal");
+static const u32 sVenusaur_Gfx[] = INCBIN_U32("graphics/pokemon_jump/venusaur.4bpp.lz");
+static const u32 sVenusaur_Tilemap[] = INCBIN_U32("graphics/pokemon_jump/venusaur.bin.lz");
+
+static const u16 sBonuses_Pal[] = INCBIN_U16("graphics/pokemon_jump/bonuses.gbapal");
+static const u32 sBonuses_Gfx[] = INCBIN_U32("graphics/pokemon_jump/bonuses.4bpp.lz");
+static const u32 sBonuses_Tilemap[] = INCBIN_U32("graphics/pokemon_jump/bonuses.bin.lz");
+
+static const struct BgTemplate sBgTemplates[] =
+{
+    {
+        .bg = BG_INTERFACE,
+        .charBaseIndex = 0,
+        .mapBaseIndex = 27,
+        .screenSize = 0,
+        .paletteMode = 0,
+        .priority = 0,
+        .baseTile = 0
+    },
+    {
+        .bg = BG_VENUSAUR,
+        .charBaseIndex = 1,
+        .mapBaseIndex = 30,
+        .screenSize = 2,
+        .paletteMode = 0,
+        .priority = 2,
+        .baseTile = 0
+    },
+    {
+        .bg = BG_BONUSES,
+        .charBaseIndex = 2,
+        .mapBaseIndex = 12,
+        .screenSize = 3,
+        .paletteMode = 0,
+        .priority = 1,
+        .baseTile = 0
+    },
+    {
+        .bg = BG_SCENERY,
+        .charBaseIndex = 3,
+        .mapBaseIndex = 29,
+        .screenSize = 0,
+        .paletteMode = 0,
+        .priority = 3,
+        .baseTile = 0
+    },
+};
+
+static const struct WindowTemplate sWindowTemplates[] =
+{
+    [WIN_POINTS] = {
+        .bg = BG_INTERFACE,
+        .tilemapLeft = 19,
+        .tilemapTop = 0,
+        .width = 6,
+        .height = 2,
+        .paletteNum = 2,
+        .baseBlock = 0x13,
+    },
+    [WIN_TIMES] = {
+        .bg = BG_INTERFACE,
+        .tilemapLeft = 8,
+        .tilemapTop = 0,
+        .width = 6,
+        .height = 2,
+        .paletteNum = 2,
+        .baseBlock = 0x1F,
+    },
+    DUMMY_WIN_TEMPLATE,
+};
+
+struct
+{
+    int id;
+    void (*func)(void);
+} static const sPokeJumpGfxFuncs[] =
+{
+    {GFXFUNC_LOAD,                 LoadPokeJumpGfx}, // Element not used, LoadPokeJumpGfx is passed directly to SetUpPokeJumpGfxFunc
+    {GFXFUNC_SHOW_NAMES,           PrintPlayerNamesNoHighlight},
+    {GFXFUNC_SHOW_NAMES_HIGHLIGHT, PrintPlayerNamesWithHighlight},
+    {GFXFUNC_ERASE_NAMES,          ErasePlayerNames},
+    {GFXFUNC_MSG_PLAY_AGAIN,       Msg_WantToPlayAgain},
+    {GFXFUNC_MSG_SAVING,           Msg_SavingDontTurnOff},
+    {GFXFUNC_ERASE_MSG,            EraseMessage},
+    {GFXFUNC_MSG_PLAYER_DROPPED,   Msg_SomeoneDroppedOut},
+    {GFXFUNC_COUNTDOWN,            DoPokeJumpCountdown},
+    {GFXFUNC_MSG_COMM_STANDBY,     Msg_CommunicationStandby},
+};
+
+static void SetUpPokeJumpGfxFuncById(int id)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_COUNT(sPokeJumpGfxFuncs); i++)
+    {
+        if (sPokeJumpGfxFuncs[i].id == id)
+            SetUpPokeJumpGfxFunc(sPokeJumpGfxFuncs[i].func);
+    }
+}
+
+static bool32 IsPokeJumpGfxFuncFinished(void)
+{
+    return (sPokemonJumpGfx->funcFinished != TRUE);
+}
+
+static void SetUpPokeJumpGfxFunc(void (*func)(void))
+{
+    SetWordTaskArg(sPokemonJumpGfx->taskId, 0, (uintptr_t)func);
+    sPokemonJumpGfx->mainState = 0;
+    sPokemonJumpGfx->funcFinished = FALSE;
+}
+
+static void Task_RunPokeJumpGfxFunc(u8 taskId)
+{
+    if (!sPokemonJumpGfx->funcFinished)
+    {
+        // Read the function set in the data by SetUpPokeJumpGfxFunc
+        void (*func)(void) = (void *)(GetWordTaskArg(taskId, 0));
+
+        func();
+    }
+}
+
+static void LoadPokeJumpGfx(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        ResetBgsAndClearDma3BusyFlags(FALSE);
+        InitBgsFromTemplates(0, sBgTemplates, ARRAY_COUNT(sBgTemplates));
+        InitWindows(sWindowTemplates);
+        ResetBgPositions();
+        ResetTempTileDataBuffers();
+        LoadSpriteSheetsAndPalettes(sPokemonJumpGfx);
+        InitDigitPrinters();
+        LoadPalette(sBg_Pal, BG_PLTT_ID(0), sizeof(sBg_Pal));
+        DecompressAndCopyTileDataToVram(BG_SCENERY, sBg_Gfx, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(BG_SCENERY, sBg_Tilemap, 0, 0, 1);
+        LoadPalette(sVenusaur_Pal, BG_PLTT_ID(3), sizeof(sVenusaur_Pal));
+        DecompressAndCopyTileDataToVram(BG_VENUSAUR, sVenusaur_Gfx, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(BG_VENUSAUR, sVenusaur_Tilemap, 0, 0, 1);
+        LoadPalette(sBonuses_Pal, BG_PLTT_ID(1), sizeof(sBonuses_Pal));
+        DecompressAndCopyTileDataToVram(BG_BONUSES, sBonuses_Gfx, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(BG_BONUSES, sBonuses_Tilemap, 0, 0, 1);
+        LoadPalette(sInterface_Pal, BG_PLTT_ID(2), sizeof(sInterface_Pal));
+        SetBgTilemapBuffer(BG_INTERFACE, sPokemonJumpGfx->tilemapBuffer);
+        FillBgTilemapBufferRect_Palette0(BG_INTERFACE, 0, 0, 0, 0x20, 0x20);
+        PrintScoreSuffixes();
+        PrintScore(0);
+        LoadStdWindowGfxOnBg(0, 1, BG_PLTT_ID(14));
+        LoadUserWindowBorderGfx_(0, 0x00A, BG_PLTT_ID(13));
+        CopyBgTilemapBufferToVram(BG_INTERFACE);
+        CopyBgTilemapBufferToVram(BG_VENUSAUR);
+        CopyBgTilemapBufferToVram(BG_BONUSES);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!FreeTempTileDataBuffersIfPossible())
+        {
+            CreateJumpMonSprites();
+            CreateVineSprites(sPokemonJumpGfx);
+            UpdateVineAnim(sPokemonJumpGfx, VINE_UPSWING_LOWER);
+            ShowBg(BG_SCENERY);
+            ShowBg(BG_INTERFACE);
+            ShowBg(BG_VENUSAUR);
+            HideBg(BG_BONUSES);
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 2:
+        sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void PrintPlayerNamesNoHighlight(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        AddPlayerNameWindows();
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            PrintPokeJumpPlayerNames(FALSE);
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 2:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            DrawPlayerNameWindows();
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 3:
+        if (!IsDma3ManagerBusyWithBgCopy())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void PrintPlayerNamesWithHighlight(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        AddPlayerNameWindows();
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            PrintPokeJumpPlayerNames(TRUE);
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 2:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            DrawPlayerNameWindows();
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 3:
+        if (!IsDma3ManagerBusyWithBgCopy())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void ErasePlayerNames(void)
+{
+    int i, numPlayers;
+
+    numPlayers = GetNumPokeJumpPlayers();
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        for (i = 0; i < numPlayers; i++)
+            ClearWindowTilemap(sPokemonJumpGfx->nameWindowIds[i]);
+
+        CopyBgTilemapBufferToVram(BG_INTERFACE);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            for (i = 0; i < numPlayers; i++)
+                RemoveWindow(sPokemonJumpGfx->nameWindowIds[i]);
+
+            sPokemonJumpGfx->funcFinished = TRUE;
+        }
+        break;
+    }
+}
+
+static void Msg_WantToPlayAgain(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        sPokemonJumpGfx->msgWindowId = AddMessageWindow(1, 8, 20, 2);
+        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_WantToPlayAgain2, 0, 2, TEXT_SKIP_DRAW, NULL);
+        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
+            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
+            CreatePokeJumpYesNoMenu(23, 7, 0);
+            CopyBgTilemapBufferToVram(BG_INTERFACE);
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 2:
+        if (!IsDma3ManagerBusyWithBgCopy())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void Msg_SavingDontTurnOff(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        sPokemonJumpGfx->msgWindowId = AddMessageWindow(2, 7, 26, 4);
+        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_SavingDontTurnOffPower, 0, 2, TEXT_SKIP_DRAW, NULL);
+        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
+            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
+            CopyBgTilemapBufferToVram(BG_INTERFACE);
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 2:
+        if (!IsDma3ManagerBusyWithBgCopy())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void EraseMessage(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        ClearMessageWindow();
+        DestroyYesNoMenu();
+        CopyBgTilemapBufferToVram(BG_INTERFACE);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!RemoveMessageWindow() && !IsDma3ManagerBusyWithBgCopy())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void Msg_SomeoneDroppedOut(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        sPokemonJumpGfx->msgWindowId = AddMessageWindow(2, 8, 22, 4);
+        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_SomeoneDroppedOut2, 0, 2, TEXT_SKIP_DRAW, NULL);
+        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
+            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
+            CopyBgTilemapBufferToVram(BG_INTERFACE);
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 2:
+        if (!IsDma3ManagerBusyWithBgCopy())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void Msg_CommunicationStandby(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        sPokemonJumpGfx->msgWindowId = AddMessageWindow(7, 10, 16, 2);
+        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_CommunicationStandby4, 0, 2, TEXT_SKIP_DRAW, NULL);
+        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
+            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
+            CopyBgTilemapBufferToVram(BG_INTERFACE);
+            sPokemonJumpGfx->mainState++;
+        }
+        break;
+    case 2:
+        if (!IsDma3ManagerBusyWithBgCopy())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void DoPokeJumpCountdown(void)
+{
+    switch (sPokemonJumpGfx->mainState)
+    {
+    case 0:
+        StartPokeJumpCountdown(sPokemonJumpGfx);
+        sPokemonJumpGfx->mainState++;
+        break;
+    case 1:
+        if (!IsPokeJumpCountdownRunning())
+            sPokemonJumpGfx->funcFinished = TRUE;
+        break;
+    }
+}
+
+static void SetUpResetVineGfx(void)
+{
+    sPokemonJumpGfx->resetVineState = 0;
+    sPokemonJumpGfx->resetVineTimer = 0;
+    sPokemonJumpGfx->vineState = VINE_UPSWING_LOWER;
+    UpdateVineSwing(sPokemonJumpGfx->vineState);
+}
+
+static bool32 ResetVineGfx(void)
+{
+    switch (sPokemonJumpGfx->resetVineState)
+    {
+    case 0:
+        sPokemonJumpGfx->resetVineTimer++;
+        if (sPokemonJumpGfx->resetVineTimer > 10)
+        {
+            sPokemonJumpGfx->resetVineTimer = 0;
+            sPokemonJumpGfx->vineState++;
+            if (sPokemonJumpGfx->vineState >= NUM_VINESTATES)
+            {
+                sPokemonJumpGfx->vineState = VINE_HIGHEST;
+                sPokemonJumpGfx->resetVineState++;
+            }
+        }
+        UpdateVineSwing(sPokemonJumpGfx->vineState);
+        if (sPokemonJumpGfx->vineState != VINE_UPSWING_LOW)
+            break;
+    case 1:
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static const u8 sPluralTxt[] = _("IES");
+
+static void PrintPrizeMessage(u16 itemId, u16 quantity)
+{
+    CopyItemName(itemId, sPokemonJumpGfx->itemName);
+    ConvertIntToDecimalStringN(sPokemonJumpGfx->itemQuantityStr, quantity, STR_CONV_MODE_LEFT_ALIGN, 1);
+    if (itemId >= FIRST_BERRY_INDEX && itemId < LAST_BERRY_INDEX)
+    {
+        if (quantity > 1)
+        {
+            int endi = StringLength(sPokemonJumpGfx->itemName);
+            if (endi != 0)
+            {
+                endi--;
+                endi[sPokemonJumpGfx->itemName] = EOS;
+                StringAppend(sPokemonJumpGfx->itemName, sPluralTxt);
+            }
+        }
+    }
+    DynamicPlaceholderTextUtil_Reset();
+    DynamicPlaceholderTextUtil_SetPlaceholderPtr(0, sPokemonJumpGfx->itemName);
+    DynamicPlaceholderTextUtil_SetPlaceholderPtr(1, sPokemonJumpGfx->itemQuantityStr);
+    DynamicPlaceholderTextUtil_ExpandPlaceholders(sPokemonJumpGfx->prizeMsg, gText_AwesomeWonF701F700);
+    sPokemonJumpGfx->msgWindowId = AddMessageWindow(4, 8, 22, 4);
+    AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, sPokemonJumpGfx->prizeMsg, 0, 2, TEXT_SKIP_DRAW, NULL);
+    CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
+    sPokemonJumpGfx->fanfare = MUS_LEVEL_UP;
+    sPokemonJumpGfx->msgWindowState = 0;
+}
+
+static void PrintPrizeFilledBagMessage(u16 itemId)
+{
+    CopyItemName(itemId, sPokemonJumpGfx->itemName);
+    DynamicPlaceholderTextUtil_Reset();
+    DynamicPlaceholderTextUtil_SetPlaceholderPtr(0, sPokemonJumpGfx->itemName);
+    DynamicPlaceholderTextUtil_ExpandPlaceholders(sPokemonJumpGfx->prizeMsg, gText_FilledStorageSpace2);
+    sPokemonJumpGfx->msgWindowId = AddMessageWindow(4, 8, 22, 4);
+    AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, sPokemonJumpGfx->prizeMsg, 0, 2, TEXT_SKIP_DRAW, NULL);
+    CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
+    sPokemonJumpGfx->fanfare = MUS_DUMMY;
+    sPokemonJumpGfx->msgWindowState = 0;
+}
+
+static void PrintNoRoomForPrizeMessage(u16 itemId)
+{
+    CopyItemName(itemId, sPokemonJumpGfx->itemName);
+    DynamicPlaceholderTextUtil_Reset();
+    DynamicPlaceholderTextUtil_SetPlaceholderPtr(0, sPokemonJumpGfx->itemName);
+    DynamicPlaceholderTextUtil_ExpandPlaceholders(sPokemonJumpGfx->prizeMsg, gText_CantHoldMore);
+    sPokemonJumpGfx->msgWindowId = AddMessageWindow(4, 9, 22, 2);
+    AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, sPokemonJumpGfx->prizeMsg, 0, 2, TEXT_SKIP_DRAW, NULL);
+    CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
+    sPokemonJumpGfx->fanfare = MUS_DUMMY;
+    sPokemonJumpGfx->msgWindowState = 0;
+}
+
+static bool32 DoPrizeMessageAndFanfare(void)
+{
+    switch (sPokemonJumpGfx->msgWindowState)
+    {
+    case 0:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
+            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
+            CopyBgTilemapBufferToVram(BG_INTERFACE);
+            sPokemonJumpGfx->msgWindowState++;
+        }
+        break;
+    case 1:
+        if (IsDma3ManagerBusyWithBgCopy())
+            break;
+        if (sPokemonJumpGfx->fanfare == MUS_DUMMY)
+        {
+            sPokemonJumpGfx->msgWindowState += 2;
+            return FALSE;
+        }
+        PlayFanfare(sPokemonJumpGfx->fanfare);
+        sPokemonJumpGfx->msgWindowState++;
+    case 2:
+        if (!IsFanfareTaskInactive())
+            break;
+        sPokemonJumpGfx->msgWindowState++;
+    case 3:
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void ClearMessageWindow(void)
+{
+    if (sPokemonJumpGfx->msgWindowId != WINDOW_NONE)
+    {
+        rbox_fill_rectangle(sPokemonJumpGfx->msgWindowId);
+        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_MAP);
+        sPokemonJumpGfx->msgWindowState = 0;
+    }
+}
+
+static bool32 RemoveMessageWindow(void)
+{
+    if (sPokemonJumpGfx->msgWindowId == WINDOW_NONE)
+        return FALSE;
+
+    switch (sPokemonJumpGfx->msgWindowState)
+    {
+    case 0:
+        if (!IsDma3ManagerBusyWithBgCopy())
+        {
+            RemoveWindow(sPokemonJumpGfx->msgWindowId);
+            sPokemonJumpGfx->msgWindowId = WINDOW_NONE;
+            sPokemonJumpGfx->msgWindowState++;
+        }
+        else
+            break;
+    case 1:
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static s8 HandlePlayAgainInput(void)
+{
+    return Menu_ProcessInputNoWrapClearOnChoose();
+}
+
+static u32 AddMessageWindow(u32 left, u32 top, u32 width, u32 height)
+{
+    u32 windowId;
+    struct WindowTemplate window;
+
+    window.bg = BG_INTERFACE;
+    window.tilemapLeft = left;
+    window.tilemapTop = top;
+    window.width = width;
+    window.height = height;
+    window.paletteNum = 15;
+    window.baseBlock = 0x43;
+
+    windowId = AddWindow(&window);
+    FillWindowPixelBuffer(windowId, PIXEL_FILL(1));
+    return windowId;
+}
+
+static void CreatePokeJumpYesNoMenu(u16 left, u16 top, u8 cursorPos)
+{
+    struct WindowTemplate window;
+    u8 a = cursorPos;
+
+    window.bg = BG_INTERFACE;
+    window.tilemapLeft = left;
+    window.tilemapTop = top;
+    window.width = 6;
+    window.height = 4;
+    window.paletteNum = 2;
+    window.baseBlock = 0x2B;
+
+    CreateYesNoMenuAtPos(&window, FONT_NORMAL, 0, 2, 0x00a, 13, a);
+}
+
+// "Points" for jump score and "times" for number of jumps in a row
+static void PrintScoreSuffixes(void)
+{
+    u8 color[] = {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY};
+
+    PutWindowTilemap(WIN_POINTS);
+    PutWindowTilemap(WIN_TIMES);
+    FillWindowPixelBuffer(WIN_POINTS, PIXEL_FILL(0));
+    FillWindowPixelBuffer(WIN_TIMES, PIXEL_FILL(0));
+    AddTextPrinterParameterized3(WIN_POINTS, FONT_SMALL, 0, 2, color, 0, gText_SpacePoints2);
+    AddTextPrinterParameterized3(WIN_TIMES, FONT_SMALL, 0, 2, color, 0, gText_SpaceTimes3);
+}
+
+// The venusaurs in the background are actually an empty 256x512 bg with 3 pairs of venusaurs on it.
+// The below array is used to get values for where to set the bg Y to show the corresponding
+// venusaur pair in their state of swinging the vine rope
+// NEUTRAL/DOWN/UP refers to which direction the Venusaur is facing as it swings the vine
+enum {
+    VENUSAUR_NEUTRAL,
+    VENUSAUR_DOWN,
+    VENUSAUR_UP,
+};
+
+static const u8 sVenusaurStates[] = {
+    [VINE_HIGHEST]          = VENUSAUR_UP,
+    [VINE_DOWNSWING_HIGHER] = VENUSAUR_UP,
+    [VINE_DOWNSWING_HIGH]   = VENUSAUR_NEUTRAL,
+    [VINE_DOWNSWING_LOW]    = VENUSAUR_NEUTRAL,
+    [VINE_DOWNSWING_LOWER]  = VENUSAUR_DOWN,
+    [VINE_LOWEST]           = VENUSAUR_DOWN,
+    [VINE_UPSWING_LOWER]    = VENUSAUR_DOWN,
+    [VINE_UPSWING_LOW]      = VENUSAUR_NEUTRAL,
+    [VINE_UPSWING_HIGH]     = VENUSAUR_NEUTRAL,
+    [VINE_UPSWING_HIGHER]   = VENUSAUR_UP,
+};
+
+static const struct CompressedSpriteSheet sSpriteSheet_Digits = {gMinigameDigits_Gfx, 0, TAG_DIGITS};
+static const struct SpritePalette sSpritePalette_Digits = {gMinigameDigits_Pal, TAG_DIGITS};
+
+static const u16 sPlayerNameWindowCoords_2Players[] = {
+     6, 8,
+    16, 8
+};
+static const u16 sPlayerNameWindowCoords_3Players[] = {
+     6, 8,
+    11, 6,
+    16, 8
+};
+static const u16 sPlayerNameWindowCoords_4Players[] = {
+     2, 6,
+     6, 8,
+    16, 8,
+    20, 6
+};
+static const u16 sPlayerNameWindowCoords_5Players[] = {
+     2, 6,
+     6, 8,
+    11, 6,
+    16, 8,
+    20, 6
+};
+
+static const u16 *const sPlayerNameWindowCoords[MAX_RFU_PLAYERS - 1] =
+{
+    sPlayerNameWindowCoords_2Players,
+    sPlayerNameWindowCoords_3Players,
+    sPlayerNameWindowCoords_4Players,
+    sPlayerNameWindowCoords_5Players,
+};
+
+static const s16 sMonXCoords_2Players[] = {88, 152};
+static const s16 sMonXCoords_3Players[] = {88, 120, 152};
+static const s16 sMonXCoords_4Players[] = {56, 88, 152, 184};
+static const s16 sMonXCoords_5Players[] = {56, 88, 120, 152, 184};
+
+static const s16 *const sMonXCoords[MAX_RFU_PLAYERS - 1] =
+{
+    sMonXCoords_2Players,
+    sMonXCoords_3Players,
+    sMonXCoords_4Players,
+    sMonXCoords_5Players,
+};
+
+static void CreateJumpMonSprites(void)
+{
+    int i, y, playersCount = GetNumPokeJumpPlayers();
+    const s16 *xCoords = sMonXCoords[playersCount - 2];
+
+    for (i = 0; i < playersCount; i++)
+    {
+        struct PokemonJump_MonInfo *info = GetMonInfoByMultiplayerId(i);
+
+        y = gSpeciesInfo[info->species].frontPicYOffset;
+        CreateJumpMonSprite(sPokemonJumpGfx, info, *xCoords, y + 112, i);
+        CreateStarSprite(sPokemonJumpGfx, *xCoords, 112, i);
+        xCoords++;
+    }
+}
+
+static void SetMonSpriteY(u32 id, s16 y)
+{
+    sPokemonJumpGfx->monSprites[id]->y2 = y;
+}
+
+static void UpdateVineSwing(int vineState)
+{
+    UpdateVineAnim(sPokemonJumpGfx, vineState);
+    ChangeBgY(BG_VENUSAUR, (sVenusaurStates[vineState] * 5) << 13, BG_COORD_SET);
+}
+
+static int DoSameJumpTimeBonus(u8 flags)
+{
+    int i, numPlayers;
+
+    for (i = 0, numPlayers = 0; i < MAX_RFU_PLAYERS; i++)
+    {
+        if (flags & 1)
+        {
+            // Player was part of a synchronous jump
+            // Give a bonus to them
+            DoStarAnim(sPokemonJumpGfx, i);
+            numPlayers++;
+        }
+        flags >>= 1;
+    }
+
+    ShowBonus(numPlayers - 2);
+    return numPlayers;
+}
+
+static void InitDigitPrinters(void)
+{
+    struct DigitObjUtilTemplate template = {
+        .shape = SPRITE_SHAPE(8x8),
+        .size = SPRITE_SIZE(8x8),
+        .strConvMode = 0,
+        .priority = 1,
+        .oamCount = 5,
+        .xDelta = 8,
+        .x = 108,
+        .y = 6,
+        .spriteSheet = {.compressed = &sSpriteSheet_Digits},
+        .spritePal = &sSpritePalette_Digits,
+    };
+
+    DigitObjUtil_Init(NUM_WINDOWS);
+    DigitObjUtil_CreatePrinter(WIN_POINTS, 0, &template);
+
+    template.oamCount = 4;
+    template.x = 30;
+    template.y = 6;
+    DigitObjUtil_CreatePrinter(WIN_TIMES, 0, &template);
+}
+
+static void PrintScore(int num)
+{
+    DigitObjUtil_PrintNumOn(WIN_POINTS, num);
+}
+
+static void PrintJumpsInRow(u16 num)
+{
+    DigitObjUtil_PrintNumOn(WIN_TIMES, num);
+}
+
+static void StartMonHitShake(u8 multiplayerId)
+{
+    Gfx_StartMonHitShake(sPokemonJumpGfx, multiplayerId);
+}
+
+static void StartMonHitFlash(u8 multiplayerId)
+{
+    Gfx_StartMonHitFlash(sPokemonJumpGfx, multiplayerId);
+}
+
+static int IsMonHitShakeActive(int multiplayerId)
+{
+    return Gfx_IsMonHitShakeActive(sPokemonJumpGfx, multiplayerId);
+}
+
+static void StopMonHitFlash(void)
+{
+    Gfx_StopMonHitFlash(sPokemonJumpGfx);
+}
+
+static void ResetMonSpriteSubpriorities(void)
+{
+    Gfx_ResetMonSpriteSubpriorities(sPokemonJumpGfx);
+}
+
+static void StartMonIntroBounce(int multiplayerId)
+{
+    Gfx_StartMonIntroBounce(sPokemonJumpGfx, multiplayerId);
+}
+
+static int IsMonIntroBounceActive(void)
+{
+    return Gfx_IsMonIntroBounceActive(sPokemonJumpGfx);
+}
+
+static void AddPlayerNameWindows(void)
+{
+    struct WindowTemplate window;
+    int i, playersCount = GetNumPokeJumpPlayers();
+    const u16 *winCoords = sPlayerNameWindowCoords[playersCount - 2];
+
+    window.bg = BG_INTERFACE;
+    window.width = 8;
+    window.height = 2;
+    window.paletteNum = 2;
+    window.baseBlock = 0x2B;
+
+    for (i = 0; i < playersCount; i++)
+    {
+        window.tilemapLeft = winCoords[0];
+        window.tilemapTop = winCoords[1];
+        sPokemonJumpGfx->nameWindowIds[i] = AddWindow(&window);
+        ClearWindowTilemap(sPokemonJumpGfx->nameWindowIds[i]);
+        window.baseBlock += 0x10;
+        winCoords += 2;
+    }
+
+    CopyBgTilemapBufferToVram(BG_INTERFACE);
+}
+
+static void PrintPokeJumpPlayerName(int multiplayerId, u8 bgColor, u8 fgColor, u8 shadow)
+{
+    u32 x;
+    u8 colors[3] = {bgColor, fgColor, shadow};
+
+    FillWindowPixelBuffer(sPokemonJumpGfx->nameWindowIds[multiplayerId], PIXEL_FILL(0));
+    x = 64 - GetStringWidth(FONT_SMALL, GetPokeJumpPlayerName(multiplayerId), -1);
+    x /= 2;
+    AddTextPrinterParameterized3(sPokemonJumpGfx->nameWindowIds[multiplayerId], FONT_SMALL, x, 2, colors, TEXT_SKIP_DRAW, GetPokeJumpPlayerName(multiplayerId));
+    CopyWindowToVram(sPokemonJumpGfx->nameWindowIds[multiplayerId], COPYWIN_GFX);
+}
+
+static void PrintPokeJumpPlayerNames(bool32 highlightSelf)
+{
+    int i, multiplayerId, playersCount = GetNumPokeJumpPlayers();
+
+    if (!highlightSelf)
+    {
+        for (i = 0; i < playersCount; i++)
+            PrintPokeJumpPlayerName(i, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY);
+    }
+    else
+    {
+        // Highlight own name
+        multiplayerId = GetPokeJumpMultiplayerId();
+        for (i = 0; i < playersCount; i++)
+        {
+            if (multiplayerId != i)
+                PrintPokeJumpPlayerName(i, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY);
+            else
+                PrintPokeJumpPlayerName(i, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_RED, TEXT_COLOR_LIGHT_RED);
+        }
+    }
+}
+
+static void DrawPlayerNameWindows(void)
+{
+    int i, playersCount = GetNumPokeJumpPlayers();
+
+    for (i = 0; i < playersCount; i++)
+        PutWindowTilemap(sPokemonJumpGfx->nameWindowIds[i]);
+    CopyBgTilemapBufferToVram(BG_INTERFACE);
+}
+
+static void ShowBonus(u8 bonusId)
+{
+    sPokemonJumpGfx->bonusTimer = 0;
+    ChangeBgX(BG_BONUSES, (bonusId / 2) * 256 * 256, BG_COORD_SET);
+    ChangeBgY(BG_BONUSES, (((bonusId % 2) * 256) - 40) * 256, BG_COORD_SET);
+    ShowBg(BG_BONUSES);
+    CreateTask(Task_UpdateBonus, 4);
+}
+
+static bool32 UpdateBonus(void)
+{
+    if (sPokemonJumpGfx->bonusTimer >= 32)
+    {
+        return FALSE;
+    }
+    else
+    {
+        ChangeBgY(BG_BONUSES, 128, BG_COORD_ADD);
+        if (++sPokemonJumpGfx->bonusTimer >= 32)
+            HideBg(BG_BONUSES);
+        return TRUE;
+    }
+}
+
+static void Task_UpdateBonus(u8 taskId)
+{
+    if (!UpdateBonus())
+        DestroyTask(taskId);
 }
 
 static const u16 sPokeJumpPal1[] = INCBIN_U16("graphics/pokemon_jump/pal1.gbapal");
@@ -2587,7 +3953,7 @@ static void CreateJumpMonSprite(struct PokemonJumpGfx *jumpGfx, struct PokemonJu
     u8 spriteId;
 
     spriteTemplate = sSpriteTemplate_JumpMon;
-    buffer = Alloc(MON_PIC_SIZE * MAX_MON_PIC_FRAMES);
+    buffer = Alloc(0x2000);
     unusedBuffer = Alloc(MON_PIC_SIZE);
     if (multiplayerId == GetPokeJumpMultiplayerId())
         subpriority = 3;
@@ -2596,17 +3962,18 @@ static void CreateJumpMonSprite(struct PokemonJumpGfx *jumpGfx, struct PokemonJu
 
     if (buffer && unusedBuffer)
     {
-        HandleLoadSpecialPokePic(TRUE,
-                                buffer,
-                                monInfo->species,
-                                monInfo->personality);
+        HandleLoadSpecialPokePic(
+            TRUE,
+            buffer,
+            monInfo->species,
+            monInfo->personality);
 
         spriteSheet.data = buffer;
         spriteSheet.tag = multiplayerId;
         spriteSheet.size = MON_PIC_SIZE;
         LoadSpriteSheet(&spriteSheet);
 
-        spritePalette.data = GetMonSpritePalFromSpeciesAndPersonality(monInfo->species, monInfo->isShiny, monInfo->personality);
+        spritePalette.data = GetMonSpritePalFromSpeciesAndPersonality(monInfo->species, FALSE, monInfo->personality);
         spritePalette.tag = multiplayerId;
         LoadSpritePalette(&spritePalette);
 
@@ -2890,1082 +4257,6 @@ static bool32 IsPokeJumpCountdownRunning(void)
     return IsMinigameCountdownRunning();
 }
 
-static void StartPokeJumpGfx(struct PokemonJumpGfx *jumpGfx)
-{
-    u8 taskId;
-
-    sPokemonJumpGfx = jumpGfx;
-    InitPokeJumpGfx(sPokemonJumpGfx);
-    taskId = CreateTask(Task_RunPokeJumpGfxFunc, 3);
-    sPokemonJumpGfx->taskId = taskId;
-    SetWordTaskArg(sPokemonJumpGfx->taskId, 2, (u32) sPokemonJumpGfx);
-    SetUpPokeJumpGfxFunc(LoadPokeJumpGfx);
-}
-
-static void FreeWindowsAndDigitObj(void)
-{
-    FreeAllWindowBuffers();
-    DigitObjUtil_Free();
-}
-
-static void InitPokeJumpGfx(struct PokemonJumpGfx *jumpGfx)
-{
-    jumpGfx->mainState = 0;
-    jumpGfx->funcFinished = FALSE;
-    jumpGfx->msgWindowId = WINDOW_NONE;
-}
-
-static const u16 sInterface_Pal[] = INCBIN_U16("graphics/pokemon_jump/interface.gbapal");
-
-static const u16 sBg_Pal[] = INCBIN_U16("graphics/pokemon_jump/bg.gbapal");
-static const u32 sBg_Gfx[] = INCBIN_U32("graphics/pokemon_jump/bg.4bpp.lz");
-static const u32 sBg_Tilemap[] = INCBIN_U32("graphics/pokemon_jump/bg.bin.lz");
-
-static const u16 sVenusaur_Pal[] = INCBIN_U16("graphics/pokemon_jump/venusaur.gbapal");
-static const u32 sVenusaur_Gfx[] = INCBIN_U32("graphics/pokemon_jump/venusaur.4bpp.lz");
-static const u32 sVenusaur_Tilemap[] = INCBIN_U32("graphics/pokemon_jump/venusaur.bin.lz");
-
-static const u16 sBonuses_Pal[] = INCBIN_U16("graphics/pokemon_jump/bonuses.gbapal");
-static const u32 sBonuses_Gfx[] = INCBIN_U32("graphics/pokemon_jump/bonuses.4bpp.lz");
-static const u32 sBonuses_Tilemap[] = INCBIN_U32("graphics/pokemon_jump/bonuses.bin.lz");
-
-static const struct BgTemplate sBgTemplates[] =
-{
-    {
-        .bg = BG_INTERFACE,
-        .charBaseIndex = 0,
-        .mapBaseIndex = 27,
-        .screenSize = 0,
-        .paletteMode = 0,
-        .priority = 0,
-        .baseTile = 0
-    },
-    {
-        .bg = BG_VENUSAUR,
-        .charBaseIndex = 1,
-        .mapBaseIndex = 30,
-        .screenSize = 2,
-        .paletteMode = 0,
-        .priority = 2,
-        .baseTile = 0
-    },
-    {
-        .bg = BG_BONUSES,
-        .charBaseIndex = 2,
-        .mapBaseIndex = 12,
-        .screenSize = 3,
-        .paletteMode = 0,
-        .priority = 1,
-        .baseTile = 0
-    },
-    {
-        .bg = BG_SCENERY,
-        .charBaseIndex = 3,
-        .mapBaseIndex = 29,
-        .screenSize = 0,
-        .paletteMode = 0,
-        .priority = 3,
-        .baseTile = 0
-    },
-};
-
-static const struct WindowTemplate sWindowTemplates[] =
-{
-    [WIN_POINTS] = {
-        .bg = BG_INTERFACE,
-        .tilemapLeft = 19,
-        .tilemapTop = 0,
-        .width = 6,
-        .height = 2,
-        .paletteNum = 2,
-        .baseBlock = 0x13,
-    },
-    [WIN_TIMES] = {
-        .bg = BG_INTERFACE,
-        .tilemapLeft = 8,
-        .tilemapTop = 0,
-        .width = 6,
-        .height = 2,
-        .paletteNum = 2,
-        .baseBlock = 0x1F,
-    },
-    DUMMY_WIN_TEMPLATE,
-};
-
-struct
-{
-    int id;
-    void (*func)(void);
-} static const sPokeJumpGfxFuncs[] =
-{
-    {GFXFUNC_LOAD,                 LoadPokeJumpGfx}, // Element not used, LoadPokeJumpGfx is passed directly to SetUpPokeJumpGfxFunc
-    {GFXFUNC_SHOW_NAMES,           PrintPlayerNamesNoHighlight},
-    {GFXFUNC_SHOW_NAMES_HIGHLIGHT, PrintPlayerNamesWithHighlight},
-    {GFXFUNC_ERASE_NAMES,          ErasePlayerNames},
-    {GFXFUNC_MSG_PLAY_AGAIN,       Msg_WantToPlayAgain},
-    {GFXFUNC_MSG_SAVING,           Msg_SavingDontTurnOff},
-    {GFXFUNC_ERASE_MSG,            EraseMessage},
-    {GFXFUNC_MSG_PLAYER_DROPPED,   Msg_SomeoneDroppedOut},
-    {GFXFUNC_COUNTDOWN,            DoPokeJumpCountdown},
-    {GFXFUNC_MSG_COMM_STANDBY,     Msg_CommunicationStandby},
-};
-
-static void SetUpPokeJumpGfxFuncById(int id)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_COUNT(sPokeJumpGfxFuncs); i++)
-    {
-        if (sPokeJumpGfxFuncs[i].id == id)
-            SetUpPokeJumpGfxFunc(sPokeJumpGfxFuncs[i].func);
-    }
-}
-
-static bool32 IsPokeJumpGfxFuncFinished(void)
-{
-    return (sPokemonJumpGfx->funcFinished != TRUE);
-}
-
-static void SetUpPokeJumpGfxFunc(void (*func)(void))
-{
-    SetWordTaskArg(sPokemonJumpGfx->taskId, 0, (u32) func);
-    sPokemonJumpGfx->mainState = 0;
-    sPokemonJumpGfx->funcFinished = FALSE;
-}
-
-static void Task_RunPokeJumpGfxFunc(u8 taskId)
-{
-    if (!sPokemonJumpGfx->funcFinished)
-    {
-        // Read the function set in the data by SetUpPokeJumpGfxFunc
-        void (*func)(void) = (void *)(GetWordTaskArg(taskId, 0));
-
-        func();
-    }
-}
-
-static void LoadPokeJumpGfx(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        ResetBgsAndClearDma3BusyFlags(0);
-        InitBgsFromTemplates(0, sBgTemplates, ARRAY_COUNT(sBgTemplates));
-        InitWindows(sWindowTemplates);
-        ResetTempTileDataBuffers();
-        LoadSpriteSheetsAndPalettes(sPokemonJumpGfx);
-        InitDigitPrinters();
-        LoadPalette(sBg_Pal, BG_PLTT_ID(0), PLTT_SIZE_4BPP);
-        DecompressAndCopyTileDataToVram(BG_SCENERY, sBg_Gfx, 0, 0, 0);
-        DecompressAndCopyTileDataToVram(BG_SCENERY, sBg_Tilemap, 0, 0, 1);
-        LoadPalette(sVenusaur_Pal, BG_PLTT_ID(3), PLTT_SIZE_4BPP);
-        DecompressAndCopyTileDataToVram(BG_VENUSAUR, sVenusaur_Gfx, 0, 0, 0);
-        DecompressAndCopyTileDataToVram(BG_VENUSAUR, sVenusaur_Tilemap, 0, 0, 1);
-        LoadPalette(sBonuses_Pal, BG_PLTT_ID(1), PLTT_SIZE_4BPP);
-        DecompressAndCopyTileDataToVram(BG_BONUSES, sBonuses_Gfx, 0, 0, 0);
-        DecompressAndCopyTileDataToVram(BG_BONUSES, sBonuses_Tilemap, 0, 0, 1);
-        LoadPalette(sInterface_Pal, BG_PLTT_ID(2), PLTT_SIZE_4BPP);
-        SetBgTilemapBuffer(BG_INTERFACE, sPokemonJumpGfx->tilemapBuffer);
-        FillBgTilemapBufferRect_Palette0(BG_INTERFACE, 0, 0, 0, 0x20, 0x20);
-        PrintScoreSuffixes();
-        PrintScore(0);
-        LoadUserWindowBorderGfxOnBg(0, 1, BG_PLTT_ID(14));
-        CopyBgTilemapBufferToVram(BG_INTERFACE);
-        CopyBgTilemapBufferToVram(BG_VENUSAUR);
-        CopyBgTilemapBufferToVram(BG_BONUSES);
-        ResetBgPositions();
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!FreeTempTileDataBuffersIfPossible())
-        {
-            CreateJumpMonSprites();
-            CreateVineSprites(sPokemonJumpGfx);
-            UpdateVineAnim(sPokemonJumpGfx, VINE_UPSWING_LOWER);
-            ShowBg(BG_SCENERY);
-            ShowBg(BG_INTERFACE);
-            ShowBg(BG_VENUSAUR);
-            HideBg(BG_BONUSES);
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 2:
-        sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void PrintPlayerNamesNoHighlight(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        AddPlayerNameWindows();
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            PrintPokeJumpPlayerNames(FALSE);
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 2:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            DrawPlayerNameWindows();
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 3:
-        if (!IsDma3ManagerBusyWithBgCopy())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void PrintPlayerNamesWithHighlight(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        AddPlayerNameWindows();
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            PrintPokeJumpPlayerNames(TRUE);
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 2:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            DrawPlayerNameWindows();
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 3:
-        if (!IsDma3ManagerBusyWithBgCopy())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void ErasePlayerNames(void)
-{
-    int i, numPlayers;
-
-    numPlayers = GetNumPokeJumpPlayers();
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        for (i = 0; i < numPlayers; i++)
-            ClearWindowTilemap(sPokemonJumpGfx->nameWindowIds[i]);
-
-        CopyBgTilemapBufferToVram(BG_INTERFACE);
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            for (i = 0; i < numPlayers; i++)
-                RemoveWindow(sPokemonJumpGfx->nameWindowIds[i]);
-
-            sPokemonJumpGfx->funcFinished = TRUE;
-        }
-        break;
-    }
-}
-
-static void Msg_WantToPlayAgain(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        sPokemonJumpGfx->msgWindowId = AddMessageWindow(1, 8, 20, 2);
-        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_WantToPlayAgain2, 0, 1, TEXT_SKIP_DRAW, NULL);
-        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
-            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
-            CreatePokeJumpYesNoMenu(23, 7, 0);
-            CopyBgTilemapBufferToVram(BG_INTERFACE);
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 2:
-        if (!IsDma3ManagerBusyWithBgCopy())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void Msg_SavingDontTurnOff(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        sPokemonJumpGfx->msgWindowId = AddMessageWindow(2, 7, 26, 4);
-        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_SavingDontTurnOffPower, 0, 1, TEXT_SKIP_DRAW, NULL);
-        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
-            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
-            CopyBgTilemapBufferToVram(BG_INTERFACE);
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 2:
-        if (!IsDma3ManagerBusyWithBgCopy())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void EraseMessage(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        ClearMessageWindow();
-        EraseYesNoWindow();
-        CopyBgTilemapBufferToVram(BG_INTERFACE);
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!RemoveMessageWindow() && !IsDma3ManagerBusyWithBgCopy())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void Msg_SomeoneDroppedOut(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        sPokemonJumpGfx->msgWindowId = AddMessageWindow(2, 8, 22, 4);
-        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_SomeoneDroppedOut2, 0, 1, TEXT_SKIP_DRAW, NULL);
-        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
-            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
-            CopyBgTilemapBufferToVram(BG_INTERFACE);
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 2:
-        if (!IsDma3ManagerBusyWithBgCopy())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void Msg_CommunicationStandby(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        sPokemonJumpGfx->msgWindowId = AddMessageWindow(7, 10, 16, 2);
-        AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, gText_CommunicationStandby4, 0, 1, TEXT_SKIP_DRAW, NULL);
-        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
-            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
-            CopyBgTilemapBufferToVram(BG_INTERFACE);
-            sPokemonJumpGfx->mainState++;
-        }
-        break;
-    case 2:
-        if (!IsDma3ManagerBusyWithBgCopy())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void DoPokeJumpCountdown(void)
-{
-    switch (sPokemonJumpGfx->mainState)
-    {
-    case 0:
-        StartPokeJumpCountdown(sPokemonJumpGfx);
-        sPokemonJumpGfx->mainState++;
-        break;
-    case 1:
-        if (!IsPokeJumpCountdownRunning())
-            sPokemonJumpGfx->funcFinished = TRUE;
-        break;
-    }
-}
-
-static void SetUpResetVineGfx(void)
-{
-    sPokemonJumpGfx->resetVineState = 0;
-    sPokemonJumpGfx->resetVineTimer = 0;
-    sPokemonJumpGfx->vineState = VINE_UPSWING_LOWER;
-    UpdateVineSwing(sPokemonJumpGfx->vineState);
-}
-
-static bool32 ResetVineGfx(void)
-{
-    switch (sPokemonJumpGfx->resetVineState)
-    {
-    case 0:
-        sPokemonJumpGfx->resetVineTimer++;
-        if (sPokemonJumpGfx->resetVineTimer > 10)
-        {
-            sPokemonJumpGfx->resetVineTimer = 0;
-            sPokemonJumpGfx->vineState++;
-            if (sPokemonJumpGfx->vineState >= NUM_VINESTATES)
-            {
-                sPokemonJumpGfx->vineState = VINE_HIGHEST;
-                sPokemonJumpGfx->resetVineState++;
-            }
-        }
-        UpdateVineSwing(sPokemonJumpGfx->vineState);
-        if (sPokemonJumpGfx->vineState != VINE_UPSWING_LOW)
-            break;
-    case 1:
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static void PrintPrizeMessage(u16 itemId, u16 quantity)
-{
-    CopyItemNameHandlePlural(itemId, sPokemonJumpGfx->itemName, quantity);
-    ConvertIntToDecimalStringN(sPokemonJumpGfx->itemQuantityStr, quantity, STR_CONV_MODE_LEFT_ALIGN, 1);
-    DynamicPlaceholderTextUtil_Reset();
-    DynamicPlaceholderTextUtil_SetPlaceholderPtr(0, sPokemonJumpGfx->itemName);
-    DynamicPlaceholderTextUtil_SetPlaceholderPtr(1, sPokemonJumpGfx->itemQuantityStr);
-    DynamicPlaceholderTextUtil_ExpandPlaceholders(sPokemonJumpGfx->prizeMsg, gText_AwesomeWonF701F700);
-    sPokemonJumpGfx->msgWindowId = AddMessageWindow(4, 8, 22, 4);
-    AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, sPokemonJumpGfx->prizeMsg, 0, 1, TEXT_SKIP_DRAW, NULL);
-    CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
-    sPokemonJumpGfx->fanfare = MUS_LEVEL_UP;
-    sPokemonJumpGfx->msgWindowState = 0;
-}
-
-static void PrintPrizeFilledBagMessage(u16 itemId)
-{
-    CopyItemName(itemId, sPokemonJumpGfx->itemName);
-    DynamicPlaceholderTextUtil_Reset();
-    DynamicPlaceholderTextUtil_SetPlaceholderPtr(0, sPokemonJumpGfx->itemName);
-    DynamicPlaceholderTextUtil_ExpandPlaceholders(sPokemonJumpGfx->prizeMsg, gText_FilledStorageSpace2);
-    sPokemonJumpGfx->msgWindowId = AddMessageWindow(4, 8, 22, 4);
-    AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, sPokemonJumpGfx->prizeMsg, 0, 1, TEXT_SKIP_DRAW, NULL);
-    CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
-    sPokemonJumpGfx->fanfare = MUS_DUMMY;
-    sPokemonJumpGfx->msgWindowState = 0;
-}
-
-static void PrintNoRoomForPrizeMessage(u16 itemId)
-{
-    CopyItemName(itemId, sPokemonJumpGfx->itemName);
-    DynamicPlaceholderTextUtil_Reset();
-    DynamicPlaceholderTextUtil_SetPlaceholderPtr(0, sPokemonJumpGfx->itemName);
-    DynamicPlaceholderTextUtil_ExpandPlaceholders(sPokemonJumpGfx->prizeMsg, gText_CantHoldMore);
-    sPokemonJumpGfx->msgWindowId = AddMessageWindow(4, 9, 22, 2);
-    AddTextPrinterParameterized(sPokemonJumpGfx->msgWindowId, FONT_NORMAL, sPokemonJumpGfx->prizeMsg, 0, 1, TEXT_SKIP_DRAW, NULL);
-    CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_GFX);
-    sPokemonJumpGfx->fanfare = MUS_DUMMY;
-    sPokemonJumpGfx->msgWindowState = 0;
-}
-
-static bool32 DoPrizeMessageAndFanfare(void)
-{
-    switch (sPokemonJumpGfx->msgWindowState)
-    {
-    case 0:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            PutWindowTilemap(sPokemonJumpGfx->msgWindowId);
-            DrawTextBorderOuter(sPokemonJumpGfx->msgWindowId, 1, 14);
-            CopyBgTilemapBufferToVram(BG_INTERFACE);
-            sPokemonJumpGfx->msgWindowState++;
-        }
-        break;
-    case 1:
-        if (IsDma3ManagerBusyWithBgCopy())
-            break;
-        if (sPokemonJumpGfx->fanfare == MUS_DUMMY)
-        {
-            sPokemonJumpGfx->msgWindowState += 2;
-            return FALSE;
-        }
-        PlayFanfare(sPokemonJumpGfx->fanfare);
-        sPokemonJumpGfx->msgWindowState++;
-    case 2:
-        if (!IsFanfareTaskInactive())
-            break;
-        sPokemonJumpGfx->msgWindowState++;
-    case 3:
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static void ClearMessageWindow(void)
-{
-    if (sPokemonJumpGfx->msgWindowId != WINDOW_NONE)
-    {
-        rbox_fill_rectangle(sPokemonJumpGfx->msgWindowId);
-        CopyWindowToVram(sPokemonJumpGfx->msgWindowId, COPYWIN_MAP);
-        sPokemonJumpGfx->msgWindowState = 0;
-    }
-}
-
-static bool32 RemoveMessageWindow(void)
-{
-    if (sPokemonJumpGfx->msgWindowId == WINDOW_NONE)
-        return FALSE;
-
-    switch (sPokemonJumpGfx->msgWindowState)
-    {
-    case 0:
-        if (!IsDma3ManagerBusyWithBgCopy())
-        {
-            RemoveWindow(sPokemonJumpGfx->msgWindowId);
-            sPokemonJumpGfx->msgWindowId = WINDOW_NONE;
-            sPokemonJumpGfx->msgWindowState++;
-        }
-        else
-            break;
-    case 1:
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static s8 HandlePlayAgainInput(void)
-{
-    return Menu_ProcessInputNoWrapClearOnChoose();
-}
-
-static u32 AddMessageWindow(u32 left, u32 top, u32 width, u32 height)
-{
-    u32 windowId;
-    struct WindowTemplate window;
-
-    window.bg = BG_INTERFACE;
-    window.tilemapLeft = left;
-    window.tilemapTop = top;
-    window.width = width;
-    window.height = height;
-    window.paletteNum = 15;
-    window.baseBlock = 0x43;
-
-    windowId = AddWindow(&window);
-    FillWindowPixelBuffer(windowId, 0x11);
-    return windowId;
-}
-
-static void CreatePokeJumpYesNoMenu(u16 left, u16 top, u8 cursorPos)
-{
-    struct WindowTemplate window;
-
-    window.bg = BG_INTERFACE;
-    window.tilemapLeft = left;
-    window.tilemapTop = top;
-    window.width = 6;
-    window.height = 4;
-    window.paletteNum = 2;
-    window.baseBlock = 0x2B;
-
-    CreateYesNoMenu(&window, 1, 0xD, cursorPos);
-}
-
-// "Points" for jump score and "times" for number of jumps in a row
-static void PrintScoreSuffixes(void)
-{
-    u8 color[] = {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY};
-
-    PutWindowTilemap(WIN_POINTS);
-    PutWindowTilemap(WIN_TIMES);
-    FillWindowPixelBuffer(WIN_POINTS, 0);
-    FillWindowPixelBuffer(WIN_TIMES, 0);
-    AddTextPrinterParameterized3(WIN_POINTS, FONT_SMALL, 0, 1, color, 0, gText_SpacePoints2);
-    AddTextPrinterParameterized3(WIN_TIMES, FONT_SMALL, 0, 1, color, 0, gText_SpaceTimes3);
-}
-
-// The venusaurs in the background are actually an empty 256x512 bg with 3 pairs of venusaurs on it.
-// The below array is used to get values for where to set the bg Y to show the corresponding
-// venusaur pair in their state of swinging the vine rope
-// NEUTRAL/DOWN/UP refers to which direction the Venusaur is facing as it swings the vine
-enum {
-    VENUSAUR_NEUTRAL,
-    VENUSAUR_DOWN,
-    VENUSAUR_UP,
-};
-
-static const u8 sVenusaurStates[] = {
-    [VINE_HIGHEST]          = VENUSAUR_UP,
-    [VINE_DOWNSWING_HIGHER] = VENUSAUR_UP,
-    [VINE_DOWNSWING_HIGH]   = VENUSAUR_NEUTRAL,
-    [VINE_DOWNSWING_LOW]    = VENUSAUR_NEUTRAL,
-    [VINE_DOWNSWING_LOWER]  = VENUSAUR_DOWN,
-    [VINE_LOWEST]           = VENUSAUR_DOWN,
-    [VINE_UPSWING_LOWER]    = VENUSAUR_DOWN,
-    [VINE_UPSWING_LOW]      = VENUSAUR_NEUTRAL,
-    [VINE_UPSWING_HIGH]     = VENUSAUR_NEUTRAL,
-    [VINE_UPSWING_HIGHER]   = VENUSAUR_UP,
-};
-
-static const struct CompressedSpriteSheet sSpriteSheet_Digits = {gMinigameDigits_Gfx, 0, TAG_DIGITS};
-static const struct SpritePalette sSpritePalette_Digits = {gMinigameDigits_Pal, TAG_DIGITS};
-
-static const u16 sPlayerNameWindowCoords_2Players[] = {
-     6, 8,
-    16, 8
-};
-static const u16 sPlayerNameWindowCoords_3Players[] = {
-     6, 8,
-    11, 6,
-    16, 8
-};
-static const u16 sPlayerNameWindowCoords_4Players[] = {
-     2, 6,
-     6, 8,
-    16, 8,
-    20, 6
-};
-static const u16 sPlayerNameWindowCoords_5Players[] = {
-     2, 6,
-     6, 8,
-    11, 6,
-    16, 8,
-    20, 6
-};
-
-static const u16 *const sPlayerNameWindowCoords[MAX_RFU_PLAYERS - 1] =
-{
-    sPlayerNameWindowCoords_2Players,
-    sPlayerNameWindowCoords_3Players,
-    sPlayerNameWindowCoords_4Players,
-    sPlayerNameWindowCoords_5Players,
-};
-
-static const s16 sMonXCoords_2Players[] = {88, 152};
-static const s16 sMonXCoords_3Players[] = {88, 120, 152};
-static const s16 sMonXCoords_4Players[] = {56, 88, 152, 184};
-static const s16 sMonXCoords_5Players[] = {56, 88, 120, 152, 184};
-
-static const s16 *const sMonXCoords[MAX_RFU_PLAYERS - 1] =
-{
-    sMonXCoords_2Players,
-    sMonXCoords_3Players,
-    sMonXCoords_4Players,
-    sMonXCoords_5Players,
-};
-
-static void CreateJumpMonSprites(void)
-{
-    int i, y, playersCount = GetNumPokeJumpPlayers();
-    const s16 *xCoords = sMonXCoords[playersCount - 2];
-
-    for (i = 0; i < playersCount; i++)
-    {
-        struct PokemonJump_MonInfo *monInfo = GetMonInfoByMultiplayerId(i);
-
-        y = gSpeciesInfo[monInfo->species].frontPicYOffset;
-        CreateJumpMonSprite(sPokemonJumpGfx, monInfo, *xCoords, y + 112, i);
-        CreateStarSprite(sPokemonJumpGfx, *xCoords, 112, i);
-        xCoords++;
-    }
-}
-
-static void SetMonSpriteY(u32 id, s16 y)
-{
-    sPokemonJumpGfx->monSprites[id]->y2 = y;
-}
-
-static void UpdateVineSwing(int vineState)
-{
-    UpdateVineAnim(sPokemonJumpGfx, vineState);
-    ChangeBgY(BG_VENUSAUR, (sVenusaurStates[vineState] * 5) << 13, BG_COORD_SET);
-}
-
-static int DoSameJumpTimeBonus(u8 flags)
-{
-    int i, numPlayers;
-
-    for (i = 0, numPlayers = 0; i < MAX_RFU_PLAYERS; i++)
-    {
-        if (flags & 1)
-        {
-            // Player was part of a synchronous jump
-            // Give a bonus to them
-            DoStarAnim(sPokemonJumpGfx, i);
-            numPlayers++;
-        }
-        flags >>= 1;
-    }
-
-    ShowBonus(numPlayers - 2);
-    return numPlayers;
-}
-
-static void InitDigitPrinters(void)
-{
-    struct DigitObjUtilTemplate template = {
-        .shape = SPRITE_SHAPE(8x8),
-        .size = SPRITE_SIZE(8x8),
-        .strConvMode = 0,
-        .priority = 1,
-        .oamCount = 5,
-        .xDelta = 8,
-        .x = 108,
-        .y = 6,
-        .spriteSheet = (void *) &sSpriteSheet_Digits,
-        .spritePal = &sSpritePalette_Digits,
-    };
-
-    DigitObjUtil_Init(NUM_WINDOWS);
-    DigitObjUtil_CreatePrinter(WIN_POINTS, 0, &template);
-
-    template.oamCount = 4;
-    template.x = 30;
-    template.y = 6;
-    DigitObjUtil_CreatePrinter(WIN_TIMES, 0, &template);
-}
-
-static void PrintScore(int num)
-{
-    DigitObjUtil_PrintNumOn(WIN_POINTS, num);
-}
-
-static void PrintJumpsInRow(u16 num)
-{
-    DigitObjUtil_PrintNumOn(WIN_TIMES, num);
-}
-
-static void StartMonHitShake(u8 multiplayerId)
-{
-    Gfx_StartMonHitShake(sPokemonJumpGfx, multiplayerId);
-}
-
-static void StartMonHitFlash(u8 multiplayerId)
-{
-    Gfx_StartMonHitFlash(sPokemonJumpGfx, multiplayerId);
-}
-
-static int IsMonHitShakeActive(int multiplayerId)
-{
-    return Gfx_IsMonHitShakeActive(sPokemonJumpGfx, multiplayerId);
-}
-
-static void StopMonHitFlash(void)
-{
-    Gfx_StopMonHitFlash(sPokemonJumpGfx);
-}
-
-static void ResetMonSpriteSubpriorities(void)
-{
-    Gfx_ResetMonSpriteSubpriorities(sPokemonJumpGfx);
-}
-
-static void StartMonIntroBounce(int multiplayerId)
-{
-    Gfx_StartMonIntroBounce(sPokemonJumpGfx, multiplayerId);
-}
-
-static int IsMonIntroBounceActive(void)
-{
-    return Gfx_IsMonIntroBounceActive(sPokemonJumpGfx);
-}
-
-static void AddPlayerNameWindows(void)
-{
-    struct WindowTemplate window;
-    int i, playersCount = GetNumPokeJumpPlayers();
-    const u16 *winCoords = sPlayerNameWindowCoords[playersCount - 2];
-
-    window.bg = BG_INTERFACE;
-    window.width = 8;
-    window.height = 2;
-    window.paletteNum = 2;
-    window.baseBlock = 0x2B;
-
-    for (i = 0; i < playersCount; i++)
-    {
-        window.tilemapLeft = winCoords[0];
-        window.tilemapTop = winCoords[1];
-        sPokemonJumpGfx->nameWindowIds[i] = AddWindow(&window);
-        ClearWindowTilemap(sPokemonJumpGfx->nameWindowIds[i]);
-        window.baseBlock += 0x10;
-        winCoords += 2;
-    }
-
-    CopyBgTilemapBufferToVram(BG_INTERFACE);
-}
-
-static void PrintPokeJumpPlayerName(int multiplayerId, u8 bgColor, u8 fgColor, u8 shadow)
-{
-    u32 x;
-    u8 colors[3] = {bgColor, fgColor, shadow};
-
-    FillWindowPixelBuffer(sPokemonJumpGfx->nameWindowIds[multiplayerId], 0);
-    x = 64 - GetStringWidth(FONT_NORMAL, GetPokeJumpPlayerName(multiplayerId), -1);
-    x /= 2;
-    AddTextPrinterParameterized3(sPokemonJumpGfx->nameWindowIds[multiplayerId], FONT_NORMAL, x, 1, colors, TEXT_SKIP_DRAW, GetPokeJumpPlayerName(multiplayerId));
-    CopyWindowToVram(sPokemonJumpGfx->nameWindowIds[multiplayerId], COPYWIN_GFX);
-}
-
-static void PrintPokeJumpPlayerNames(bool32 highlightSelf)
-{
-    int i, multiplayerId, playersCount = GetNumPokeJumpPlayers();
-
-    if (!highlightSelf)
-    {
-        for (i = 0; i < playersCount; i++)
-            PrintPokeJumpPlayerName(i, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY);
-    }
-    else
-    {
-        // Highlight own name
-        multiplayerId = GetPokeJumpMultiplayerId();
-        for (i = 0; i < playersCount; i++)
-        {
-            if (multiplayerId != i)
-                PrintPokeJumpPlayerName(i, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY);
-            else
-                PrintPokeJumpPlayerName(i, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_RED, TEXT_COLOR_LIGHT_RED);
-        }
-    }
-}
-
-static void DrawPlayerNameWindows(void)
-{
-    int i, playersCount = GetNumPokeJumpPlayers();
-
-    for (i = 0; i < playersCount; i++)
-        PutWindowTilemap(sPokemonJumpGfx->nameWindowIds[i]);
-    CopyBgTilemapBufferToVram(BG_INTERFACE);
-}
-
-static void ShowBonus(u8 bonusId)
-{
-    sPokemonJumpGfx->bonusTimer = 0;
-    ChangeBgX(BG_BONUSES, (bonusId / 2) * 256 * 256, BG_COORD_SET);
-    ChangeBgY(BG_BONUSES, (((bonusId % 2) * 256) - 40) * 256, BG_COORD_SET);
-    ShowBg(BG_BONUSES);
-    CreateTask(Task_UpdateBonus, 4);
-}
-
-static bool32 UpdateBonus(void)
-{
-    if (sPokemonJumpGfx->bonusTimer >= 32)
-    {
-        return FALSE;
-    }
-    else
-    {
-        ChangeBgY(BG_BONUSES, 128, BG_COORD_ADD);
-        if (++sPokemonJumpGfx->bonusTimer >= 32)
-            HideBg(BG_BONUSES);
-        return TRUE;
-    }
-}
-
-static void Task_UpdateBonus(u8 taskId)
-{
-    if (!UpdateBonus())
-        DestroyTask(taskId);
-}
-
-struct MonInfoPacket
-{
-    u8 id;
-    u16 isShiny:1;
-    u16 species:15;
-    u32 personality;
-    u32 otId;
-};
-
-static void SendPacket_MonInfo(struct PokemonJump_MonInfo *monInfo)
-{
-    struct MonInfoPacket packet;
-    packet.id = PACKET_MON_INFO,
-    packet.isShiny = monInfo->isShiny,
-    packet.species = monInfo->species,
-    packet.otId = monInfo->otId,
-    packet.personality = monInfo->personality,
-    Rfu_SendPacket(&packet);
-}
-
-static bool32 RecvPacket_MonInfo(int multiplayerId, struct PokemonJump_MonInfo *monInfo)
-{
-    struct MonInfoPacket packet;
-
-    if ((gRecvCmds[multiplayerId][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
-        return FALSE;
-
-    memcpy(&packet, &gRecvCmds[multiplayerId][1], sizeof(packet));
-    if (packet.id == PACKET_MON_INFO)
-    {
-        monInfo->species = packet.species;
-        monInfo->isShiny = packet.isShiny;
-        monInfo->otId = packet.otId;
-        monInfo->personality = packet.personality;
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-struct UnusedPacket
-{
-    u8 id;
-    u32 data;
-    u32 filler;
-};
-
-// Data packet that's never sent
-// No function to read it either
-static void UNUSED SendPacket_Unused(u32 data)
-{
-    struct UnusedPacket packet;
-    packet.id = PACKET_UNUSED;
-    packet.data = data;
-    Rfu_SendPacket(&packet);
-}
-
-struct LeaderStatePacket
-{
-    u8 id;
-    u8 funcId;
-    u8 monState;
-    u8 receivedBonusFlags:5; // 1 bit for each player (MAX_RFU_PLAYERS)
-    u8 jumpState:3;
-    u16 jumpTimeStart;
-    u16 vineTimer;
-    u32 jumpsInRow:15;
-    u32 jumpScore:17;
-};
-
-static void SendPacket_LeaderState(struct PokemonJump_Player *player, struct PokemonJump_CommData *comm)
-{
-    struct LeaderStatePacket packet;
-    packet.id = PACKET_LEADER_STATE;
-    packet.jumpScore = comm->jumpScore;
-    packet.receivedBonusFlags = comm->receivedBonusFlags;
-    packet.funcId = comm->funcId;
-    packet.vineTimer = comm->data;
-    packet.jumpsInRow = comm->jumpsInRow;
-    packet.monState = player->monState;
-    packet.jumpState = player->jumpState;
-    packet.jumpTimeStart = player->jumpTimeStart;
-    Rfu_SendPacket(&packet);
-}
-
-// Used by group members to read the state of the group leader
-static bool32 RecvPacket_LeaderState(struct PokemonJump_Player *player, struct PokemonJump_CommData *comm)
-{
-    struct LeaderStatePacket packet;
-
-    if ((gRecvCmds[0][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
-        return FALSE;
-
-    memcpy(&packet, &gRecvCmds[0][1], sizeof(packet));
-    if (packet.id != PACKET_LEADER_STATE)
-        return FALSE;
-
-    comm->jumpScore = packet.jumpScore;
-    comm->receivedBonusFlags = packet.receivedBonusFlags;
-    comm->funcId = packet.funcId;
-    comm->data = packet.vineTimer;
-    comm->jumpsInRow = packet.jumpsInRow;
-    player->monState = packet.monState;
-    player->jumpState = packet.jumpState;
-    player->jumpTimeStart = packet.jumpTimeStart;
-    return TRUE;
-}
-
-struct MemberStatePacket
-{
-    u8 id;
-    u8 monState;
-    u8 jumpState;
-    bool8 funcFinished;
-    u16 jumpTimeStart;
-    u8 funcId;
-    u16 playAgainState;
-};
-
-static void SendPacket_MemberState(struct PokemonJump_Player *player, u8 funcId, u16 playAgainState)
-{
-    struct MemberStatePacket packet;
-    packet.id = PACKET_MEMBER_STATE;
-    packet.monState = player->monState;
-    packet.jumpState = player->jumpState;
-    packet.funcFinished = player->funcFinished;
-    packet.jumpTimeStart = player->jumpTimeStart;
-    packet.funcId = funcId;
-    packet.playAgainState = playAgainState;
-    Rfu_SendPacket(&packet);
-}
-
-// Used by the group leader to read the state of group members
-static bool32 RecvPacket_MemberStateToLeader(struct PokemonJump_Player *player, int multiplayerId, u8 *funcId, u16 *playAgainState)
-{
-    struct MemberStatePacket packet;
-
-    if ((gRecvCmds[multiplayerId][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
-        return FALSE;
-
-    memcpy(&packet, &gRecvCmds[multiplayerId][1], sizeof(packet));
-    if (packet.id != PACKET_MEMBER_STATE)
-        return FALSE;
-
-    player->monState = packet.monState;
-    player->jumpState = packet.jumpState;
-    player->funcFinished = packet.funcFinished;
-    player->jumpTimeStart = packet.jumpTimeStart;
-    *funcId = packet.funcId;
-    *playAgainState = packet.playAgainState;
-    return TRUE;
-}
-
-// Used by group members to read the state of other group members
-static bool32 RecvPacket_MemberStateToMember(struct PokemonJump_Player *player, int multiplayerId)
-{
-    struct MemberStatePacket packet;
-
-    if ((gRecvCmds[multiplayerId][0] & RFUCMD_MASK) != RFUCMD_SEND_PACKET)
-        return FALSE;
-
-    memcpy(&packet, &gRecvCmds[multiplayerId][1], sizeof(packet));
-    if (packet.id != PACKET_MEMBER_STATE)
-        return FALSE;
-
-    player->monState = packet.monState;
-    player->jumpState = packet.jumpState;
-    player->funcFinished = packet.funcFinished;
-    player->jumpTimeStart = packet.jumpTimeStart;
-    return TRUE;
-}
-
 #if FREE_POKEMON_JUMP == FALSE
 static struct PokemonJumpRecords *GetPokeJumpRecords(void)
 {
@@ -4038,28 +4329,13 @@ static const u8 *const sRecordsTexts[] = {gText_JumpsInARow, gText_BestScore2, g
 
 static void Task_ShowPokemonJumpRecords(u8 taskId)
 {
-    struct WindowTemplate window;
-    int i, width, widthCurr;
     s16 *data = gTasks[taskId].data;
 
     switch (tState)
     {
     case 0:
-        window = sWindowTemplate_Records;
-        width = GetStringWidth(FONT_NORMAL, gText_PkmnJumpRecords, 0);
-        for (i = 0; i < ARRAY_COUNT(sRecordsTexts); i++)
-        {
-            widthCurr = GetStringWidth(FONT_NORMAL, sRecordsTexts[i], 0) + 38;
-            if (widthCurr > width)
-                width = widthCurr;
-        }
-        width = (width + 7) / 8;
-        if (width & 1)
-            width++;
-        window.tilemapLeft = (30 - width) / 2;
-        window.width = width;
-        tWindowId = AddWindow(&window);
-        PrintRecordsText(tWindowId, width);
+        tWindowId = AddWindow(&sWindowTemplate_Records);
+        PrintRecordsText(tWindowId);
         CopyWindowToVram(tWindowId, COPYWIN_FULL);
         tState++;
         break;
@@ -4089,33 +4365,35 @@ static void Task_ShowPokemonJumpRecords(u8 taskId)
 #undef tState
 #undef tWindowId
 
-static void PrintRecordsText(u16 windowId, int width)
+static void PrintRecordsText(u16 windowId)
 {
 #if FREE_POKEMON_JUMP == FALSE
     int i, x;
     int recordNums[3];
     struct PokemonJumpRecords *records = GetPokeJumpRecords();
+    u8 strbuf[8];
     recordNums[0] = records->jumpsInRow;
     recordNums[1] = records->bestJumpScore;
     recordNums[2] = records->excellentsInRow;
 
-    LoadUserWindowBorderGfx_(windowId, 0x21D, BG_PLTT_ID(13));
+    LoadStdWindowGfx(windowId, 0x21D, BG_PLTT_ID(13));
     DrawTextBorderOuter(windowId, 0x21D, 13);
     FillWindowPixelBuffer(windowId, PIXEL_FILL(1));
-    AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_PkmnJumpRecords, GetStringCenterAlignXOffset(FONT_NORMAL, gText_PkmnJumpRecords, width * 8), 1, TEXT_SKIP_DRAW, NULL);
+    AddTextPrinterParameterized5(windowId, FONT_NORMAL, gText_PkmnJumpRecords, 0, 0, TEXT_SKIP_DRAW, NULL, 1, 0);
     for (i = 0; i < ARRAY_COUNT(sRecordsTexts); i++)
     {
-        AddTextPrinterParameterized(windowId, FONT_NORMAL, sRecordsTexts[i], 0, 25 + (i * 16), TEXT_SKIP_DRAW, NULL);
-        ConvertIntToDecimalStringN(gStringVar1, recordNums[i], STR_CONV_MODE_LEFT_ALIGN, 5);
-        TruncateToFirstWordOnly(gStringVar1);
-        x = (width * 8) - GetStringWidth(FONT_NORMAL, gStringVar1, 0);
-        AddTextPrinterParameterized(windowId, FONT_NORMAL, gStringVar1, x, 25 + (i * 16), TEXT_SKIP_DRAW, NULL);
+        AddTextPrinterParameterized5(windowId, FONT_NORMAL, sRecordsTexts[i], 0, 20 + (i * 14), TEXT_SKIP_DRAW, NULL, 1, 0);
+        ConvertIntToDecimalStringN(strbuf, recordNums[i], STR_CONV_MODE_LEFT_ALIGN, 5);
+        TruncateToFirstWordOnly(strbuf);
+        x = 0xDE - GetStringWidth(FONT_NORMAL, strbuf, 0);
+        AddTextPrinterParameterized5(windowId, FONT_NORMAL, strbuf, x, 20 + (i * 14), TEXT_SKIP_DRAW, NULL, 0, 0);
     }
     PutWindowTilemap(windowId);
 #endif //FREE_POKEMON_JUMP
 }
 
-static inline void TruncateToFirstWordOnly(u8 *str)
+#if FREE_POKEMON_JUMP == FALSE
+static void TruncateToFirstWordOnly(u8 *str)
 {
     for (;*str != EOS; str++)
     {
@@ -4126,3 +4404,4 @@ static inline void TruncateToFirstWordOnly(u8 *str)
         }
     }
 }
+#endif //FREE_POKEMON_JUMP

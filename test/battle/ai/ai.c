@@ -518,8 +518,8 @@ AI_SINGLE_BATTLE_TEST("AI will choose Scratch over Power-up Punch with Contrary"
         ASSUME(GetMoveType(MOVE_SCRATCH) == TYPE_NORMAL);
         ASSUME(GetMovePower(MOVE_POWER_UP_PUNCH) == 40);
         ASSUME(GetMoveType(MOVE_POWER_UP_PUNCH) == TYPE_FIGHTING);
-        ASSUME(gSpeciesInfo[SPECIES_SQUIRTLE].types[0] == TYPE_WATER);
-        ASSUME(gSpeciesInfo[SPECIES_SQUIRTLE].types[1] == TYPE_WATER);
+        ASSUME(GetSpeciesType(SPECIES_SQUIRTLE, 0) == TYPE_WATER);
+        ASSUME(GetSpeciesType(SPECIES_SQUIRTLE, 1) == TYPE_WATER);
         AI_FLAGS(AI_FLAG_CHECK_BAD_MOVE | AI_FLAG_CHECK_VIABILITY | AI_FLAG_TRY_TO_FAINT);
         PLAYER(SPECIES_SQUIRTLE) { };
         OPPONENT(SPECIES_MALAMAR) { Ability(ability); Moves(MOVE_SCRATCH, MOVE_POWER_UP_PUNCH); }
@@ -544,8 +544,8 @@ AI_SINGLE_BATTLE_TEST("AI will choose Superpower over Outrage with Contrary")
         ASSUME(GetMoveType(MOVE_SUPERPOWER) == TYPE_FIGHTING);
         ASSUME(GetMovePower(MOVE_OUTRAGE) == 120);
         ASSUME(GetMoveType(MOVE_OUTRAGE) == TYPE_DRAGON);
-        ASSUME(gSpeciesInfo[SPECIES_SQUIRTLE].types[0] == TYPE_WATER);
-        ASSUME(gSpeciesInfo[SPECIES_SQUIRTLE].types[1] == TYPE_WATER);
+        ASSUME(GetSpeciesType(SPECIES_SQUIRTLE, 0) == TYPE_WATER);
+        ASSUME(GetSpeciesType(SPECIES_SQUIRTLE, 1) == TYPE_WATER);
         AI_FLAGS(AI_FLAG_CHECK_BAD_MOVE | AI_FLAG_CHECK_VIABILITY | AI_FLAG_TRY_TO_FAINT);
         PLAYER(SPECIES_SQUIRTLE) { };
         OPPONENT(SPECIES_MALAMAR) { Ability(ability); Moves(MOVE_OUTRAGE, MOVE_SUPERPOWER); }
@@ -866,31 +866,17 @@ AI_SINGLE_BATTLE_TEST("AI will not set up Weather if it wont have any affect")
     }
 }
 
-AI_SINGLE_BATTLE_TEST("Move scoring comparison properly awards bonus point to best OHKO move")
+AI_SINGLE_BATTLE_TEST("AI won't use stat boosting moves if the player has used Haze")
 {
+    PASSES_RANDOMLY(BOOST_INTO_HAZE_CHANCE, 100, RNG_AI_BOOST_INTO_HAZE);
     GIVEN {
-        ASSUME(MoveHasAdditionalEffect(MOVE_THUNDER, MOVE_EFFECT_PARALYSIS));
-        ASSUME(GetMoveAdditionalEffectCount(MOVE_WATER_SPOUT) == 0);
-        ASSUME(GetMoveAdditionalEffectCount(MOVE_WATER_GUN) == 0);
-        ASSUME(GetMoveAdditionalEffectCount(MOVE_ORIGIN_PULSE) == 0);
-        ASSUME(GetMoveAccuracy(MOVE_WATER_SPOUT) > GetMoveAccuracy(MOVE_THUNDER));
-        AI_FLAGS(AI_FLAG_CHECK_BAD_MOVE | AI_FLAG_TRY_TO_FAINT | AI_FLAG_CHECK_VIABILITY);
-        PLAYER(SPECIES_WAILORD) { Level(50); }
-        OPPONENT(SPECIES_WAILORD) { Moves(MOVE_THUNDER, MOVE_WATER_SPOUT, MOVE_WATER_GUN, MOVE_SURF); }
+        ASSUME(GetMoveEffect(MOVE_HAZE) == EFFECT_HAZE);
+        ASSUME(GetMoveEffect(MOVE_DRAGON_DANCE) == EFFECT_DRAGON_DANCE);
+        AI_FLAGS(AI_FLAG_CHECK_BAD_MOVE | AI_FLAG_CHECK_VIABILITY | AI_FLAG_TRY_TO_FAINT);
+        PLAYER(SPECIES_WOBBUFFET) { Moves(MOVE_SCRATCH, MOVE_HAZE); }
+        OPPONENT(SPECIES_WOBBUFFET) { Moves(MOVE_SCRATCH, MOVE_DRAGON_DANCE); }
     } WHEN {
-        TURN { EXPECT_MOVE(opponent, MOVE_WATER_SPOUT); }
-    }
-}
-
-AI_SINGLE_BATTLE_TEST("AI will stop setting up at +4")
-{
-    GIVEN {
-        AI_FLAGS(AI_FLAG_CHECK_BAD_MOVE | AI_FLAG_CHECK_VIABILITY | AI_FLAG_TRY_TO_FAINT | AI_FLAG_OMNISCIENT);
-        PLAYER(SPECIES_ZIGZAGOON) { Moves(MOVE_CELEBRATE); }
-        OPPONENT(SPECIES_ZIGZAGOON) { Moves(MOVE_TACKLE, MOVE_IRON_DEFENSE); }
-    } WHEN {
-        TURN { MOVE(player, MOVE_CELEBRATE); EXPECT_MOVE(opponent, MOVE_IRON_DEFENSE); }
-        TURN { MOVE(player, MOVE_CELEBRATE); EXPECT_MOVE(opponent, MOVE_IRON_DEFENSE); }
-        TURN { MOVE(player, MOVE_CELEBRATE); EXPECT_MOVE(opponent, MOVE_TACKLE); }
+        TURN { MOVE(player, MOVE_HAZE); EXPECT_MOVE(opponent, MOVE_DRAGON_DANCE); }
+        TURN { MOVE(player, MOVE_HAZE); EXPECT_MOVE(opponent, MOVE_DRAGON_DANCE); }
     }
 }

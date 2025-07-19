@@ -33,28 +33,27 @@ enum
     HP_BAR_FULL,
 };
 
-#define TAG_HEALTHBOX_PLAYER1_TILE      0xD6FF
-#define TAG_HEALTHBOX_PLAYER2_TILE      0xD700
-#define TAG_HEALTHBOX_OPPONENT1_TILE    0xD701
-#define TAG_HEALTHBOX_OPPONENT2_TILE    0xD702
+#define TAG_HEALTHBOX_PLAYER1_TILE              55039
+#define TAG_HEALTHBOX_PLAYER2_TILE              55040
+#define TAG_HEALTHBOX_OPPONENT1_TILE            55041
+#define TAG_HEALTHBOX_OPPONENT2_TILE            55042
 
-#define TAG_HEALTHBAR_PLAYER1_TILE      0xD704
-#define TAG_HEALTHBAR_OPPONENT1_TILE    0xD705
-#define TAG_HEALTHBAR_PLAYER2_TILE      0xD706
-#define TAG_HEALTHBAR_OPPONENT2_TILE    0xD707
+#define TAG_HEALTHBAR_PLAYER1_TILE              55044
+#define TAG_HEALTHBAR_OPPONENT1_TILE            55045
+#define TAG_HEALTHBAR_PLAYER2_TILE              55046
+#define TAG_HEALTHBAR_OPPONENT2_TILE            55047
 
-#define TAG_HEALTHBOX_PALS_1            0xD709
-#define TAG_HEALTHBOX_PALS_2            0xD70A
-#define TAG_HEALTHBOX_SAFARI_TILE       0xD70B
-#define TAG_STATUS_SUMMARY_BAR_TILE     0xD70C
+#define TAG_HEALTHBOX_PALS_1                    55049
+#define TAG_HEALTHBOX_PALS_2                    55050
+#define TAG_HEALTHBOX_SAFARI_TILE               55051
+#define TAG_PARTY_SUMMARY_BAR_TILE              55052
 
-#define TAG_STATUS_SUMMARY_BAR_PAL      0xD710
-#define TAG_STATUS_SUMMARY_BALLS_PAL    0xD712
+#define TAG_PARTY_SUMMARY_BAR_PAL               55056
+#define TAG_PARTY_SUMMARY_BALL_PAL              55058
+#define TAG_PARTY_SUMMARY_BALL_TILE             55060
 
-#define TAG_STATUS_SUMMARY_BALLS_TILE   0xD714
-
-#define TAG_HEALTHBAR_PAL               TAG_HEALTHBAR_PLAYER1_TILE
-#define TAG_HEALTHBOX_PAL               TAG_HEALTHBOX_PLAYER1_TILE
+#define TAG_HEALTHBOX_PAL                       TAG_HEALTHBOX_PLAYER1_TILE
+#define TAG_HEALTHBAR_PAL                       TAG_HEALTHBAR_PLAYER1_TILE
 #define TAG_SHADOW_PAL                  TAG_HEALTHBOX_PLAYER1_TILE
 
 #define TAG_SHADOW_TILE                 0xD759
@@ -138,5 +137,9 @@ void UpdateAbilityPopup(u8 battlerId);
 void CategoryIcons_LoadSpritesGfx(void);
 void TryToAddMoveInfoWindow(void);
 void TryToHideMoveInfoWindow(void);
+
+// frlg
+void UpdateNickInHealthbox(u8 spriteId, struct Pokemon *mon);
+void TryAddPokeballIconToHealthbox(u8 spriteId, u8);
 
 #endif // GUARD_BATTLE_INTERFACE_H

@@ -11,18 +11,14 @@ static const struct HealLocation sHealLocations[NUM_HEAL_LOCATIONS - 1] = {
 ## endfor
 };
 
-static const u16 sWhiteoutRespawnHealCenterMapIdxs[][2] = {
+static const u16 sWhiteoutRespawnHealCenterMapIdxs[NUM_HEAL_LOCATIONS - 1][2] = {
 ## for heal_location in heal_locations
-{% if existsIn(heal_location, "respawn_map") %}
     [{{ heal_location.id }} - 1] = { MAP_GROUP({{ heal_location.respawn_map }}), MAP_NUM({{ heal_location.respawn_map }})},
-{% endif %}
 ## endfor
 };
 
-static const u8 sWhiteoutRespawnHealerNpcIds[] = {
+static const u8 sWhiteoutRespawnHealerNpcIds[NUM_HEAL_LOCATIONS - 1] = {
 ## for heal_location in heal_locations
-{% if existsIn(heal_location, "respawn_npc") %}
     [{{ heal_location.id }} - 1] = {{ heal_location.respawn_npc }},
-{% endif %}
 ## endfor
 };

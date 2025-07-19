@@ -1,11 +1,10 @@
-@ VAR_0x8004 here is used by ChangePokemonNickname
-Common_EventScript_GetGiftMonPartySlot::
+EventScript_GetGiftMonPartySlot::
 	getpartysize
 	subvar VAR_RESULT, 1
 	copyvar VAR_0x8004, VAR_RESULT
 	return
 
-Common_EventScript_NameReceivedBoxMon::
+EventScript_NameReceivedBoxMon::
 	fadescreen FADE_TO_BLACK
 	special ChangeBoxPokemonNickname
 	waitstate
@@ -13,38 +12,33 @@ Common_EventScript_NameReceivedBoxMon::
 	faceplayer
 	return
 
-Common_EventScript_TransferredToPC::
+EventScript_TransferredToPC::
 	bufferboxname STR_VAR_1, VAR_PC_BOX_TO_SEND_MON
-	bufferspeciesname STR_VAR_2, VAR_TEMP_TRANSFERRED_SPECIES
-	call_if_unset FLAG_SYS_PC_LANETTE, EventScript_TransferredSomeonesPC
-	call_if_set FLAG_SYS_PC_LANETTE, EventScript_TransferredLanettesPC
+	bufferspeciesname STR_VAR_2, VAR_TEMP_1
+	call_if_unset FLAG_SYS_NOT_SOMEONES_PC, EventScript_TransferredSomeonesPC
+	call_if_set FLAG_SYS_NOT_SOMEONES_PC, EventScript_TransferredBillsPC
 	return
 
 EventScript_TransferredSomeonesPC::
 	specialvar VAR_RESULT, ShouldShowBoxWasFullMessage
-	goto_if_eq VAR_RESULT, TRUE, EventScript_SomeonesPCBoxFull
-	msgbox gText_PkmnTransferredSomeonesPC, MSGBOX_DEFAULT
+	goto_if_eq VAR_RESULT, TRUE, EventScript_TransferredSomeonesPCBoxFull
+	msgbox gText_PkmnTransferredSomeonesPC
 	return
 
-EventScript_SomeonesPCBoxFull::
+EventScript_TransferredSomeonesPCBoxFull::
 	specialvar VAR_RESULT, GetPCBoxToSendMon
 	bufferboxname STR_VAR_3, VAR_RESULT
-	msgbox gText_PkmnTransferredSomeonesPCBoxFull, MSGBOX_DEFAULT
+	msgbox gText_PkmnTransferredSomeonesPCBoxFull
 	return
 
-EventScript_TransferredLanettesPC::
+EventScript_TransferredBillsPC::
 	specialvar VAR_RESULT, ShouldShowBoxWasFullMessage
-	goto_if_eq VAR_RESULT, TRUE, EventScript_LanettesPCBoxFull
-	msgbox gText_PkmnTransferredLanettesPC, MSGBOX_DEFAULT
+	goto_if_eq VAR_RESULT, TRUE, EventScript_TransferredBillsPCBoxFull
+	msgbox gText_PkmnTransferredBillsPC
 	return
 
-EventScript_LanettesPCBoxFull::
+EventScript_TransferredBillsPCBoxFull::
 	specialvar VAR_RESULT, GetPCBoxToSendMon
 	bufferboxname STR_VAR_3, VAR_RESULT
-	msgbox gText_PkmnTransferredLanettesPCBoxFull, MSGBOX_DEFAULT
+	msgbox gText_PkmnTransferredBillsPCBoxFull
 	return
-
-Common_EventScript_NoMoreRoomForPokemon::
-	msgbox gText_NoMoreRoomForPokemon, MSGBOX_DEFAULT
-	release
-	end

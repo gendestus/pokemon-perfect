@@ -1,7 +1,6 @@
 #ifndef GUARD_POKEMON_SPRITE_VISUALIZER_H
 #define GUARD_POKEMON_SPRITE_VISUALIZER_H
 
-#include "constants/global.h"
 #include "constants/pokemon_sprite_visualizer.h"
 
 //Structs

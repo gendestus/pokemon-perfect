@@ -1,14 +1,15 @@
 #include "global.h"
 #include "script.h"
 #include "event_data.h"
+#include "quest_log.h"
 #include "mystery_gift.h"
 #include "random.h"
 #include "trainer_see.h"
-#include "util.h"
-#include "constants/event_objects.h"
-#include "constants/flags.h"
+#include "constants/maps.h"
 #include "constants/map_scripts.h"
-#include "field_message_box.h"
+
+extern void ResetContextNpcTextColor(void); // field_specials
+extern u16 CalcCRC16WithTable(u8 *data, int length); // util
 
 #define RAM_SCRIPT_MAGIC 51
 
@@ -24,18 +25,22 @@ enum {
     CONTEXT_SHUTDOWN,
 };
 
-extern const u8 *gRamScriptRetAddr;
+EWRAM_DATA u8 gWalkAwayFromSignInhibitTimer = 0;
+EWRAM_DATA const u8 *gRamScriptRetAddr = NULL;
 
 static u8 sGlobalScriptContextStatus;
 static struct ScriptContext sGlobalScriptContext;
 static struct ScriptContext sImmediateScriptContext;
 static bool8 sLockFieldControls;
-EWRAM_DATA u8 gMsgIsSignPost = FALSE;
-EWRAM_DATA u8 gMsgBoxIsCancelable = FALSE;
+static u8 sMsgBoxWalkawayDisabled;
+static u8 sMsgBoxIsCancelable;
+static u8 sQuestLogInput;
+static u8 sQuestLogInputIsDpad;
+static u8 sMsgIsSignpost;
 
 extern ScrCmdFunc gScriptCmdTable[];
 extern ScrCmdFunc gScriptCmdTableEnd[];
-extern void *const gNullScriptPtr;
+extern void *gNullScriptPtr;
 
 void InitScriptContext(struct ScriptContext *ctx, void *cmdTable, void *cmdTableEnd)
 {
@@ -52,9 +57,7 @@ void InitScriptContext(struct ScriptContext *ctx, void *cmdTable, void *cmdTable
         ctx->data[i] = 0;
 
     for (i = 0; i < (int)ARRAY_COUNT(ctx->stack); i++)
-        ctx->stack[i] = NULL;
-
-    ctx->breakOnTrainerBattle = FALSE;
+        ctx->stack[i] = 0;
 }
 
 u8 SetupBytecodeScript(struct ScriptContext *ctx, const u8 *ptr)
@@ -78,8 +81,12 @@ void StopScript(struct ScriptContext *ctx)
 
 bool8 RunScriptCommand(struct ScriptContext *ctx)
 {
-    if (ctx->mode == SCRIPT_MODE_STOPPED)
-        return FALSE;
+    // FRLG disabled this check, where-as it is present
+    // in Ruby/Sapphire and Emerald. Why did the programmers
+    // bother to remove a redundant check when it still
+    // exists in Emerald?
+    //if (ctx->mode == SCRIPT_MODE_STOPPED)
+    //    return FALSE;
 
     switch (ctx->mode)
     {
@@ -100,9 +107,9 @@ bool8 RunScriptCommand(struct ScriptContext *ctx)
         while (1)
         {
             u8 cmdCode;
-            ScrCmdFunc *func;
+            ScrCmdFunc *cmdFunc;
 
-            if (!ctx->scriptPtr)
+            if (ctx->scriptPtr == NULL)
             {
                 ctx->mode = SCRIPT_MODE_STOPPED;
                 return FALSE;
@@ -116,15 +123,15 @@ bool8 RunScriptCommand(struct ScriptContext *ctx)
 
             cmdCode = *(ctx->scriptPtr);
             ctx->scriptPtr++;
-            func = &ctx->cmdTable[cmdCode];
+            cmdFunc = &ctx->cmdTable[cmdCode];
 
-            if (func >= ctx->cmdTableEnd)
+            if (cmdFunc >= ctx->cmdTableEnd)
             {
                 ctx->mode = SCRIPT_MODE_STOPPED;
                 return FALSE;
             }
 
-            if ((*func)(ctx) == TRUE)
+            if ((*cmdFunc)(ctx) == TRUE)
                 return TRUE;
         }
     }
@@ -132,17 +139,17 @@ bool8 RunScriptCommand(struct ScriptContext *ctx)
     return TRUE;
 }
 
-static bool8 ScriptPush(struct ScriptContext *ctx, const u8 *ptr)
+static u8 ScriptPush(struct ScriptContext *ctx, const u8 *ptr)
 {
     if (ctx->stackDepth + 1 >= (int)ARRAY_COUNT(ctx->stack))
     {
-        return TRUE;
+        return 1;
     }
     else
     {
         ctx->stack[ctx->stackDepth] = ptr;
         ctx->stackDepth++;
-        return FALSE;
+        return 0;
     }
 }
 
@@ -211,6 +218,97 @@ bool8 ArePlayerFieldControlsLocked(void)
     return sLockFieldControls;
 }
 
+void SetQuestLogInputIsDpadFlag(void)
+{
+    sQuestLogInputIsDpad = TRUE;
+}
+
+void ClearQuestLogInputIsDpadFlag(void)
+{
+    sQuestLogInputIsDpad = FALSE;
+}
+
+bool8 IsQuestLogInputDpad(void)
+{
+    if(sQuestLogInputIsDpad == TRUE)
+        return TRUE;
+    else
+        return FALSE;
+}
+
+void RegisterQuestLogInput(u8 var)
+{
+    sQuestLogInput = var;
+}
+
+void ClearQuestLogInput(void)
+{
+    sQuestLogInput = 0;
+}
+
+u8 GetRegisteredQuestLogInput(void)
+{
+    return sQuestLogInput;
+}
+
+void DisableMsgBoxWalkaway(void)
+{
+    sMsgBoxWalkawayDisabled = TRUE;
+}
+
+void EnableMsgBoxWalkaway(void)
+{
+    sMsgBoxWalkawayDisabled = FALSE;
+}
+
+bool8 IsMsgBoxWalkawayDisabled(void)
+{
+    return sMsgBoxWalkawayDisabled;
+}
+
+void SetWalkingIntoSignVars(void)
+{
+    gWalkAwayFromSignInhibitTimer = 6;
+    sMsgBoxIsCancelable = TRUE;
+}
+
+void ClearMsgBoxCancelableState(void)
+{
+    sMsgBoxIsCancelable = FALSE;
+}
+
+bool8 CanWalkAwayToCancelMsgBox(void)
+{
+    if(sMsgBoxIsCancelable == TRUE)
+        return TRUE;
+    else
+        return FALSE;
+}
+
+void MsgSetSignpost(void)
+{
+    sMsgIsSignpost = TRUE;
+}
+
+void MsgSetNotSignpost(void)
+{
+    sMsgIsSignpost = FALSE;
+}
+
+bool8 IsMsgSignpost(void)
+{
+    if(sMsgIsSignpost == TRUE)
+        return TRUE;
+    else
+        return FALSE;
+}
+
+void ResetFacingNpcOrSignpostVars(void)
+{
+    ResetContextNpcTextColor();
+    MsgSetNotSignpost();
+}
+
 // The ScriptContext_* functions work with the primary script context,
 // which yields control back to native code should the script make a wait call.
 
@@ -230,9 +328,9 @@ void ScriptContext_Init(void)
     sGlobalScriptContextStatus = CONTEXT_SHUTDOWN;
 }
 
-// Runs the script until the script makes a wait* call, then returns true if
-// there's more script to run, or false if the script has hit the end.
-// This function also returns false if the context is finished
+// Runs the script until the script makes a wait* call, then returns true if 
+// there's more script to run, or false if the script has hit the end. 
+// This function also returns false if the context is finished 
 // or waiting (after a call to _Stop)
 bool8 ScriptContext_RunScript(void)
 {
@@ -257,18 +355,12 @@ bool8 ScriptContext_RunScript(void)
 // Sets up a new script in the global context and enables the context
 void ScriptContext_SetupScript(const u8 *ptr)
 {
+    ClearMsgBoxCancelableState();
+    EnableMsgBoxWalkaway();
+    ClearQuestLogInputIsDpadFlag();
+
     InitScriptContext(&sGlobalScriptContext, gScriptCmdTable, gScriptCmdTableEnd);
     SetupBytecodeScript(&sGlobalScriptContext, ptr);
-    LockPlayerFieldControls();
-    if (OW_FOLLOWERS_SCRIPT_MOVEMENT)
-        FlagSet(FLAG_SAFE_FOLLOWER_MOVEMENT);
-    sGlobalScriptContextStatus = CONTEXT_RUNNING;
-}
-
-// Moves a script from a local context to the global context and enables it.
-void ScriptContext_ContinueScript(struct ScriptContext *ctx)
-{
-    sGlobalScriptContext = *ctx;
     LockPlayerFieldControls();
     sGlobalScriptContextStatus = CONTEXT_RUNNING;
 }
@@ -291,21 +383,21 @@ void ScriptContext_Enable(void)
 // scripts (except the frame table scripts).
 void RunScriptImmediately(const u8 *ptr)
 {
-    InitScriptContext(&sImmediateScriptContext, gScriptCmdTable, gScriptCmdTableEnd);
+    InitScriptContext(&sImmediateScriptContext, &gScriptCmdTable, &gScriptCmdTableEnd);
     SetupBytecodeScript(&sImmediateScriptContext, ptr);
     while (RunScriptCommand(&sImmediateScriptContext) == TRUE);
 }
 
-const u8 *MapHeaderGetScriptTable(u8 tag)
+static u8 *MapHeaderGetScriptTable(u8 tag)
 {
     const u8 *mapScripts = gMapHeader.mapScripts;
 
-    if (!mapScripts)
+    if (mapScripts == NULL)
         return NULL;
 
     while (1)
     {
-        if (!*mapScripts)
+        if (*mapScripts == 0)
             return NULL;
         if (*mapScripts == tag)
         {
@@ -316,18 +408,18 @@ const u8 *MapHeaderGetScriptTable(u8 tag)
     }
 }
 
-void MapHeaderRunScriptType(u8 tag)
+static void MapHeaderRunScriptType(u8 tag)
 {
-    const u8 *ptr = MapHeaderGetScriptTable(tag);
-    if (ptr)
+    u8 *ptr = MapHeaderGetScriptTable(tag);
+    if (ptr != NULL)
         RunScriptImmediately(ptr);
 }
 
-const u8 *MapHeaderCheckScriptTable(u8 tag)
+static u8 *MapHeaderCheckScriptTable(u8 tag)
 {
-    const u8 *ptr = MapHeaderGetScriptTable(tag);
+    u8 *ptr = MapHeaderGetScriptTable(tag);
 
-    if (!ptr)
+    if (ptr == NULL)
         return NULL;
 
     while (1)
@@ -347,12 +439,7 @@ const u8 *MapHeaderCheckScriptTable(u8 tag)
 
         // Run map script if vars are equal
         if (VarGet(varIndex1) == VarGet(varIndex2))
-        {
-            const u8 *mapScript = T2_READ_PTR(ptr);
-            if (!Script_HasNoEffect(mapScript))
-                return mapScript;
-        }
-
+            return T2_READ_PTR(ptr);
         ptr += 4;
     }
 }
@@ -384,7 +471,12 @@ void RunOnDiveWarpMapScript(void)
 
 bool8 TryRunOnFrameMapScript(void)
 {
-    const u8 *ptr = MapHeaderCheckScriptTable(MAP_SCRIPT_ON_FRAME_TABLE);
+    u8 *ptr;
+
+    if (gQuestLogState == QL_STATE_PLAYBACK_LAST)
+        return FALSE;
+
+    ptr = MapHeaderCheckScriptTable(MAP_SCRIPT_ON_FRAME_TABLE);
 
     if (!ptr)
         return FALSE;
@@ -395,7 +487,7 @@ bool8 TryRunOnFrameMapScript(void)
 
 void TryRunOnWarpIntoMapScript(void)
 {
-    const u8 *ptr = MapHeaderCheckScriptTable(MAP_SCRIPT_ON_WARP_INTO_MAP_TABLE);
+    u8 *ptr = MapHeaderCheckScriptTable(MAP_SCRIPT_ON_WARP_INTO_MAP_TABLE);
     if (ptr)
         RunScriptImmediately(ptr);
 }
@@ -416,7 +508,7 @@ void ClearRamScript(void)
 #endif //FREE_MYSTERY_EVENT_BUFFERS
 }
 
-bool8 InitRamScript(const u8 *script, u16 scriptSize, u8 mapGroup, u8 mapNum, u8 localId)
+bool8 InitRamScript(u8 *script, u16 scriptSize, u8 mapGroup, u8 mapNum, u8 objectId)
 {
 #if FREE_MYSTERY_EVENT_BUFFERS == FALSE
     struct RamScriptData *scriptData = &gSaveBlock1Ptr->ramScript.data;
@@ -429,7 +521,7 @@ bool8 InitRamScript(const u8 *script, u16 scriptSize, u8 mapGroup, u8 mapNum, u8
     scriptData->magic = RAM_SCRIPT_MAGIC;
     scriptData->mapGroup = mapGroup;
     scriptData->mapNum = mapNum;
-    scriptData->localId = localId;
+    scriptData->objectId = objectId;
     memcpy(scriptData->script, script, scriptSize);
     gSaveBlock1Ptr->ramScript.checksum = CalculateRamScriptChecksum();
     return TRUE;
@@ -438,7 +530,7 @@ bool8 InitRamScript(const u8 *script, u16 scriptSize, u8 mapGroup, u8 mapNum, u8
 #endif //FREE_MYSTERY_EVENT_BUFFERS
 }
 
-const u8 *GetRamScript(u8 localId, const u8 *script)
+const u8 *GetRamScript(u8 objectId, const u8 *script)
 {
 #if FREE_MYSTERY_EVENT_BUFFERS == FALSE
     struct RamScriptData *scriptData = &gSaveBlock1Ptr->ramScript.data;
@@ -449,7 +541,7 @@ const u8 *GetRamScript(u8 localId, const u8 *script)
         return script;
     if (scriptData->mapNum != gSaveBlock1Ptr->location.mapNum)
         return script;
-    if (scriptData->localId != localId)
+    if (scriptData->objectId != objectId)
         return script;
     if (CalculateRamScriptChecksum() != gSaveBlock1Ptr->ramScript.checksum)
     {
@@ -466,9 +558,7 @@ const u8 *GetRamScript(u8 localId, const u8 *script)
 #endif //FREE_MYSTERY_EVENT_BUFFERS
 }
 
-#define NO_OBJECT LOCALID_PLAYER
-
-bool32 ValidateSavedRamScript(void)
+bool32 ValidateRamScript(void)
 {
 #if FREE_MYSTERY_EVENT_BUFFERS == FALSE
     struct RamScriptData *scriptData = &gSaveBlock1Ptr->ramScript.data;
@@ -478,7 +568,7 @@ bool32 ValidateSavedRamScript(void)
         return FALSE;
     if (scriptData->mapNum != MAP_NUM(MAP_UNDEFINED))
         return FALSE;
-    if (scriptData->localId != NO_OBJECT)
+    if (scriptData->objectId != 0xFF)
         return FALSE;
     if (CalculateRamScriptChecksum() != gSaveBlock1Ptr->ramScript.checksum)
         return FALSE;
@@ -500,7 +590,7 @@ u8 *GetSavedRamScriptIfValid(void)
         return NULL;
     if (scriptData->mapNum != MAP_NUM(MAP_UNDEFINED))
         return NULL;
-    if (scriptData->localId != NO_OBJECT)
+    if (scriptData->objectId != 0xFF)
         return NULL;
     if (CalculateRamScriptChecksum() != gSaveBlock1Ptr->ramScript.checksum)
     {
@@ -521,7 +611,7 @@ void InitRamScript_NoObjectEvent(u8 *script, u16 scriptSize)
 #if FREE_MYSTERY_EVENT_BUFFERS == FALSE
     if (scriptSize > sizeof(gSaveBlock1Ptr->ramScript.data.script))
         scriptSize = sizeof(gSaveBlock1Ptr->ramScript.data.script);
-    InitRamScript(script, scriptSize, MAP_GROUP(MAP_UNDEFINED), MAP_NUM(MAP_UNDEFINED), NO_OBJECT);
+    InitRamScript(script, scriptSize, MAP_GROUP(MAP_UNDEFINED), MAP_NUM(MAP_UNDEFINED), 0xFF);
 #endif //FREE_MYSTERY_EVENT_BUFFERS
 }
 

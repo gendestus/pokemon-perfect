@@ -1,7 +1,6 @@
-#ifndef GUARD_IO_REG_H
-#define GUARD_IO_REG_H
+#ifndef GUARD_BG_REGS_H
+#define GUARD_BG_REGS_H
 
 extern const u16 gOverworldBackgroundLayerFlags[];
-extern const u16 gOrbEffectBackgroundLayerFlags[];
 
-#endif // GUARD_IO_REG_H
+#endif //GUARD_BG_REGS_H

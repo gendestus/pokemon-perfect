@@ -14,6 +14,7 @@
 #include "strings.h"
 #include "task.h"
 #include "text.h"
+#include "text_window.h"
 #include "scanline_effect.h"
 #include "bg.h"
 #include "window.h"
@@ -212,20 +213,23 @@ static const struct OamData sOamData_Arrow =
     .paletteNum = 0,
     .affineParam = 0,
 };
+static const u8 sResetRtcScreen_DownArrowGfx[] = INCBIN_U8("graphics/misc/reset_rtc_screen_downarrow.4bpp");
+static const u8 sResetRtcScreen_RightArrowGfx[] = INCBIN_U8("graphics/misc/reset_rtc_screen_rightarrow.4bpp");
+static const u16 sResetRtcScreen_ArrowPal[] = INCBIN_U16("graphics/misc/reset_rtc_screen_arrow.gbapal");
 
-static const u8 sArrowDown_Gfx[] = INCBIN_U8("graphics/reset_rtc_screen/arrow_down.4bpp");
-static const u8 sArrowRight_Gfx[] = INCBIN_U8("graphics/reset_rtc_screen/arrow_right.4bpp");
-static const u16 sArrow_Pal[] = INCBIN_U16("graphics/reset_rtc_screen/arrow.gbapal");
+// static const u8 sArrowDown_Gfx[] = INCBIN_U8("graphics/reset_rtc_screen/arrow_down.4bpp");
+// static const u8 sArrowRight_Gfx[] = INCBIN_U8("graphics/reset_rtc_screen/arrow_right.4bpp");
+// static const u16 sArrow_Pal[] = INCBIN_U16("graphics/reset_rtc_screen/arrow.gbapal");
 
 static const struct SpriteFrameImage sPicTable_Arrow[] =
 {
-    obj_frame_tiles(sArrowDown_Gfx),
-    obj_frame_tiles(sArrowRight_Gfx)
+    obj_frame_tiles(sResetRtcScreen_DownArrowGfx),
+    obj_frame_tiles(sResetRtcScreen_RightArrowGfx)
 };
 
 const struct SpritePalette gSpritePalette_Arrow =
 {
-    sArrow_Pal, PALTAG_ARROW
+    sResetRtcScreen_ArrowPal, PALTAG_ARROW
 };
 
 static const union AnimCmd sAnim_Arrow_Down[] =
@@ -597,9 +601,30 @@ static void Task_ResetRtc_Init(u8 taskId)
 }
 
 void CB2_InitResetRtcScreen(void)
-{
-    SetGpuReg(REG_OFFSET_DISPCNT, 0);
-    SetVBlankCallback(NULL);
+{   
+#ifdef FIRERED
+    FillPalette(RGB(30, 18, 11), 0, PLTT_SIZE);
+#endif
+#ifdef LEAFGREEN
+    FillPalette(RGB(23, 28, 11), 0, PLTT_SIZE);
+#endif
+    BeginNormalPaletteFade(0xFFFFFFFF, 0, 0, 16, RGB_BLACK);
+
+    SetGpuReg(REG_OFFSET_DISPCNT, 0);    
+    SetGpuReg(REG_OFFSET_BLDY, 0);
+    ResetBgsAndClearDma3BusyFlags(FALSE);
+    ChangeBgX(0, 0, 0);
+    ChangeBgY(0, 0, 0);
+    ChangeBgX(1, 0, 0);
+    ChangeBgY(1, 0, 0);
+    ChangeBgX(2, 0, 0);
+    ChangeBgY(2, 0, 0);
+    ChangeBgX(3, 0, 0);
+    ChangeBgY(3, 0, 0);
+    DeactivateAllTextPrinters();
+    SetGpuReg(REG_OFFSET_DISPCNT, DISPCNT_MODE_0 | DISPCNT_OBJ_1D_MAP | DISPCNT_OBJ_ON);
+    ShowBg(0);
+
     DmaClear16(3, PLTT, PLTT_SIZE);
     DmaFillLarge16(3, 0, (u8 *)VRAM, VRAM_SIZE, 0x1000);
     ResetOamRange(0, 128);
@@ -733,7 +758,7 @@ static void Task_ResetRtcScreen(u8 taskId)
         if (!gPaletteFade.active)
         {
             if (gSaveFileStatus == SAVE_STATUS_EMPTY
-             || gSaveFileStatus == SAVE_STATUS_CORRUPT)
+             || gSaveFileStatus == SAVE_STATUS_INVALID)
             {
                 ShowMessage(gText_NoSaveFileCantSetTime);
                 tState = MAINSTATE_WAIT_EXIT;
@@ -771,6 +796,11 @@ static void Task_ResetRtcScreen(u8 taskId)
                 // Time has been chosen, reset rtc and save
                 DestroyTask(tSubTaskId);
                 RtcReset();
+                if (OW_USE_FAKE_RTC)
+                    FakeRtc_ManuallySetTime(gLocalTime.days,
+                        gLocalTime.hours,
+                        gLocalTime.minutes,
+                        gLocalTime.seconds);
                 RtcCalcLocalTimeOffset(
                     gLocalTime.days,
                     gLocalTime.hours,

@@ -1,9 +1,9 @@
 #ifndef GUARD_RECORDED_BATTLE_H
 #define GUARD_RECORDED_BATTLE_H
 
-#include "constants/battle.h"
-#include "link.h"
 #include "random.h"
+#include "link.h"
+#include "constants/battle.h"
 
 #define BATTLER_RECORD_SIZE 664
 
@@ -11,13 +11,13 @@ struct RecordedBattleSave
 {
     struct Pokemon playerParty[PARTY_SIZE];
     struct Pokemon opponentParty[PARTY_SIZE];
-    u8 playersName[MAX_LINK_PLAYERS][PLAYER_NAME_LENGTH + 1];
-    u8 playersGender[MAX_LINK_PLAYERS];
-    u32 playersTrainerId[MAX_LINK_PLAYERS];
-    u8 playersLanguage[MAX_LINK_PLAYERS];
+    u8 playersName[MAX_BATTLERS_COUNT][PLAYER_NAME_LENGTH + 1];
+    u8 playersGender[MAX_BATTLERS_COUNT];
+    u32 playersTrainerId[MAX_BATTLERS_COUNT];
+    u8 playersLanguage[MAX_BATTLERS_COUNT];
     rng_value_t rngSeed;
     u32 battleFlags;
-    u8 playersBattlers[MAX_LINK_PLAYERS];
+    u8 playersBattlers[MAX_BATTLERS_COUNT];
     u16 opponentA;
     u16 opponentB;
     u16 partnerId;
@@ -27,7 +27,7 @@ struct RecordedBattleSave
     u8 frontierBrainSymbol;
     u8 battleScene:1;
     u8 textSpeed:3;
-    u64 AI_scripts;
+    u32 AI_scripts;
     u8 recordMixFriendName[PLAYER_NAME_LENGTH + 1];
     u8 recordMixFriendClass;
     u8 apprenticeId;
@@ -60,20 +60,14 @@ extern u8 gRecordedBattleMultiplayerId;
 
 void RecordedBattle_Init(u8 mode);
 void RecordedBattle_SetTrainerInfo(void);
-void RecordedBattle_SetBattlerAction(u8 battler, u8 action);
-void RecordedBattle_ClearBattlerAction(u8 battler, u8 bytesToClear);
-u8 RecordedBattle_GetBattlerAction(u32 actionType, u8 battler);
+void RecordedBattle_SetBattlerAction(u8 battlerId, u8 action);
+void RecordedBattle_ClearBattlerAction(u8 battlerId, u8 bytesToClear);
+u8 RecordedBattle_GetBattlerAction(u32 actionType, u8 battlerId);
 u8 RecordedBattle_BufferNewBattlerData(u8 *dst);
-void RecordedBattle_RecordAllBattlerData(u8 *src);
-bool32 CanCopyRecordedBattleSaveData(void);
-bool32 MoveRecordedBattleToSaveData(void);
+void RecordedBattle_RecordAllBattlerData(u8 *data);
 void SetPartiesFromRecordedSave(struct RecordedBattleSave *src);
 void SetVariablesForRecordedBattle(struct RecordedBattleSave *);
-void PlayRecordedBattle(void (*CB2_After)(void));
-u8 GetRecordedBattleFrontierFacility(void);
-u8 GetRecordedBattleFronterBrainSymbol(void);
 void RecordedBattle_SaveParties(void);
-u8 GetBattlerLinkPlayerGender(u32 battler);
 void RecordedBattle_ClearFrontierPassFlag(void);
 void RecordedBattle_SetFrontierPassFlagFromHword(u16 flags);
 u8 RecordedBattle_GetFrontierPassFlag(void);
@@ -81,15 +75,9 @@ u8 GetBattleSceneInRecordedBattle(void);
 u8 GetTextSpeedInRecordedBattle(void);
 void RecordedBattle_CopyBattlerMoves(u32 battler);
 void RecordedBattle_CheckMovesetChanges(u8 mode);
-u64 GetAiScriptsInRecordedBattle(void);
+u32 GetAiScriptsInRecordedBattle(void);
 void RecordedBattle_SetPlaybackFinished(void);
 bool8 RecordedBattle_CanStopPlayback(void);
-void GetRecordedBattleRecordMixFriendName(u8 *dst);
-u8 GetRecordedBattleRecordMixFriendClass(void);
-u8 GetRecordedBattleApprenticeId(void);
-u8 GetRecordedBattleRecordMixFriendLanguage(void);
-u8 GetRecordedBattleApprenticeLanguage(void);
-void RecordedBattle_SaveBattleOutcome(void);
-u16 *GetRecordedBattleEasyChatSpeech(void);
+u8 GetBattlerLinkPlayerGender(u32 battler);
 
 #endif // GUARD_RECORDED_BATTLE_H

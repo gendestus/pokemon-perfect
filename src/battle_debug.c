@@ -917,7 +917,7 @@ void CB2_BattleDebugMenu(void)
         break;
     case 3:
         LoadPalette(sBgColor, 0, 2);
-        LoadPalette(GetOverworldTextboxPalettePtr(), 0xf0, 16);
+        LoadPalette(GetTextWindowPalette(2), 0xf0, 16);
         gMain.state++;
         break;
     case 4:

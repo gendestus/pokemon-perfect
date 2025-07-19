@@ -1,21 +1,18 @@
-#include "global.h"
 #include "play_time.h"
 #include "fake_rtc.h"
-#include "field_player_avatar.h"
+
+static u8 sPlayTimeCounterState;
 
 enum
 {
     STOPPED,
     RUNNING,
-    MAXED_OUT
+    MAXED_OUT,
 };
-
-static u8 sPlayTimeCounterState;
 
 void PlayTimeCounter_Reset(void)
 {
     sPlayTimeCounterState = STOPPED;
-
     gSaveBlock2Ptr->playTimeHours = 0;
     gSaveBlock2Ptr->playTimeMinutes = 0;
     gSaveBlock2Ptr->playTimeSeconds = 0;
@@ -25,7 +22,6 @@ void PlayTimeCounter_Reset(void)
 void PlayTimeCounter_Start(void)
 {
     sPlayTimeCounterState = RUNNING;
-
     if (gSaveBlock2Ptr->playTimeHours > 999)
         PlayTimeCounter_SetToMax();
 }
@@ -41,7 +37,6 @@ void PlayTimeCounter_Update(void)
         return;
 
     gSaveBlock2Ptr->playTimeVBlanks++;
-    UpdateSpinData();
 
     if (gSaveBlock2Ptr->playTimeVBlanks < 60)
         return;
@@ -69,7 +64,6 @@ void PlayTimeCounter_Update(void)
 void PlayTimeCounter_SetToMax(void)
 {
     sPlayTimeCounterState = MAXED_OUT;
-
     gSaveBlock2Ptr->playTimeHours = 999;
     gSaveBlock2Ptr->playTimeMinutes = 59;
     gSaveBlock2Ptr->playTimeSeconds = 59;

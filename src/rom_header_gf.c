@@ -21,16 +21,16 @@ struct GFRomHeader
     u32 version;
     u32 language;
     u8 gameName[32];
-    const struct CompressedSpriteSheet *monFrontPics;
-    const struct CompressedSpriteSheet *monBackPics;
-    const struct SpritePalette *monNormalPalettes;
-    const struct SpritePalette *monShinyPalettes;
-    const u8 *const *monIcons;
+    const struct CompressedSpriteSheet * monFrontPics;
+    const struct CompressedSpriteSheet * monBackPics;
+    const struct SpritePalette * monNormalPalettes;
+    const struct SpritePalette * monShinyPalettes;
+    const u8 *const * monIcons;
     const u8 *monIconPaletteIds;
-    const struct SpritePalette *monIconPalettes;
-    const u8 (*monSpeciesNames)[];
-    const u8 (*moveNames)[];
-    const struct Decoration *decorations;
+    const struct SpritePalette * monIconPalettes;
+    const u8 (* monSpeciesNames)[];
+    const u8 (* moveNames)[];
+    const struct Decoration * decorations;
     u32 flagsOffset;
     u32 varsOffset;
     u32 pokedexOffset;
@@ -70,13 +70,13 @@ struct GFRomHeader
     u32 externalEventFlagsOffset;
     u32 externalEventDataOffset;
     u32 unk18;
-    const struct SpeciesInfo *speciesInfo;
-    const u8 (*abilityNames)[];
-    const u8 *const *abilityDescriptions;
-    const struct Item *items;
-    const struct MoveInfo *moves;
-    const struct CompressedSpriteSheet *ballGfx;
-    const struct SpritePalette *ballPalettes;
+    const struct SpeciesInfo * speciesInfo;
+    const u8 (* abilityNames)[];
+    const u8 *const * abilityDescriptions;
+    const struct Item * items;
+    const struct MoveInfo * moves;
+    const struct CompressedSpriteSheet * ballGfx;
+    const struct SpritePalette * ballPalettes;
     u32 gcnLinkFlagsOffset;
     u32 gameClearFlag;
     u32 ribbonFlag;
@@ -98,11 +98,14 @@ struct GFRomHeader
 
 // This seems to need to be in the text section for some reason.
 // To avoid a changed section attributes warning it's put in a special .text.consts section.
-__attribute__((section(".text.consts")))
-USED static const struct GFRomHeader sGFRomHeader = {
+__attribute__((section(".text.header_gf"))) USED const struct GFRomHeader sGFRomHeader = {
     .version = GAME_VERSION,
     .language = GAME_LANGUAGE,
-    .gameName = "pokemon emerald version",
+#ifdef FIRERED
+    .gameName = "pokemon red version",
+#else
+    .gameName = "pokemon green version",
+#endif
     //.monFrontPics = gMonFrontPicTable, // Handled in gSpeciesInfo
     //.monBackPics = gMonBackPicTable, // Handled in gSpeciesInfo
     //.monNormalPalettes = gMonPaletteTable, // Handled in gSpeciesInfo
@@ -118,9 +121,9 @@ USED static const struct GFRomHeader sGFRomHeader = {
     .pokedexOffset = offsetof(struct SaveBlock2, pokedex),
     .seen1Offset = offsetof(struct SaveBlock1, dexSeen),
     .seen2Offset = offsetof(struct SaveBlock1, dexSeen), // dex flags are combined, just provide the same pointer
-    .pokedexVar = VAR_NATIONAL_DEX - VARS_START,
-    .pokedexFlag = FLAG_RECEIVED_POKEDEX_FROM_BIRCH,
-    .mysteryEventFlag = FLAG_SYS_MYSTERY_EVENT_ENABLE,
+    .pokedexVar = VAR_0x403C - VARS_START,
+    .pokedexFlag = FLAG_0x838,
+    .mysteryEventFlag = FLAG_SYS_MYSTERY_GIFT_ENABLED,
     .pokedexCount = NATIONAL_DEX_COUNT,
     .playerNameLength = PLAYER_NAME_LENGTH,
     .trainerNameLength = TRAINER_NAME_LENGTH,
@@ -148,8 +151,8 @@ USED static const struct GFRomHeader sGFRomHeader = {
     .trainerIdOffset = offsetof(struct SaveBlock2, playerTrainerId),
     .playerNameOffset = offsetof(struct SaveBlock2, playerName),
     .playerGenderOffset = offsetof(struct SaveBlock2, playerGender),
-    .frontierStatusOffset = offsetof(struct SaveBlock2, frontier.challengeStatus),
-    .frontierStatusOffset2 = offsetof(struct SaveBlock2, frontier.challengeStatus),
+    .frontierStatusOffset = offsetof(struct SaveBlock2, unkFlag2),
+    .frontierStatusOffset2 = offsetof(struct SaveBlock2, unkFlag2),
     .externalEventFlagsOffset = offsetof(struct SaveBlock1, externalEventFlags),
     .externalEventDataOffset = offsetof(struct SaveBlock1, externalEventData),
     .unk18 = 0x00000000,
@@ -176,5 +179,5 @@ USED static const struct GFRomHeader sGFRomHeader = {
     .enigmaBerrySize = sizeof(struct EnigmaBerry),
 #endif //FREE_ENIGMA_BERRY
     .moveDescriptions = NULL,
-    .unk20 = 0x00000000, // 0xFFFFFFFF in FRLG
+    .unk20 = 0xFFFFFFFF, // 0x00000000 in Emerald
 };

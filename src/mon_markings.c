@@ -1,14 +1,12 @@
 #include "global.h"
+
 #include "dma3.h"
-#include "graphics.h"
-#include "main.h"
-#include "window.h"
-#include "list_menu.h"
+
 #include "mon_markings.h"
-#include "constants/songs.h"
+#include "graphics.h"
 #include "sound.h"
-#include "sprite.h"
 #include "text_window.h"
+#include "constants/songs.h"
 
 #define ANIM_CURSOR (NUM_MON_MARKINGS * 2)
 #define ANIM_TEXT   (ANIM_CURSOR + 1)
@@ -22,8 +20,9 @@ static void SpriteCB_Marking(struct Sprite *);
 static void SpriteCB_Cursor(struct Sprite *);
 static struct Sprite *CreateMarkingComboSprite(u16, u16, const u16 *, u16);
 
-static const u16 sMonMarkings_Pal[] = INCBIN_U16("graphics/interface/mon_markings.gbapal");
-static const u8 sMonMarkings_Gfx[] = INCBIN_U8("graphics/interface/mon_markings.4bpp");
+static const u16 sMonMarkings_Pal[] = INCBIN_U16("graphics/misc/mon_markings.gbapal");
+static const u16 sMonMarkings_Gfx[] = INCBIN_U16("graphics/misc/mon_markings.4bpp");
+static const u8 sJPText_Confirm[] = _("けってい");
 
 static const struct OamData sOamData_MenuWindow =
 {
@@ -359,35 +358,27 @@ void FreeMonMarkingsMenu(void)
 {
     u16 i;
 
-    for (i = 0; i < 2; i++)
-    {
+    for (i = 0; i < 3; i++)
         FreeSpriteTilesByTag(sMenu->baseTileTag + i);
-        FreeSpritePaletteByTag(sMenu->basePaletteTag + i);
-    }
+
+    FreeSpritePaletteByTag(sMenu->basePaletteTag);
+    FreeSpritePaletteByTag(sMenu->basePaletteTag + 1);
     for (i = 0; i < ARRAY_COUNT(sMenu->windowSprites); i++)
     {
-        if (!sMenu->windowSprites[i])
-            return;
+        if (sMenu->windowSprites[i] == NULL)
+            return; // break;
         DestroySprite(sMenu->windowSprites[i]);
-        sMenu->windowSprites[i] = NULL;
     }
     for (i = 0; i < NUM_MON_MARKINGS; i++)
     {
-        if (!sMenu->markingSprites[i])
-            return;
+        if (sMenu->markingSprites[i] == NULL)
+            return; // break;
         DestroySprite(sMenu->markingSprites[i]);
-        sMenu->markingSprites[i] = NULL;
     }
-    if (sMenu->cursorSprite)
-    {
+    if (sMenu->cursorSprite != NULL)
         DestroySprite(sMenu->cursorSprite);
-        sMenu->cursorSprite = NULL;
-    }
-    if (sMenu->textSprite)
-    {
+    if (sMenu->textSprite != NULL)
         DestroySprite(sMenu->textSprite);
-        sMenu->textSprite = NULL;
-    }
 }
 
 bool8 HandleMonMarkingsMenuInput(void)
@@ -569,7 +560,7 @@ static void SpriteCB_Cursor(struct Sprite *sprite)
 // Creates a mon marking combination sprite with a spritesheet that holds every possible combination, used by the summary screen / Pokénav
 struct Sprite *CreateMonMarkingAllCombosSprite(u16 tileTag, u16 paletteTag, const u16 *palette)
 {
-    if (!palette)
+    if (palette == NULL)
         palette = sMonMarkings_Pal;
     return CreateMarkingComboSprite(tileTag, paletteTag, palette, 1 << NUM_MON_MARKINGS);
 }
@@ -577,7 +568,7 @@ struct Sprite *CreateMonMarkingAllCombosSprite(u16 tileTag, u16 paletteTag, cons
 // Creates a mon marking combination sprite with a spritesheet that holds only one combination, used for the currently selected PC mon
 struct Sprite *CreateMonMarkingComboSprite(u16 tileTag, u16 paletteTag, const u16 *palette)
 {
-    if (!palette)
+    if (palette == NULL)
         palette = sMonMarkings_Pal;
     return CreateMarkingComboSprite(tileTag, paletteTag, palette, 1);
 }
@@ -612,5 +603,6 @@ static struct Sprite *CreateMarkingComboSprite(u16 tileTag, u16 paletteTag, cons
 // Update what combination is shown, used for sprites created with CreateMonMarkingComboSprite
 void UpdateMonMarkingTiles(u8 markings, void *dest)
 {
-    RequestDma3Copy(&sMonMarkings_Gfx[markings * 0x80], dest, 0x80, 0x10);
+    RequestDma3Copy(&sMonMarkings_Gfx[64 * markings], dest, 0x80, DMA3_32BIT);
 }
+

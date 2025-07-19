@@ -6,7 +6,7 @@
 #include "battle_interface.h"
 #include "battle_util.h"
 #include "bg.h"
-#include "contest.h"
+// #include "contest.h"
 #include "decompress.h"
 #include "dma3.h"
 #include "gpu_regs.h"
@@ -86,7 +86,7 @@ static void Cmd_jumpifmovetypeequal(void);
 static void Cmd_createdragondartsprite(void);
 static void RunAnimScriptCommand(void);
 static void Task_UpdateMonBg(u8 taskId);
-static void FlipBattlerBgTiles(void);
+// static void FlipBattlerBgTiles(void);
 static void Task_ClearMonBg(u8 taskId);
 static void Task_ClearMonBgStatic(u8 taskId);
 static void Task_FadeToBg(u8 taskId);
@@ -202,7 +202,7 @@ static const u8* const sBattleAnims_General[NUM_B_ANIMS_GENERAL] =
     [B_ANIM_STATS_CHANGE]           = gBattleAnimGeneral_StatsChange,
     [B_ANIM_SUBSTITUTE_FADE]        = gBattleAnimGeneral_SubstituteFade,
     [B_ANIM_SUBSTITUTE_APPEAR]      = gBattleAnimGeneral_SubstituteAppear,
-    [B_ANIM_POKEBLOCK_THROW]        = gBattleAnimGeneral_PokeblockThrow,
+    [B_ANIM_BAIT_THROW]             = gBattleAnimGeneral_BaitThrow,
     [B_ANIM_ITEM_KNOCKOFF]          = gBattleAnimGeneral_ItemKnockoff,
     [B_ANIM_TURN_TRAP]              = gBattleAnimGeneral_TurnTrap,
     [B_ANIM_HELD_ITEM_EFFECT]       = gBattleAnimGeneral_HeldItemEffect,
@@ -253,6 +253,11 @@ static const u8* const sBattleAnims_General[NUM_B_ANIMS_GENERAL] =
     [B_ANIM_TERA_ACTIVATE]          = gBattleAnimGeneral_TeraActivate,
     [B_ANIM_SIMPLE_HEAL]            = gBattleAnimGeneral_SimpleHeal,
     [B_ANIM_POWER_CONSTRUCT]        = gBattleAnimGeneral_PowerConstruct,
+    [B_ANIM_MON_SCARED]             = gBattleAnimGeneral_MonScared,
+	[B_ANIM_GHOST_GET_OUT]          = gBattleAnimGeneral_GhostGetOut,
+	[B_ANIM_SILPH_SCOPED]           = gBattleAnimGeneral_SilphScoped,
+	[B_ANIM_ROCK_THROW]             = gBattleAnimGeneral_SafariRockThrow,
+	[B_ANIM_SAFARI_REACTION]        = gBattleAnimGeneral_SafariReaction,
 };
 
 static const u8* const sBattleAnims_Special[NUM_B_ANIMS_SPECIAL] =
@@ -376,8 +381,8 @@ void LaunchBattleAnimation(u32 animType, u32 animId)
     }
     else
     {
-        for (i = 0; i < CONTESTANT_COUNT; i++)
-            gAnimBattlerSpecies[i] = gContestResources->moveAnim->species;
+        // for (i = 0; i < CONTESTANT_COUNT; i++)
+        //     gAnimBattlerSpecies[i] = gContestResources->moveAnim->species;
     }
 
     if (animType != ANIM_TYPE_MOVE)
@@ -1063,13 +1068,14 @@ void MoveBattlerSpriteToBG(u8 battler, bool8 toBG_2, bool8 setSpriteInvisible)
         }
         else
         {
-            RequestDma3Fill(0, (void *)(BG_SCREEN_ADDR(8)), 0x2000, 1);
-            RequestDma3Fill(0xFF, (void *)(BG_SCREEN_ADDR(28)), 0x1000, 0);
+            // different values in pokefirered
+            RequestDma3Fill(0, (void *)(BG_SCREEN_ADDR(8)), 0x2000, DMA3_32BIT);
+            RequestDma3Fill(0, (void *)(BG_SCREEN_ADDR(28)), 0x1000, DMA3_32BIT);
         }
 
         GetBattleAnimBg1Data(&animBg);
-        CpuFill16(0, animBg.bgTiles, 0x1000);
-        CpuFill16(0xFF, animBg.bgTilemap, 0x800);
+        CpuFill16(toBG_2, animBg.bgTiles, 0x1000);
+        CpuFill16(toBG_2, animBg.bgTilemap, 0x800);
 
         SetAnimBgAttribute(1, BG_ANIM_PRIORITY, 2);
         SetAnimBgAttribute(1, BG_ANIM_SCREEN_SIZE, 1);
@@ -1078,8 +1084,8 @@ void MoveBattlerSpriteToBG(u8 battler, bool8 toBG_2, bool8 setSpriteInvisible)
         battlerSpriteId = gBattlerSpriteIds[battler];
 
         gBattle_BG1_X =  -(gSprites[battlerSpriteId].x + gSprites[battlerSpriteId].x2) + 0x20;
-        if (IsContest() && IsSpeciesNotUnown(gContestResources->moveAnim->species))
-            gBattle_BG1_X--;
+        // if (IsContest() && IsSpeciesNotUnown(gContestResources->moveAnim->species))
+        //     gBattle_BG1_X--;
 
         gBattle_BG1_Y =  -(gSprites[battlerSpriteId].y + gSprites[battlerSpriteId].y2) + 0x20;
         if (setSpriteInvisible)
@@ -1098,8 +1104,8 @@ void MoveBattlerSpriteToBG(u8 battler, bool8 toBG_2, bool8 setSpriteInvisible)
 
         DrawBattlerOnBg(1, 0, 0, battlerPosition, animBg.paletteId, animBg.bgTiles, animBg.bgTilemap, animBg.tilesOffset);
 
-        if (IsContest())
-            FlipBattlerBgTiles();
+        // if (IsContest())
+        //     FlipBattlerBgTiles();
     }
     else
     {
@@ -1130,31 +1136,31 @@ void MoveBattlerSpriteToBG(u8 battler, bool8 toBG_2, bool8 setSpriteInvisible)
     }
 }
 
-static void FlipBattlerBgTiles(void)
-{
-    s32 i, j;
-    struct BattleAnimBgData animBg;
-    u16 *ptr;
+// static void FlipBattlerBgTiles(void)
+// {
+//     s32 i, j;
+//     struct BattleAnimBgData animBg;
+//     u16 *ptr;
 
-    if (IsSpeciesNotUnown(gContestResources->moveAnim->species))
-    {
-        GetBattleAnimBg1Data(&animBg);
-        ptr = animBg.bgTilemap;
-        for (i = 0; i < 8; i++)
-        {
-            for (j = 0; j < 4; j++)
-            {
-                u16 temp;
-                SWAP(ptr[j + i * 32], ptr[7 - j + i * 32], temp);
-            }
-        }
-        for (i = 0; i < 8; i++)
-        {
-            for (j = 0; j < 8; j++)
-                ptr[j + i * 32] ^= 0x400;
-        }
-    }
-}
+//     if (IsSpeciesNotUnown(gContestResources->moveAnim->species))
+//     {
+//         GetBattleAnimBg1Data(&animBg);
+//         ptr = animBg.bgTilemap;
+//         for (i = 0; i < 8; i++)
+//         {
+//             for (j = 0; j < 4; j++)
+//             {
+//                 u16 temp;
+//                 SWAP(ptr[j + i * 32], ptr[7 - j + i * 32], temp);
+//             }
+//         }
+//         for (i = 0; i < 8; i++)
+//         {
+//             for (j = 0; j < 8; j++)
+//                 ptr[j + i * 32] ^= 0x400;
+//         }
+//     }
+// }
 
 void RelocateBattleBgPal(u16 paletteNum, u16 *dest, u32 offset, bool8 largeScreen)
 {
@@ -1483,10 +1489,10 @@ static void Cmd_goto(void)
 // As a result, if misused, this function cannot reliably discern between field and contest status and could result in undefined behavior.
 bool8 IsContest(void)
 {
-    if (!gMain.inBattle)
-        return TRUE;
-    else
-        return FALSE;
+    // if (!gMain.inBattle)
+    //     return TRUE;
+    // else
+    return FALSE;
 }
 
 #define tBackgroundId   data[0]
@@ -1571,17 +1577,17 @@ void LoadMoveBg(u16 bgId)
         void *decompressionBuffer = Alloc(0x800);
         const u32 *tilemap = gBattleAnimBackgroundTable[bgId].tilemap;
 
-        LZDecompressWram(tilemap, decompressionBuffer);
+        DecompressDataWithHeaderWram(tilemap, decompressionBuffer);
         RelocateBattleBgPal(GetBattleBgPaletteNum(), decompressionBuffer, 0x100, FALSE);
         DmaCopy32(3, decompressionBuffer, (void *)BG_SCREEN_ADDR(26), 0x800);
-        LZDecompressVram(gBattleAnimBackgroundTable[bgId].image, (void *)BG_SCREEN_ADDR(4));
+        DecompressDataWithHeaderVram(gBattleAnimBackgroundTable[bgId].image, (void *)BG_SCREEN_ADDR(4));
         LoadPalette(gBattleAnimBackgroundTable[bgId].palette, BG_PLTT_ID(GetBattleBgPaletteNum()), PLTT_SIZE_4BPP);
         Free(decompressionBuffer);
     }
     else
     {
-        LZDecompressVram(gBattleAnimBackgroundTable[bgId].tilemap, (void *)BG_SCREEN_ADDR(26));
-        LZDecompressVram(gBattleAnimBackgroundTable[bgId].image, (void *)BG_CHAR_ADDR(2));
+        DecompressDataWithHeaderVram(gBattleAnimBackgroundTable[bgId].tilemap, (void *)BG_SCREEN_ADDR(26));
+        DecompressDataWithHeaderVram(gBattleAnimBackgroundTable[bgId].image, (void *)BG_CHAR_ADDR(2));
         LoadPalette(gBattleAnimBackgroundTable[bgId].palette, BG_PLTT_ID(2), PLTT_SIZE_4BPP);
     }
 }
@@ -1589,7 +1595,7 @@ void LoadMoveBg(u16 bgId)
 static void LoadDefaultBg(void)
 {
     if (IsContest())
-        LoadContestBgAfterMoveAnim();
+        ;// LoadContestBgAfterMoveAnim();
     else if (B_TERRAIN_BG_CHANGE == TRUE && gFieldStatuses & STATUS_FIELD_TERRAIN_ANY)
         DrawTerrainTypeBattleBackground();
     else

@@ -60,12 +60,14 @@ enum FirstTurnEventsStates
     FIRST_TURN_EVENTS_OPPORTUNIST_1,
     FIRST_TURN_EVENTS_ITEM_EFFECTS,
     FIRST_TURN_EVENTS_OPPORTUNIST_2,
+    FIRST_TURN_EVENTS_EJECT_PACK,
     FIRST_TURN_EVENTS_END,
 };
 
 void CB2_InitBattle(void);
 void BattleMainCB2(void);
 void CB2_QuitRecordedBattle(void);
+void FreeRestoreBattleData(void);
 void VBlankCB_Battle(void);
 void SpriteCB_VsLetterDummy(struct Sprite *sprite);
 void SpriteCB_VsLetterInit(struct Sprite *sprite);

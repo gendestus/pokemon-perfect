@@ -1,15 +1,8 @@
 #include "global.h"
-#include "malloc.h"
-#include "decompress.h"
 #include "util.h"
 #include "link.h"
 #include "link_rfu.h"
-#include "overworld.h"
-#include "script.h"
-#include "battle_tower.h"
-#include "mystery_event_script.h"
-#include "mystery_gift.h"
-#include "mystery_gift_link.h"
+#include "mystery_gift_server.h"
 
 /*
     Handles the link connection functions used by the Mystery Gift client/server.
@@ -26,17 +19,17 @@ struct SendRecvHeader
 static u32 MGL_Receive(struct MysteryGiftLink *);
 static u32 MGL_Send(struct MysteryGiftLink *);
 
-u32 MysteryGiftLink_Recv(struct MysteryGiftLink *link)
+u32 MysteryGiftLink_Recv(struct MysteryGiftLink * link)
 {
     return link->recvFunc(link);
 }
 
-u32 MysteryGiftLink_Send(struct MysteryGiftLink *link)
+u32 MysteryGiftLink_Send(struct MysteryGiftLink * link)
 {
     return link->sendFunc(link);
 }
 
-void MysteryGiftLink_Init(struct MysteryGiftLink *link, u32 sendPlayerId, u32 recvPlayerId)
+void MysteryGiftLink_Init(struct MysteryGiftLink * link, u32 sendPlayerId, u32 recvPlayerId)
 {
     link->sendPlayerId = sendPlayerId;
     link->recvPlayerId = recvPlayerId;
@@ -53,7 +46,7 @@ void MysteryGiftLink_Init(struct MysteryGiftLink *link, u32 sendPlayerId, u32 re
     link->recvFunc = MGL_Receive;
 }
 
-void MysteryGiftLink_InitSend(struct MysteryGiftLink *link, u32 ident, const void *src, u32 size)
+void MysteryGiftLink_InitSend(struct MysteryGiftLink * link, u32 ident, const void *src, u32 size)
 {
     link->state = 0;
     link->sendIdent = ident;
@@ -66,7 +59,7 @@ void MysteryGiftLink_InitSend(struct MysteryGiftLink *link, u32 ident, const voi
     link->sendBuffer = src;
 }
 
-void MysteryGiftLink_InitRecv(struct MysteryGiftLink *link, u32 ident, void *dest)
+void MysteryGiftLink_InitRecv(struct MysteryGiftLink * link, u32 ident, void *dest)
 {
     link->state = 0;
     link->recvIdent = ident;
@@ -94,7 +87,7 @@ static void MGL_ResetReceived(u32 playerId)
     ResetBlockReceivedFlag(playerId);
 }
 
-static bool32 MGL_Receive(struct MysteryGiftLink *link)
+static bool32 MGL_Receive(struct MysteryGiftLink * link)
 {
     struct SendRecvHeader header;
 
@@ -159,7 +152,7 @@ static bool32 MGL_Receive(struct MysteryGiftLink *link)
     return FALSE;
 }
 
-static bool32 MGL_Send(struct MysteryGiftLink *link)
+static bool32 MGL_Send(struct MysteryGiftLink * link)
 {
     struct SendRecvHeader header;
 

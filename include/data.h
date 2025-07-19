@@ -37,6 +37,7 @@ struct TrainerSprite
     const union AnimCmd *const *const animation;
     const struct Coords16 mugshotCoords;
     s16 mugshotRotation;
+    struct MonCoords frontPicCoords;
 };
 
 struct TrainerBacksprite
@@ -150,25 +151,20 @@ struct FollowerMessagePool
     u16 length;
 };
 
-extern const u16 gMinigameDigits_Pal[];
-extern const u32 gMinigameDigits_Gfx[];
-
 extern const struct SpriteFrameImage gBattlerPicTable_PlayerLeft[];
 extern const struct SpriteFrameImage gBattlerPicTable_OpponentLeft[];
 extern const struct SpriteFrameImage gBattlerPicTable_PlayerRight[];
 extern const struct SpriteFrameImage gBattlerPicTable_OpponentRight[];
-extern const struct SpriteFrameImage gTrainerBackPicTable_Brendan[];
-extern const struct SpriteFrameImage gTrainerBackPicTable_May[];
 extern const struct SpriteFrameImage gTrainerBackPicTable_Red[];
 extern const struct SpriteFrameImage gTrainerBackPicTable_Leaf[];
-extern const struct SpriteFrameImage gTrainerBackPicTable_RubySapphireBrendan[];
-extern const struct SpriteFrameImage gTrainerBackPicTable_RubySapphireMay[];
-extern const struct SpriteFrameImage gTrainerBackPicTable_Wally[];
+extern const struct SpriteFrameImage gTrainerBackPicTable_Pokedude[];
+extern const struct SpriteFrameImage gTrainerBackPicTable_OldMan[];
+extern const struct SpriteFrameImage gTrainerBackPicTable_RSBrendan[];
+extern const struct SpriteFrameImage gTrainerBackPicTable_RSMay[];
 extern const struct SpriteFrameImage gTrainerBackPicTable_Steven[];
 
 extern const union AffineAnimCmd *const gAffineAnims_BattleSpritePlayerSide[];
 extern const union AffineAnimCmd *const gAffineAnims_BattleSpriteOpponentSide[];
-extern const union AffineAnimCmd *const gAffineAnims_BattleSpriteContest[];
 
 extern const union AnimCmd sAnim_GeneralFrame0[];
 extern const union AnimCmd sAnim_GeneralFrame3[];
@@ -176,7 +172,6 @@ extern const union AnimCmd *const gAnims_MonPic[];
 extern const union AnimCmd *const gAnims_Trainer[];
 extern const struct TrainerSprite gTrainerSprites[];
 extern const struct TrainerBacksprite gTrainerBacksprites[];
-extern const u16 gTrainerPicToTrainerBackPic[];
 
 extern const struct Trainer gTrainers[DIFFICULTY_COUNT][TRAINERS_COUNT];
 extern const struct Trainer gBattlePartners[DIFFICULTY_COUNT][PARTNER_COUNT];

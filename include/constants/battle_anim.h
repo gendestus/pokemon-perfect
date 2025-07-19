@@ -278,7 +278,7 @@
 #define ANIM_TAG_GREEN_SPIKE                (ANIM_SPRITES_START + 266)
 #define ANIM_TAG_WHITE_CIRCLE_OF_LIGHT      (ANIM_SPRITES_START + 267)
 #define ANIM_TAG_GLOWY_BLUE_ORB             (ANIM_SPRITES_START + 268)
-#define ANIM_TAG_POKEBLOCK                  (ANIM_SPRITES_START + 269)
+#define ANIM_TAG_SAFARI_BAIT                (ANIM_SPRITES_START + 269)
 #define ANIM_TAG_WHITE_FEATHER              (ANIM_SPRITES_START + 270)
 #define ANIM_TAG_SPARKLE_6                  (ANIM_SPRITES_START + 271)
 #define ANIM_TAG_SPLASH                     (ANIM_SPRITES_START + 272)
@@ -536,7 +536,7 @@
 #define B_ANIM_STATS_CHANGE             0
 #define B_ANIM_SUBSTITUTE_FADE          1
 #define B_ANIM_SUBSTITUTE_APPEAR        2
-#define B_ANIM_POKEBLOCK_THROW          3
+#define B_ANIM_BAIT_THROW               3
 #define B_ANIM_ITEM_KNOCKOFF            4
 #define B_ANIM_TURN_TRAP                5
 #define B_ANIM_HELD_ITEM_EFFECT         6
@@ -587,8 +587,14 @@
 #define B_ANIM_TERA_ACTIVATE            51
 #define B_ANIM_SIMPLE_HEAL              52
 #define B_ANIM_POWER_CONSTRUCT          53
+// pokefirered
+#define B_ANIM_MON_SCARED               (B_ANIM_POWER_CONSTRUCT + 1)
+#define B_ANIM_GHOST_GET_OUT            (B_ANIM_MON_SCARED      + 1)
+#define B_ANIM_SILPH_SCOPED             (B_ANIM_GHOST_GET_OUT   + 1)
+#define B_ANIM_ROCK_THROW               (B_ANIM_SILPH_SCOPED    + 1)
+#define B_ANIM_SAFARI_REACTION          (B_ANIM_ROCK_THROW      + 1)
 
-#define NUM_B_ANIMS_GENERAL             54
+#define NUM_B_ANIMS_GENERAL             (B_ANIM_SAFARI_REACTION + 1)
 
 // special animations table (sBattleAnims_Special)
 #define B_ANIM_LVL_UP                   0

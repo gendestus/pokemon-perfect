@@ -1,13 +1,16 @@
 #ifndef GUARD_FIELDMAP_H
 #define GUARD_FIELDMAP_H
 
-#define NUM_TILES_IN_PRIMARY 512
+#include "global.h"
+
+#define NUM_TILES_IN_PRIMARY 640
 #define NUM_TILES_TOTAL 1024
-#define NUM_METATILES_IN_PRIMARY 512
+#define NUM_METATILES_IN_PRIMARY 640
 #define NUM_METATILES_TOTAL 1024
-#define NUM_PALS_IN_PRIMARY 6
+#define NUM_PALS_IN_PRIMARY 7
 #define NUM_PALS_TOTAL 13
-#define MAX_MAP_DATA_SIZE 10240
+#define MAX_MAP_DATA_SIZE 0x2800
+#define VIRTUAL_MAP_SIZE (MAX_MAP_DATA_SIZE)
 
 #define NUM_TILES_PER_METATILE 8
 
@@ -19,41 +22,37 @@
 #define MAP_OFFSET_W (MAP_OFFSET * 2 + 1)
 #define MAP_OFFSET_H (MAP_OFFSET * 2)
 
-#include "main.h"
+extern struct BackupMapLayout VMap;
+extern const struct MapLayout Route1_Layout;
+extern u16 ALIGNED(4) sBackupMapData[VIRTUAL_MAP_SIZE];
 
-extern struct BackupMapLayout gBackupMapLayout;
-extern u16 ALIGNED(4) sBackupMapData[MAX_MAP_DATA_SIZE];
-
-u32 MapGridGetMetatileIdAt(int x, int y);
-u32 MapGridGetMetatileBehaviorAt(int x, int y);
-void MapGridSetMetatileIdAt(int x, int y, u16 metatile);
-void MapGridSetMetatileEntryAt(int x, int y, u16 metatile);
-void GetCameraCoords(u16 *x, u16 *y);
-u8 MapGridGetCollisionAt(int x, int y);
-int GetMapBorderIdAt(int x, int y);
-bool32 CanCameraMoveInDirection(int direction);
-u16 GetMetatileAttributesById(u16 metatile);
-void GetCameraFocusCoords(u16 *x, u16 *y);
-u8 MapGridGetMetatileLayerTypeAt(int x, int y);
-u8 MapGridGetElevationAt(int x, int y);
-bool8 CameraMove(int x, int y);
+u32 MapGridGetMetatileIdAt(s32, s32);
+u32 MapGridGetMetatileBehaviorAt(s16, s16);
+u8 MapGridGetMetatileLayerTypeAt(s16 x, s16 y);
+void MapGridSetMetatileIdAt(s32, s32, u16);
+void MapGridSetMetatileEntryAt(s32, s32, u16);
+u8 MapGridGetElevationAt(s32 x, s32 y);
+void GetCameraCoords(u16 *, u16 *);
+bool8 MapGridGetCollisionAt(s32, s32);
+s32 GetMapBorderIdAt(s32, s32);
+bool32 CanCameraMoveInDirection(s32);
+const struct MapHeader * GetMapHeaderFromConnection(const struct MapConnection * connection);
+const struct MapConnection * GetMapConnectionAtPos(s16 x, s16 y);
+void ApplyGlobalTintToPaletteSlot(u8 slot, u8 count);
 void SaveMapView(void);
-void SetCameraFocusCoords(u16 x, u16 y);
+u32 ExtractMetatileAttribute(u32 attributes, u8 attributeType);
+u32 MapGridGetMetatileAttributeAt(s16 x, s16 y, u8 attributeType);
+void MapGridSetMetatileImpassabilityAt(s32 x, s32 y, bool32 arg2);
+bool8 CameraMove(s32 x, s32 y);
+void CopyMapTilesetsToVram(struct MapLayout const * mapLayout);
+void LoadMapTilesetPalettes(struct MapLayout const * mapLayout);
 void InitMap(void);
+void CopySecondaryTilesetToVramUsingHeap(const struct MapLayout * mapLayout);
+void LoadSecondaryTilesetPalette(const struct MapLayout * mapLayout, bool8 skipFaded);
 void InitMapFromSavedGame(void);
-void InitTrainerHillMap(void);
-void InitBattlePyramidMap(bool8 setPlayerPosition);
-void CopyMapTilesetsToVram(struct MapLayout const *mapLayout);
-void LoadMapTilesetPalettes(struct MapLayout const *mapLayout);
-void LoadSecondaryTilesetPalette(struct MapLayout const *mapLayout, bool8 skipFaded);
-void CopySecondaryTilesetToVramUsingHeap(struct MapLayout const *mapLayout);
-void CopyPrimaryTilesetToVram(struct MapLayout const *mapLayout);
-void CopySecondaryTilesetToVram(struct MapLayout const *mapLayout);
-const struct MapHeader *const GetMapHeaderFromConnection(const struct MapConnection *connection);
-const struct MapConnection *GetMapConnectionAtPos(s16 x, s16 y);
-void MapGridSetMetatileImpassabilityAt(int x, int y, bool32 impassable);
-
-// field_region_map.c
-void FieldInitRegionMap(MainCallback callback);
+void CopyPrimaryTilesetToVram(const struct MapLayout *mapLayout);
+void CopySecondaryTilesetToVram(const struct MapLayout *mapLayout);
+void GetCameraFocusCoords(u16 *x, u16 *y);
+void SetCameraFocusCoords(u16 x, u16 y);
 
 #endif //GUARD_FIELDMAP_H

@@ -44,9 +44,6 @@ void ScriptContext_ContinueScript(struct ScriptContext *ctx);
 void ScriptContext_Stop(void);
 void ScriptContext_Enable(void);
 void RunScriptImmediately(const u8 *ptr);
-const u8 *MapHeaderGetScriptTable(u8 tag);
-void MapHeaderRunScriptType(u8 tag);
-const u8 *MapHeaderCheckScriptTable(u8 tag);
 void RunOnLoadMapScript(void);
 void RunOnTransitionMapScript(void);
 void RunOnResumeMapScript(void);
@@ -56,17 +53,34 @@ bool8 TryRunOnFrameMapScript(void);
 void TryRunOnWarpIntoMapScript(void);
 u32 CalculateRamScriptChecksum(void);
 void ClearRamScript(void);
-bool8 InitRamScript(const u8 *script, u16 scriptSize, u8 mapGroup, u8 mapNum, u8 objectId);
+bool8 InitRamScript(u8 *script, u16 scriptSize, u8 mapGroup, u8 mapNum, u8 objectId);
 const u8 *GetRamScript(u8 objectId, const u8 *script);
 bool32 ValidateSavedRamScript(void);
 u8 *GetSavedRamScriptIfValid(void);
 void InitRamScript_NoObjectEvent(u8 *script, u16 scriptSize);
+bool32 ValidateRamScript(void);
+void InitRamScript_NoObjectEvent(u8 * script, u16 scriptSize);
+u8 * GetSavedRamScriptIfValid(void);
+void RegisterQuestLogInput(u8 var);
+void ClearMsgBoxCancelableState(void);
+void SetQuestLogInputIsDpadFlag(void);
+void ClearQuestLogInput(void);
+void ClearQuestLogInputIsDpadFlag(void);
+void MsgSetSignpost(void);
+void MsgSetNotSignpost(void);
+bool8 IsMsgSignpost(void);
+bool8 IsQuestLogInputDpad(void);
+u8 GetRegisteredQuestLogInput(void);
+void ResetFacingNpcOrSignpostVars(void);
+bool8 CanWalkAwayToCancelMsgBox(void);
+void SetWalkingIntoSignVars(void);
+bool8 IsMsgBoxWalkawayDisabled(void);
 
 // srccmd.h
 void SetMovingNpcId(u16 npcId);
 
-extern u8 gMsgIsSignPost;
-extern u8 gMsgBoxIsCancelable;
+extern const u8 *gRamScriptRetAddr;
+extern u8 gWalkAwayFromSignInhibitTimer;
 
 /* Script effects analysis.
  *
@@ -133,7 +147,7 @@ static inline bool32 Script_IsAnalyzingEffects(void)
 
 /* Optimize 'Script_RequestEffects' to a no-op if it would have no
  * effect. 'Script_RequestEffects' must be called in all commands and
- * natives/specials with 'requests_effects=TRUE' even if it would have
+ * natives/specials with 'request_effects=TRUE' even if it would have
  * no effect to future-proof against new effects. */
 #define Script_RequestEffects(effects) \
     ({ \

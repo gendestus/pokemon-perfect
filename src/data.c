@@ -1,19 +1,16 @@
 #include "global.h"
+
 #include "malloc.h"
+
 #include "battle.h"
+#include "battle_transition.h"
 #include "data.h"
 #include "graphics.h"
-#include "trainer_pools.h"
-#include "battle_transition.h"
 #include "constants/abilities.h"
+#include "constants/battle_ai.h"
 #include "constants/items.h"
 #include "constants/moves.h"
 #include "constants/trainers.h"
-#include "constants/battle_ai.h"
-
-const u16 gMinigameDigits_Pal[] = INCBIN_U16("graphics/link/minigame_digits.gbapal");
-const u32 gMinigameDigits_Gfx[] = INCBIN_U32("graphics/link/minigame_digits.4bpp.lz");
-static const u32 sMinigameDigitsThin_Gfx[] = INCBIN_U32("graphics/link/minigame_digits2.4bpp.lz"); // Unused
 
 #define BATTLER_OFFSET(i) (gHeap + 0x8000 + MON_PIC_SIZE * (i))
 
@@ -74,7 +71,7 @@ static const union AffineAnimCmd sAffineAnim_Battler_Normal[] =
 
 static const union AffineAnimCmd sAffineAnim_Battler_Flipped[] =
 {
-    AFFINEANIMCMD_FRAME(-0x100, 0x100, 0, 0),
+    AFFINEANIMCMD_FRAME(-0x100, 0x0100, 0, 0),
     AFFINEANIMCMD_END,
 };
 
@@ -87,7 +84,7 @@ static const union AffineAnimCmd sAffineAnim_Battler_Emerge[] =
 
 static const union AffineAnimCmd sAffineAnim_Battler_Return[] =
 {
-    AFFINEANIMCMD_FRAME( -0x2,  -0x2, 0, 18),
+    AFFINEANIMCMD_FRAME(-0x2, -0x2, 0, 18),
     AFFINEANIMCMD_FRAME(-0x10, -0x10, 0, 15),
     AFFINEANIMCMD_END,
 };
@@ -202,7 +199,6 @@ const union AffineAnimCmd *const gAffineAnims_BattleSpriteContest[] =
     sAffineAnim_Battler_Spin,
 };
 
-
 static const union AnimCmd sAnim_MonPic_0[] =
 {
     ANIMCMD_FRAME(0, 0),
@@ -215,10 +211,24 @@ static const union AnimCmd sAnim_MonPic_1[] =
     ANIMCMD_END,
 };
 
-const union AnimCmd *const gAnims_MonPic[MAX_MON_PIC_FRAMES] =
+static const union AnimCmd sAnim_MonPic_2[] =
+{
+    ANIMCMD_FRAME(2, 0),
+    ANIMCMD_END,
+};
+
+static const union AnimCmd sAnim_MonPic_3[] =
+{
+    ANIMCMD_FRAME(3, 0),
+    ANIMCMD_END,
+};
+
+const union AnimCmd *const gAnims_MonPic[] =
 {
     sAnim_MonPic_0,
     sAnim_MonPic_1,
+    sAnim_MonPic_2,
+    sAnim_MonPic_3,
 };
 
 const union AnimCmd *const gAnims_Trainer[] ={
@@ -226,11 +236,21 @@ const union AnimCmd *const gAnims_Trainer[] ={
     sAnim_GeneralFrame0,
 };
 
+#define TRAINER_SPRITE(trainerPic, sprite, size) [TRAINER_PIC_##trainerPic] = {sprite, size, TRAINER_PIC_##trainerPic}
+#define TRAINER_PAL(trainerPic, pal) [TRAINER_PIC_##trainerPic] = {pal, TRAINER_PIC_##trainerPic}
+
 #include "data/trainer_parties.h"
 
 const struct Trainer gTrainers[DIFFICULTY_COUNT][TRAINERS_COUNT] =
 {
 #include "data/trainers.h"
+};
+
+#include "data/partner_parties.h"
+
+const struct Trainer gBattlePartners[DIFFICULTY_COUNT][PARTNER_COUNT] =
+{
+#include "data/battle_partners.h"
 };
 
 #include "data/text/follower_messages.h"

@@ -23,11 +23,11 @@
 	.equiv ROM_HEADER_NINTENDO_LOGO_OFFSET, 0x04
 	.equiv ROM_HEADER_NINTENDO_LOGO_LENGTH, 0x98
 	.equiv ROM_HEADER_NINTENDO_LOGO_END,    0xA0
-
+	
 	.equiv MBPROGRESS_NONE,                 0x00
 	.equiv MBPROGRESS_LOGO_CORRECT,         0x01
 	.equiv MBPROGRESS_READY_TO_BOOT,        0x02
-
+	
 	.equiv GCMB_MAGIC_BOOTKEY_HASHVAL,      0xBB
 	.equiv GCMB_MAGIC_BOOTKEY,              0xBB
 	.equiv GCMB_MAGIC_COUNTER2,             0xCC
@@ -60,7 +60,7 @@ GameCubeMultiBoot_Hash_SkipEor:
 	thumb_func_end GameCubeMultiBoot_Hash
 
 	thumb_func_start GameCubeMultiBoot_Main
-@ void GameCubeMultiBoot_Main(struct GameCubeMultiBoot *mb);
+@ void GameCubeMultiBoot_Main(struct GameCubeMultiBoot *mb)@
 GameCubeMultiBoot_Main:
 	@ If there is no interrupt handler, skip counter manipulation
 	ldr r1, [r0, GCMB_STRUCT_SERIAL_INTR_HANDLER]
@@ -245,7 +245,7 @@ pool_Kawa: .ascii "Kawa" @ name of BIOS developer
 pool_NintendoLogo: .4byte RomHeaderNintendoLogo
 
 	thumb_func_start GameCubeMultiBoot_ExecuteProgram
-@ void GameCubeMultiBoot_ExecuteProgram(struct GameCubeMultiBoot *mb);
+@ void GameCubeMultiBoot_ExecuteProgram(struct GameCubeMultiBoot *mb)@
 GameCubeMultiBoot_ExecuteProgram:
 	@ If there's no multiboot image ready, just return to caller
 	ldrb r1, [r0, GCMB_STRUCT_MBPROGRESS]
@@ -264,7 +264,7 @@ GameCubeMultiBoot_ExecuteProgram_Fail:
 	thumb_func_end GameCubeMultiBoot_ExecuteProgram
 
 	thumb_func_start GameCubeMultiBoot_Init
-@ void GameCubeMultiBoot_Init(struct GameCubeMultiBoot *mb);
+@ void GameCubeMultiBoot_Init(struct GameCubeMultiBoot *mb)@
 GameCubeMultiBoot_Init:
 	ldr r3, pool_InterruptRegs
 
@@ -335,7 +335,7 @@ GameCubeMultiBoot_Init_ClearStructLoop:
 	thumb_func_end GameCubeMultiBoot_Init
 
 	non_word_aligned_thumb_func_start GameCubeMultiBoot_HandleSerialInterrupt
-@ void GameCubeMultiBoot_HandleSerialInterrupt(struct GameCubeMultiBoot *mb);
+@ void GameCubeMultiBoot_HandleSerialInterrupt(struct GameCubeMultiBoot *mb)@
 GameCubeMultiBoot_HandleSerialInterrupt:
 	ldr r3, pool_SerialRegs
 
@@ -433,7 +433,7 @@ GcMbIntrHandler_ReceiveKeyA:
 	lsrs r1, 1 @ is receive complete?
 	bcc GcMbIntrHandler_Stop @ branch if not
 	ldr r1, [r3, OFFSET_REG_JOY_RECV - 0x120]
-	@ make sure top 8 bits of the received value is the KeyA magic number, stop if KeyA is invalid
+	@ make sure top 8 bits of the received value is the KeyA magic number, stop if KeyA is invalid 
 	lsrs r2, r1, 24
 	cmp r2, GCMB_MAGIC_KEYA
 	bne GcMbIntrHandler_Stop
@@ -586,7 +586,7 @@ GcMbIntrHandler_StopUnconditionally:
 	thumb_func_end GameCubeMultiBoot_HandleSerialInterrupt
 
 	non_word_aligned_thumb_func_start GameCubeMultiBoot_Quit
-@ void GameCubeMultiBoot_Quit();
+@ void GameCubeMultiBoot_Quit()@
 GameCubeMultiBoot_Quit:
 	ldr r3, pool_InterruptRegs
 
@@ -626,7 +626,7 @@ GameCubeMultiBoot_Quit:
 
 	.align 2, 0
 
-GameCubeMultiBoot_MaximumImageSizeUInt32s: .4byte 0x4000
+GameCubeMultiBoot_MaximumImageSizeUInt32s: .4byte 0x00004000
 
 pool_InterruptRegs: .4byte REG_BASE + 0x200
 

@@ -1,85 +1,58 @@
 #include "global.h"
-#include "text.h"
-#include "text_window.h"
-#include "window.h"
-#include "palette.h"
+
 #include "bg.h"
+#include "window.h"
+
 #include "graphics.h"
-#include "menu.h"
+#include "help_message.h"
+#include "palette.h"
+#include "text_window.h"
 
-const u8 gTextWindowFrame1_Gfx[] = INCBIN_U8("graphics/text_window/1.4bpp");
-static const u8 sTextWindowFrame2_Gfx[] = INCBIN_U8("graphics/text_window/2.4bpp");
-static const u8 sTextWindowFrame3_Gfx[] = INCBIN_U8("graphics/text_window/3.4bpp");
-static const u8 sTextWindowFrame4_Gfx[] = INCBIN_U8("graphics/text_window/4.4bpp");
-static const u8 sTextWindowFrame5_Gfx[] = INCBIN_U8("graphics/text_window/5.4bpp");
-static const u8 sTextWindowFrame6_Gfx[] = INCBIN_U8("graphics/text_window/6.4bpp");
-static const u8 sTextWindowFrame7_Gfx[] = INCBIN_U8("graphics/text_window/7.4bpp");
-static const u8 sTextWindowFrame8_Gfx[] = INCBIN_U8("graphics/text_window/8.4bpp");
-static const u8 sTextWindowFrame9_Gfx[] = INCBIN_U8("graphics/text_window/9.4bpp");
-static const u8 sTextWindowFrame10_Gfx[] = INCBIN_U8("graphics/text_window/10.4bpp");
-static const u8 sTextWindowFrame11_Gfx[] = INCBIN_U8("graphics/text_window/11.4bpp");
-static const u8 sTextWindowFrame12_Gfx[] = INCBIN_U8("graphics/text_window/12.4bpp");
-static const u8 sTextWindowFrame13_Gfx[] = INCBIN_U8("graphics/text_window/13.4bpp");
-static const u8 sTextWindowFrame14_Gfx[] = INCBIN_U8("graphics/text_window/14.4bpp");
-static const u8 sTextWindowFrame15_Gfx[] = INCBIN_U8("graphics/text_window/15.4bpp");
-static const u8 sTextWindowFrame16_Gfx[] = INCBIN_U8("graphics/text_window/16.4bpp");
-static const u8 sTextWindowFrame17_Gfx[] = INCBIN_U8("graphics/text_window/17.4bpp");
-static const u8 sTextWindowFrame18_Gfx[] = INCBIN_U8("graphics/text_window/18.4bpp");
-static const u8 sTextWindowFrame19_Gfx[] = INCBIN_U8("graphics/text_window/19.4bpp");
-static const u8 sTextWindowFrame20_Gfx[] = INCBIN_U8("graphics/text_window/20.4bpp");
+static const u16 gSignpostWindow_Gfx[] = INCBIN_U16("graphics/text_window/signpost.4bpp");
+static const u16 sStdTextWindow_Gfx[]  = INCBIN_U16("graphics/text_window/std.4bpp");
+static const u16 sQuestLogWindow_Gfx[] = INCBIN_U16("graphics/text_window/quest_log.4bpp");
 
-const u16 gTextWindowFrame1_Pal[] = INCBIN_U16("graphics/text_window/1.gbapal");
-static const u16 sTextWindowFrame2_Pal[] = INCBIN_U16("graphics/text_window/2.gbapal");
-static const u16 sTextWindowFrame3_Pal[] = INCBIN_U16("graphics/text_window/3.gbapal");
-static const u16 sTextWindowFrame4_Pal[] = INCBIN_U16("graphics/text_window/4.gbapal");
-static const u16 sTextWindowFrame5_Pal[] = INCBIN_U16("graphics/text_window/5.gbapal");
-static const u16 sTextWindowFrame6_Pal[] = INCBIN_U16("graphics/text_window/6.gbapal");
-static const u16 sTextWindowFrame7_Pal[] = INCBIN_U16("graphics/text_window/7.gbapal");
-static const u16 sTextWindowFrame8_Pal[] = INCBIN_U16("graphics/text_window/8.gbapal");
-static const u16 sTextWindowFrame9_Pal[] = INCBIN_U16("graphics/text_window/9.gbapal");
-static const u16 sTextWindowFrame10_Pal[] = INCBIN_U16("graphics/text_window/10.gbapal");
-static const u16 sTextWindowFrame11_Pal[] = INCBIN_U16("graphics/text_window/11.gbapal");
-static const u16 sTextWindowFrame12_Pal[] = INCBIN_U16("graphics/text_window/12.gbapal");
-static const u16 sTextWindowFrame13_Pal[] = INCBIN_U16("graphics/text_window/13.gbapal");
-static const u16 sTextWindowFrame14_Pal[] = INCBIN_U16("graphics/text_window/14.gbapal");
-static const u16 sTextWindowFrame15_Pal[] = INCBIN_U16("graphics/text_window/15.gbapal");
-static const u16 sTextWindowFrame16_Pal[] = INCBIN_U16("graphics/text_window/16.gbapal");
-static const u16 sTextWindowFrame17_Pal[] = INCBIN_U16("graphics/text_window/17.gbapal");
-static const u16 sTextWindowFrame18_Pal[] = INCBIN_U16("graphics/text_window/18.gbapal");
-static const u16 sTextWindowFrame19_Pal[] = INCBIN_U16("graphics/text_window/19.gbapal");
-static const u16 sTextWindowFrame20_Pal[] = INCBIN_U16("graphics/text_window/20.gbapal");
+const u8 gTextWindowFrame1_Gfx[]  = INCBIN_U8("graphics/text_window/type1.4bpp");
+static const u8 sTextWindowFrame2_Gfx[]  = INCBIN_U8("graphics/text_window/type2.4bpp");
+static const u8 sTextWindowFrame3_Gfx[]  = INCBIN_U8("graphics/text_window/type3.4bpp");
+static const u8 sTextWindowFrame4_Gfx[]  = INCBIN_U8("graphics/text_window/type4.4bpp");
+static const u8 sTextWindowFrame5_Gfx[]  = INCBIN_U8("graphics/text_window/type5.4bpp");
+static const u8 sTextWindowFrame6_Gfx[]  = INCBIN_U8("graphics/text_window/type6.4bpp");
+static const u8 sTextWindowFrame7_Gfx[]  = INCBIN_U8("graphics/text_window/type7.4bpp");
+static const u8 sTextWindowFrame8_Gfx[]  = INCBIN_U8("graphics/text_window/type8.4bpp");
+static const u8 sTextWindowFrame9_Gfx[]  = INCBIN_U8("graphics/text_window/type9.4bpp");
+static const u8 sTextWindowFrame10_Gfx[] = INCBIN_U8("graphics/text_window/type10.4bpp");
 
-static const u16 sTextWindowPalettes[][16] =
-{
-    INCBIN_U16("graphics/text_window/message_box.gbapal"),
-    INCBIN_U16("graphics/text_window/text_pal1.gbapal"),
-    INCBIN_U16("graphics/text_window/text_pal2.gbapal"),
-    INCBIN_U16("graphics/text_window/text_pal3.gbapal"),
-    INCBIN_U16("graphics/text_window/text_pal4.gbapal")
+const u16 gTextWindowFrame1_Pal[]  = INCBIN_U16("graphics/text_window/type1.gbapal");
+static const u16 sTextWindowFrame2_Pal[]  = INCBIN_U16("graphics/text_window/type2.gbapal");
+static const u16 sTextWindowFrame3_Pal[]  = INCBIN_U16("graphics/text_window/type3.gbapal");
+static const u16 sTextWindowFrame4_Pal[]  = INCBIN_U16("graphics/text_window/type4.gbapal");
+static const u16 sTextWindowFrame5_Pal[]  = INCBIN_U16("graphics/text_window/type5.gbapal");
+static const u16 sTextWindowFrame6_Pal[]  = INCBIN_U16("graphics/text_window/type6.gbapal");
+static const u16 sTextWindowFrame7_Pal[]  = INCBIN_U16("graphics/text_window/type7.gbapal");
+static const u16 sTextWindowFrame8_Pal[]  = INCBIN_U16("graphics/text_window/type8.gbapal");
+static const u16 sTextWindowFrame9_Pal[]  = INCBIN_U16("graphics/text_window/type9.gbapal");
+static const u16 sTextWindowFrame10_Pal[] = INCBIN_U16("graphics/text_window/type10.gbapal");
+
+static const u16 sTextWindowPalettes[][16] = {
+    INCBIN_U16("graphics/text_window/menu_message.gbapal"),
+    INCBIN_U16("graphics/text_window/stdpal_1.gbapal"),
+    INCBIN_U16("graphics/text_window/stdpal_2.gbapal"),
+    INCBIN_U16("graphics/text_window/stdpal_3.gbapal"),
+    INCBIN_U16("graphics/text_window/stdpal_4.gbapal")
 };
 
-static const struct TilesPal sWindowFrames[WINDOW_FRAMES_COUNT] =
-{
-    {gTextWindowFrame1_Gfx, gTextWindowFrame1_Pal},
-    {sTextWindowFrame2_Gfx, sTextWindowFrame2_Pal},
-    {sTextWindowFrame3_Gfx, sTextWindowFrame3_Pal},
-    {sTextWindowFrame4_Gfx, sTextWindowFrame4_Pal},
-    {sTextWindowFrame5_Gfx, sTextWindowFrame5_Pal},
-    {sTextWindowFrame6_Gfx, sTextWindowFrame6_Pal},
-    {sTextWindowFrame7_Gfx, sTextWindowFrame7_Pal},
-    {sTextWindowFrame8_Gfx, sTextWindowFrame8_Pal},
-    {sTextWindowFrame9_Gfx, sTextWindowFrame9_Pal},
-    {sTextWindowFrame10_Gfx, sTextWindowFrame10_Pal},
-    {sTextWindowFrame11_Gfx, sTextWindowFrame11_Pal},
-    {sTextWindowFrame12_Gfx, sTextWindowFrame12_Pal},
-    {sTextWindowFrame13_Gfx, sTextWindowFrame13_Pal},
-    {sTextWindowFrame14_Gfx, sTextWindowFrame14_Pal},
-    {sTextWindowFrame15_Gfx, sTextWindowFrame15_Pal},
-    {sTextWindowFrame16_Gfx, sTextWindowFrame16_Pal},
-    {sTextWindowFrame17_Gfx, sTextWindowFrame17_Pal},
-    {sTextWindowFrame18_Gfx, sTextWindowFrame18_Pal},
-    {sTextWindowFrame19_Gfx, sTextWindowFrame19_Pal},
-    {sTextWindowFrame20_Gfx, sTextWindowFrame20_Pal}
+static const struct TilesPal sWindowFrames[WINDOW_FRAMES_COUNT] = {
+    {.tiles = gTextWindowFrame1_Gfx,  .pal = gTextWindowFrame1_Pal },
+    {.tiles = sTextWindowFrame2_Gfx,  .pal = sTextWindowFrame2_Pal },
+    {.tiles = sTextWindowFrame3_Gfx,  .pal = sTextWindowFrame3_Pal },
+    {.tiles = sTextWindowFrame4_Gfx,  .pal = sTextWindowFrame4_Pal },
+    {.tiles = sTextWindowFrame5_Gfx,  .pal = sTextWindowFrame5_Pal },
+    {.tiles = sTextWindowFrame6_Gfx,  .pal = sTextWindowFrame6_Pal },
+    {.tiles = sTextWindowFrame7_Gfx,  .pal = sTextWindowFrame7_Pal },
+    {.tiles = sTextWindowFrame8_Gfx,  .pal = sTextWindowFrame8_Pal },
+    {.tiles = sTextWindowFrame9_Gfx,  .pal = sTextWindowFrame9_Pal },
+    {.tiles = sTextWindowFrame10_Gfx, .pal = sTextWindowFrame10_Pal},
 };
 
 static const u16 sTextWindowDexNavFrame[] = INCBIN_U16("graphics/text_window/dexnav_pal.gbapal");
@@ -88,21 +61,33 @@ static const struct TilesPal sDexNavWindowFrame = {gTextWindowFrame1_Gfx, sTextW
 // code
 const struct TilesPal *GetWindowFrameTilesPal(u8 id)
 {
-    if (id >= WINDOW_FRAMES_COUNT)
+    if (id >= ARRAY_COUNT(sWindowFrames))
         return &sWindowFrames[0];
     else
         return &sWindowFrames[id];
 }
 
+void LoadStdWindowGfxOnBg(u8 bgId, u16 destOffset, u8 palOffset)
+{
+    LoadBgTiles(bgId, sStdTextWindow_Gfx, 0x120, destOffset);
+    LoadPalette(GetTextWindowPalette(3), palOffset, PLTT_SIZE_4BPP);
+}
+
+void LoadStdWindowGfx(u8 windowId, u16 destOffset, u8 palOffset)
+{
+    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), sStdTextWindow_Gfx, 0x120, destOffset);
+    LoadPalette(GetTextWindowPalette(3), palOffset, PLTT_SIZE_4BPP);
+}
+
 void LoadMessageBoxGfx(u8 windowId, u16 destOffset, u8 palOffset)
 {
-    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), gMessageBox_Gfx, 0x1C0, destOffset);
+    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), gMessageBox_Gfx, 0x280, destOffset);
     LoadPalette(GetOverworldTextboxPalettePtr(), palOffset, PLTT_SIZE_4BPP);
 }
 
 void LoadSignBoxGfx(u8 windowId, u16 destOffset, u8 palOffset)
 {
-    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), gSignpostWindow_Gfx, 0x1C0, destOffset);
+    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), gSignpostWindow_Gfx, 0x260, destOffset);
     LoadPalette(GetTextWindowPalette(1), palOffset, PLTT_SIZE_4BPP);
 }
 
@@ -199,15 +184,25 @@ const u16 *GetOverworldTextboxPalettePtr(void)
     return gMessageBox_Pal;
 }
 
-// Effectively LoadUserWindowBorderGfx but specifying the bg directly instead of a window from that bg
-void LoadUserWindowBorderGfxOnBg(u8 bg, u16 destOffset, u8 palOffset)
-{
-    LoadBgTiles(bg, sWindowFrames[gSaveBlock2Ptr->optionsWindowFrameType].tiles, 0x120, destOffset);
-    LoadPalette(GetWindowFrameTilesPal(gSaveBlock2Ptr->optionsWindowFrameType)->pal, palOffset, PLTT_SIZE_4BPP);
-}
-
 void LoadDexNavWindowGfx(u8 windowId, u16 destOffset, u8 palOffset)
 {
     LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), sDexNavWindowFrame.tiles, 0x120, destOffset);
     LoadPalette(sDexNavWindowFrame.pal, palOffset, 32);
+}
+
+// FRLG
+void LoadHelpMessageWindowGfx(u8 windowId, u16 destOffset, u8 palOffset)
+{
+    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), gHelpMessageWindow_Gfx, 0x280, destOffset);
+    LoadPalette(GetTextWindowPalette(2), palOffset, PLTT_SIZE_4BPP);
+}
+
+void LoadStdWindowTiles(u8 windowId, u16 destOffset)
+{
+    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), sStdTextWindow_Gfx, 0x120, destOffset);
+}
+
+void LoadQuestLogWindowTiles(u8 windowId, u16 destOffset)
+{
+    LoadBgTiles(GetWindowAttribute(windowId, WINDOW_BG), sQuestLogWindow_Gfx, 0x280, destOffset);
 }

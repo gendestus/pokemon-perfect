@@ -3,4 +3,4 @@
 
 void CB2_InitOptionMenu(void);
 
-#endif // GUARD_OPTION_MENU_H
+#endif //GUARD_OPTION_MENU_H

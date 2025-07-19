@@ -5,6 +5,7 @@
 #include "m4a.h"
 #include "main.h"
 #include "pokemon.h"
+#include "quest_log.h"
 #include "constants/cries.h"
 #include "constants/songs.h"
 #include "task.h"
@@ -15,6 +16,10 @@ struct Fanfare
     u16 songNum;
     u16 duration;
 };
+
+// TODO: what are these
+extern u8 gDisableMapMusicChangeOnMapLoad;
+extern u8 gDisableHelpSystemVolumeReduce;
 
 EWRAM_DATA struct MusicPlayerInfo *gMPlay_PokemonCry = NULL;
 EWRAM_DATA u8 gPokemonCryBGMDuckingCounter = 0;
@@ -35,24 +40,20 @@ static void CreateFanfareTask(void);
 static void RestoreBGMVolumeAfterPokemonCry(void);
 
 static const struct Fanfare sFanfares[] = {
-    [FANFARE_LEVEL_UP]            = { MUS_LEVEL_UP,             80 },
-    [FANFARE_OBTAIN_ITEM]         = { MUS_OBTAIN_ITEM,         160 },
-    [FANFARE_EVOLVED]             = { MUS_EVOLVED,             220 },
-    [FANFARE_OBTAIN_TMHM]         = { MUS_OBTAIN_TMHM,         220 },
-    [FANFARE_HEAL]                = { MUS_HEAL,                160 },
-    [FANFARE_OBTAIN_BADGE]        = { MUS_OBTAIN_BADGE,        340 },
-    [FANFARE_MOVE_DELETED]        = { MUS_MOVE_DELETED,        180 },
-    [FANFARE_OBTAIN_BERRY]        = { MUS_OBTAIN_BERRY,        120 },
-    [FANFARE_AWAKEN_LEGEND]       = { MUS_AWAKEN_LEGEND,       710 },
-    [FANFARE_SLOTS_JACKPOT]       = { MUS_SLOTS_JACKPOT,       250 },
-    [FANFARE_SLOTS_WIN]           = { MUS_SLOTS_WIN,           150 },
-    [FANFARE_TOO_BAD]             = { MUS_TOO_BAD,             160 },
-    [FANFARE_RG_POKE_FLUTE]       = { MUS_RG_POKE_FLUTE,       450 },
-    [FANFARE_RG_OBTAIN_KEY_ITEM]  = { MUS_RG_OBTAIN_KEY_ITEM,  170 },
-    [FANFARE_RG_DEX_RATING]       = { MUS_RG_DEX_RATING,       196 },
-    [FANFARE_OBTAIN_B_POINTS]     = { MUS_OBTAIN_B_POINTS,     313 },
-    [FANFARE_OBTAIN_SYMBOL]       = { MUS_OBTAIN_SYMBOL,       318 },
-    [FANFARE_REGISTER_MATCH_CALL] = { MUS_REGISTER_MATCH_CALL, 135 },
+    [FANFARE_LEVEL_UP]      = { MUS_LEVEL_UP,         80 },
+    [FANFARE_OBTAIN_ITEM]   = { MUS_OBTAIN_ITEM,     160 },
+    [FANFARE_EVOLVED]       = { MUS_EVOLVED,         220 },
+    [FANFARE_OBTAIN_TMHM]   = { MUS_OBTAIN_TMHM,     220 },
+    [FANFARE_HEAL]          = { MUS_HEAL,            160 },
+    [FANFARE_OBTAIN_BADGE]  = { MUS_OBTAIN_BADGE,    340 },
+    [FANFARE_MOVE_DELETED]  = { MUS_MOVE_DELETED,    180 },
+    [FANFARE_OBTAIN_BERRY]  = { MUS_OBTAIN_BERRY,    120 },
+    [FANFARE_SLOTS_JACKPOT] = { MUS_SLOTS_JACKPOT,   250 },
+    [FANFARE_SLOTS_WIN]     = { MUS_SLOTS_WIN,       150 },
+    [FANFARE_TOO_BAD]       = { MUS_TOO_BAD,         160 },
+    [FANFARE_POKE_FLUTE]    = { MUS_POKE_FLUTE,      450 },
+    [FANFARE_KEY_ITEM]      = { MUS_OBTAIN_KEY_ITEM, 170 },
+    [FANFARE_DEX_EVAL]      = { MUS_DEX_RATING,      196 }
 };
 
 void InitMapMusic(void)
@@ -180,10 +181,17 @@ bool8 IsNotWaitingForBGMStop(void)
 void PlayFanfareByFanfareNum(u8 fanfareNum)
 {
     u16 songNum;
-    m4aMPlayStop(&gMPlayInfo_BGM);
-    songNum = sFanfares[fanfareNum].songNum;
-    sFanfareCounter = sFanfares[fanfareNum].duration;
-    m4aSongNumStart(songNum);
+    if(gQuestLogState == QL_STATE_PLAYBACK)
+    {
+        sFanfareCounter = 0xFF;
+    }
+    else
+    {
+        m4aMPlayStop(&gMPlayInfo_BGM);
+        songNum = sFanfares[fanfareNum].songNum;
+        sFanfareCounter = sFanfares[fanfareNum].duration;
+        m4aSongNumStart(songNum);
+    }
 }
 
 bool8 WaitFanfare(bool8 stop)
@@ -367,8 +375,11 @@ void PlayCry_DuckNoRestore(u16 species, s8 pan, u8 mode)
 
 void PlayCry_Script(u16 species, u8 mode)
 {
-    m4aMPlayVolumeControl(&gMPlayInfo_BGM, TRACKS_ALL, 85);
-    PlayCryInternal(species, 0, CRY_VOLUME, CRY_PRIORITY_NORMAL, mode);
+    if (!QL_IS_PLAYBACK_STATE) // This check is exclusive to FR/LG
+    {
+        m4aMPlayVolumeControl(&gMPlayInfo_BGM, TRACKS_ALL, 85);
+        PlayCryInternal(species, 0, CRY_VOLUME, CRY_PRIORITY_NORMAL, mode);
+    }
     gPokemonCryBGMDuckingCounter = 2;
     RestoreBGMVolumeAfterPokemonCry();
 }
@@ -426,7 +437,7 @@ void PlayCryInternal(u16 species, s8 pan, s8 volume, u8 priority, u8 mode)
         release = 220;
         pitch = 15555;
         chorus = 192;
-        volume = 70;
+        volume = 90; // FR/LG changed this from 70 to 90
         break;
     case CRY_MODE_ROAR_1:
         length = 10;
@@ -467,11 +478,11 @@ void PlayCryInternal(u16 species, s8 pan, s8 volume, u8 priority, u8 mode)
     SetPokemonCryChorus(chorus);
     SetPokemonCryPriority(priority);
 
-    species = GetCryIdBySpecies(species);
-    if (species != CRY_NONE)
+    enum PokemonCry cryId = GetCryIdBySpecies(species);
+    if (cryId != CRY_NONE)
     {
-        species--;
-        gMPlay_PokemonCry = SetPokemonCryTone(reverse ? &gCryTable_Reverse[species] : &gCryTable[species]);
+        cryId--;
+        gMPlay_PokemonCry = SetPokemonCryTone(reverse ? &gCryTable_Reverse[cryId] : &gCryTable[cryId]);
     }
 }
 
@@ -552,7 +563,8 @@ void PlayBGM(u16 songNum)
 
 void PlaySE(u16 songNum)
 {
-    m4aSongNumStart(songNum);
+    if (gDisableMapMusicChangeOnMapLoad == 0 && gQuestLogState != QL_STATE_PLAYBACK)
+        m4aSongNumStart(songNum);
 }
 
 void PlaySE12WithPanning(u16 songNum, s8 pan)
@@ -609,4 +621,16 @@ bool8 IsSpecialSEPlaying(void)
     if (!(gMPlayInfo_SE3.status & MUSICPLAYER_STATUS_TRACK))
         return FALSE;
     return TRUE;
+}
+
+void SetBGMVolume_SuppressHelpSystemReduction(u16 volume)
+{
+    gDisableHelpSystemVolumeReduce = TRUE;
+    m4aMPlayVolumeControl(&gMPlayInfo_BGM, TRACKS_ALL, volume);
+}
+
+void BGMVolumeMax_EnableHelpSystemReduction(void)
+{
+    gDisableHelpSystemVolumeReduce = FALSE;
+    m4aMPlayVolumeControl(&gMPlayInfo_BGM, TRACKS_ALL, 256);
 }

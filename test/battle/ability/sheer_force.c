@@ -1,6 +1,7 @@
 #include "global.h"
 #include "test/battle.h"
 
+
 ASSUMPTIONS
 {
     ASSUME(MoveIsAffectedBySheerForce(MOVE_ELECTRO_SHOT) == TRUE);

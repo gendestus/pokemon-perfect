@@ -202,7 +202,7 @@ static void AnimBonemerangProjectile_End(struct Sprite *sprite)
 static void AnimBoneHitProjectile(struct Sprite *sprite)
 {
     InitSpritePosToAnimTarget(sprite, TRUE);
-    if (!IsOnPlayerSide(gBattleAnimAttacker))
+    if (GetBattlerSide(gBattleAnimAttacker) != B_SIDE_PLAYER)
         gBattleAnimArgs[2] = -gBattleAnimArgs[2];
 
     sprite->data[0] = gBattleAnimArgs[4];
@@ -524,7 +524,7 @@ void AnimDirtPlumeParticle(struct Sprite *sprite)
     s8 battler;
     s16 xOffset;
 
-    if (gBattleAnimArgs[0] == ANIM_ATTACKER)
+    if (gBattleAnimArgs[0] == 0)
         battler = gBattleAnimAttacker;
     else
         battler = gBattleAnimTarget;

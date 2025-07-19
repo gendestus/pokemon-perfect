@@ -1,754 +1,732 @@
 #include "global.h"
-#include "mail.h"
-#include "constants/items.h"
-#include "main.h"
-#include "overworld.h"
-#include "task.h"
+#include "gflib.h"
 #include "scanline_effect.h"
 #include "palette.h"
-#include "text.h"
-#include "menu.h"
-#include "menu_helpers.h"
 #include "text_window.h"
-#include "string_util.h"
-#include "international_string_util.h"
-#include "strings.h"
-#include "gpu_regs.h"
-#include "bg.h"
-#include "pokemon_icon.h"
-#include "malloc.h"
 #include "easy_chat.h"
+#include "mail.h"
+#include "task.h"
+#include "menu.h"
+#include "player_pc.h"
+#include "overworld.h"
+#include "help_system.h"
+#include "menu_helpers.h"
 #include "graphics.h"
-#include "constants/rgb.h"
+#include "pokemon_icon.h"
+#include "string_util.h"
+#include "strings.h"
+#include "constants/items.h"
 
-// Bead and Dream mail feature an icon of the Pokémon holding it.
-enum {
-    ICON_TYPE_NONE,
-    ICON_TYPE_BEAD,
-    ICON_TYPE_DREAM,
-};
-
-struct MailLineLayout
+enum MailIconParam
 {
-    u8 numEasyChatWords:2;
-    u8 xOffset:6;
-    u8 height;
+    MAIL_ICON_NONE = 0,
+    MAIL_ICON_BEAD,
+    MAIL_ICON_DREAM
 };
 
-struct MailLayout
+struct MailEcWordLayout
 {
-    u8 numLines;
-    u8 signatureYPos;
-    u8 signatureWidth;
-    u8 wordsYPos;
-    u8 wordsXPos;
-    const struct MailLineLayout *lines;
+    u32 numWordsInLine:2;
+    u32 lineXoffset:6;
+    u32 lineHeight:8;
 };
 
-struct MailGraphics
+struct MailAttrStruct
 {
-    const u16 *palette;
-    const u32 *tiles;
-    const u32 *tileMap;
-    u32 unused;
-    u16 textColor;
-    u16 textShadow;
+    u8 numRows;
+    u8 nameY;
+    u8 nameX;
+    u8 messageTop;
+    u8 messageLeft;
+    const struct MailEcWordLayout * linesLayout;
 };
 
-struct MailRead
+struct MailGfxData
 {
-    /*0x0000*/ u8 message[8][64];
-    /*0x0200*/ u8 playerName[12];
-    /*0x020C*/ MainCallback exitCallback;
-    /*0x0210*/ MainCallback callback;
-    /*0x0214*/ struct Mail *mail;
-    /*0x0218*/ bool8 hasText;
-    /*0x0219*/ u8 signatureWidth;
-    /*0x021a*/ u8 mailType;
-    /*0x021b*/ u8 iconType;
-    /*0x021c*/ u8 monIconSpriteId;
-    /*0x021d*/ u8 language;
-    /*0x021e*/ bool8 international;
-    /*0x0220*/ u8 *(*parserSingle)(u8 *dest, u16 word);
-    /*0x0224*/ u8 *(*parserMultiple)(u8 *dest, const u16 *src, u16 length1, u16 length2);
-    /*0x0228*/ const struct MailLayout *layout;
-    /*0x022c*/ u8 bg1TilemapBuffer[0x1000];
-    /*0x122c*/ u8 bg2TilemapBuffer[0x1000];
+    const void *pal;
+    const void *tiles;
+    const void *map;
+    u32 size;
+    u16 textpals[2];
 };
 
-static EWRAM_DATA struct MailRead *sMailRead = NULL;
+struct MailViewResources {
+    u8 messageLinesBuffer[8][26];
+    u8 authorNameBuffer[12];
+    void (*savedCallback)(void);
+    void (*showMailCallback)(void);
+    struct Mail * mail;
+    bool8 messageExists;
+    u8 nameX;
+    u8 mailType;
+    u8 monIconType;
+    u8 monIconSpriteId;
+    u8 unused;
+    u8 mailArrangementType;
+    u8 *(*copyEasyChatWord)(u8 *dest, u16 word);
+    u8 *(*convertEasyChatWordsToString)(u8 *dest, const u16 *src, u16 length1, u16 length2);
+    const struct MailAttrStruct * messageLayout;
+    u16 bg1TilemapBuffer[BG_SCREEN_SIZE];
+    u16 bg2TilemapBuffer[BG_SCREEN_SIZE];
+};
 
-static void CB2_InitMailRead(void);
-static void BufferMailText(void);
-static void PrintMailText(void);
-static void VBlankCB_MailRead(void);
-static void CB2_MailRead(void);
-static void CB2_WaitForPaletteExitOnKeyPress(void);
-static void CB2_ExitOnKeyPress(void);
-static void CB2_ExitMailReadFreeVars(void);
+static EWRAM_DATA struct MailViewResources * sMailViewResources = NULL;
+
+static void CB2_InitMailView(void);
+static void BufferMailMessage(void);
+static void AddMailMessagePrinters(void);
+static void VBlankCB_ShowMail(void);
+static void CB2_RunShowMailCB(void);
+static void ShowMailCB_WaitFadeIn(void);
+static void ShowMailCB_WaitButton(void);
+static void ShowMailCB_Teardown(void);
 
 static const struct BgTemplate sBgTemplates[] = {
     {
         .bg = 0,
         .charBaseIndex = 2,
         .mapBaseIndex = 31,
-        .priority = 0
+        .screenSize = 0,
+        .paletteMode = 0,
+        .priority = 0,
+        .baseTile = 0x000
     }, {
         .bg = 1,
         .charBaseIndex = 0,
         .mapBaseIndex = 30,
-        .priority = 1
+        .screenSize = 0,
+        .paletteMode = 0,
+        .priority = 1,
+        .baseTile = 0x000
     }, {
         .bg = 2,
         .charBaseIndex = 0,
         .mapBaseIndex = 29,
-        .priority = 2
+        .screenSize = 0,
+        .paletteMode = 0,
+        .priority = 2,
+        .baseTile = 0x000
     }
 };
 
 static const struct WindowTemplate sWindowTemplates[] = {
     {
         .bg = 0,
-        .tilemapLeft = 2,
-        .tilemapTop = 3,
-        .width = 26,
-        .height = 15,
+        .tilemapLeft = 3,
+        .tilemapTop = 4,
+        .width = 24,
+        .height = 10,
         .paletteNum = 15,
-        .baseBlock = 1
+        .baseBlock = 0x001
+    }, {
+        .bg = 0,
+        .tilemapLeft = 15,
+        .tilemapTop = 15,
+        .width = 13,
+        .height = 3,
+        .paletteNum = 15,
+        .baseBlock = 0x0F2
+    }, DUMMY_WIN_TEMPLATE
+};
+
+static const u8 sTextColor[] = { 0, 10, 11 };
+
+static const u16 sGenderPals[][2] = {
+    { RGB(13, 22, 26), RGB(05, 13, 20) },
+    { RGB(28, 15, 17), RGB(20, 06, 14) }
+};
+
+static const struct MailGfxData sGfxHeaders[] = {
+    [ITEM_TO_MAIL(ITEM_ORANGE_MAIL)]  = {
+        .pal = gFile_graphics_mail_orange_palette_pal,
+        .tiles = gFile_graphics_mail_orange_tiles_sheet,
+        .map = gFile_graphics_mail_orange_map_tilemap,
+        .size = 0x2c0,
+        .textpals = { RGB(10, 10, 10), RGB(25, 25, 25) }
     },
-    DUMMY_WIN_TEMPLATE
-};
-
-static const u8 sTextColors[] = {
-    TEXT_COLOR_TRANSPARENT,
-    TEXT_DYNAMIC_COLOR_1,
-    TEXT_DYNAMIC_COLOR_2
-};
-
-// Background is alternating bars of a dark/light color.
-// Either blue or red depending on player's gender
-static const u16 sBgColors[GENDER_COUNT][2] = {
-    [MALE]   = { RGB(13, 22, 26), RGB(5, 13, 20) },
-    [FEMALE] = { RGB(28, 15, 17), RGB(20, 6, 14) }
-};
-
-static const struct MailGraphics sMailGraphics[] = {
-    [ITEM_TO_MAIL(ITEM_ORANGE_MAIL)] = {
-        .palette = gMailPalette_Orange,
-        .tiles = gMailTiles_Orange,
-        .tileMap = gMailTilemap_Orange,
-        .unused = 0x2C0,
-        .textColor = RGB(10, 10, 10),
-        .textShadow = RGB(25, 25, 25),
-    },
-    [ITEM_TO_MAIL(ITEM_HARBOR_MAIL)] = {
-        .palette = gMailPalette_Harbor,
-        .tiles = gMailTiles_Harbor,
-        .tileMap = gMailTilemap_Harbor,
-        .unused = 0x2E0,
-        .textColor = RGB_WHITE,
-        .textShadow = RGB(17, 17, 17),
+    [ITEM_TO_MAIL(ITEM_HARBOR_MAIL)]  = {
+        .pal = gFile_graphics_mail_harbor_palette_pal,
+        .tiles = gFile_graphics_mail_harbor_tiles_sheet,
+        .map = gFile_graphics_mail_harbor_map_tilemap,
+        .size = 0x2e0,
+        .textpals = { RGB(31, 31, 31), RGB(17, 17, 17) }
     },
     [ITEM_TO_MAIL(ITEM_GLITTER_MAIL)] = {
-        .palette = gMailPalette_Glitter,
-        .tiles = gMailTiles_Glitter,
-        .tileMap = gMailTilemap_Glitter,
-        .unused = 0x400,
-        .textColor = RGB(10, 10, 10),
-        .textShadow = RGB(25, 25, 25),
+        .pal = gFile_graphics_mail_glitter_palette_pal,
+        .tiles = gFile_graphics_mail_glitter_tiles_sheet,
+        .map = gFile_graphics_mail_glitter_map_tilemap,
+        .size = 0x400,
+        .textpals = { RGB(10, 10, 10), RGB(25, 25, 25) }
     },
-    [ITEM_TO_MAIL(ITEM_MECH_MAIL)] = {
-        .palette = gMailPalette_Mech,
-        .tiles = gMailTiles_Mech,
-        .tileMap = gMailTilemap_Mech,
-        .unused = 0x1E0,
-        .textColor = RGB_WHITE,
-        .textShadow = RGB(17, 17, 17),
+    [ITEM_TO_MAIL(ITEM_MECH_MAIL)]    = {
+        .pal = gFile_graphics_mail_mech_palette_pal,
+        .tiles = gFile_graphics_mail_mech_tiles_sheet,
+        .map = gFile_graphics_mail_mech_map_tilemap,
+        .size = 0x1e0,
+        .textpals = { RGB(31, 31, 31), RGB(17, 17, 17) }
     },
-    [ITEM_TO_MAIL(ITEM_WOOD_MAIL)] = {
-        .palette = gMailPalette_Wood,
-        .tiles = gMailTiles_Wood,
-        .tileMap = gMailTilemap_Wood,
-        .unused = 0x2E0,
-        .textColor = RGB_WHITE,
-        .textShadow = RGB(17, 17, 17),
+    [ITEM_TO_MAIL(ITEM_WOOD_MAIL)]    = {
+        .pal = gFile_graphics_mail_wood_palette_pal,
+        .tiles = gFile_graphics_mail_wood_tiles_sheet,
+        .map = gFile_graphics_mail_wood_map_tilemap,
+        .size = 0x2e0,
+        .textpals = { RGB(31, 31, 31), RGB(17, 17, 17) }
     },
-    [ITEM_TO_MAIL(ITEM_WAVE_MAIL)] = {
-        .palette = gMailPalette_Wave,
-        .tiles = gMailTiles_Wave,
-        .tileMap = gMailTilemap_Wave,
-        .unused = 0x300,
-        .textColor = RGB(10, 10, 10),
-        .textShadow = RGB(25, 25, 25),
+    [ITEM_TO_MAIL(ITEM_WAVE_MAIL)]    = {
+        .pal = gFile_graphics_mail_wave_palette_pal,
+        .tiles = gFile_graphics_mail_wave_tiles_sheet,
+        .map = gFile_graphics_mail_wave_map_tilemap,
+        .size = 0x300,
+        .textpals = { RGB(10, 10, 10), RGB(25, 25, 25) }
     },
-    [ITEM_TO_MAIL(ITEM_BEAD_MAIL)] = {
-        .palette = gMailPalette_Bead,
-        .tiles = gMailTiles_Bead,
-        .tileMap = gMailTilemap_Bead,
-        .unused = 0x140,
-        .textColor = RGB_WHITE,
-        .textShadow = RGB(17, 17, 17),
+    [ITEM_TO_MAIL(ITEM_BEAD_MAIL)]    = {
+        .pal = gFile_graphics_mail_bead_palette_pal,
+        .tiles = gFile_graphics_mail_bead_tiles_sheet,
+        .map = gFile_graphics_mail_bead_map_tilemap,
+        .size = 0x140,
+        .textpals = { RGB(31, 31, 31), RGB(17, 17, 17) }
     },
-    [ITEM_TO_MAIL(ITEM_SHADOW_MAIL)] = {
-        .palette = gMailPalette_Shadow,
-        .tiles = gMailTiles_Shadow,
-        .tileMap = gMailTilemap_Shadow,
-        .unused = 0x300,
-        .textColor = RGB_WHITE,
-        .textShadow = RGB(17, 17, 17),
+    [ITEM_TO_MAIL(ITEM_SHADOW_MAIL)]  = {
+        .pal = gFile_graphics_mail_shadow_palette_pal,
+        .tiles = gFile_graphics_mail_shadow_tiles_sheet,
+        .map = gFile_graphics_mail_shadow_map_tilemap,
+        .size = 0x300,
+        .textpals = { RGB(31, 31, 31), RGB(17, 17, 17) }
     },
-    [ITEM_TO_MAIL(ITEM_TROPIC_MAIL)] = {
-        .palette = gMailPalette_Tropic,
-        .tiles = gMailTiles_Tropic,
-        .tileMap = gMailTilemap_Tropic,
-        .unused = 0x220,
-        .textColor = RGB(10, 10, 10),
-        .textShadow = RGB(25, 25, 25),
+    [ITEM_TO_MAIL(ITEM_TROPIC_MAIL)]  = {
+        .pal = gFile_graphics_mail_tropic_palette_pal,
+        .tiles = gFile_graphics_mail_tropic_tiles_sheet,
+        .map = gFile_graphics_mail_tropic_map_tilemap,
+        .size = 0x220,
+        .textpals = { RGB(10, 10, 10), RGB(25, 25, 25) }
     },
-    [ITEM_TO_MAIL(ITEM_DREAM_MAIL)] = {
-        .palette = gMailPalette_Dream,
-        .tiles = gMailTiles_Dream,
-        .tileMap = gMailTilemap_Dream,
-        .unused = 0x340,
-        .textColor = RGB(10, 10, 10),
-        .textShadow = RGB(25, 25, 25),
+    [ITEM_TO_MAIL(ITEM_DREAM_MAIL)]   = {
+        .pal = gFile_graphics_mail_dream_palette_pal,
+        .tiles = gFile_graphics_mail_dream_tiles_sheet,
+        .map = gFile_graphics_mail_dream_map_tilemap,
+        .size = 0x340,
+        .textpals = { RGB(10, 10, 10), RGB(25, 25, 25) }
     },
-    [ITEM_TO_MAIL(ITEM_FAB_MAIL)] = {
-        .palette = gMailPalette_Fab,
-        .tiles = gMailTiles_Fab,
-        .tileMap = gMailTilemap_Fab,
-        .unused = 0x2a0,
-        .textColor = RGB(10, 10, 10),
-        .textShadow = RGB(25, 25, 25),
+    [ITEM_TO_MAIL(ITEM_FAB_MAIL)]     = {
+        .pal = gFile_graphics_mail_fab_palette_pal,
+        .tiles = gFile_graphics_mail_fab_tiles_sheet,
+        .map = gFile_graphics_mail_fab_map_tilemap,
+        .size = 0x2a0,
+        .textpals = { RGB(10, 10, 10), RGB(25, 25, 25) }
     },
-    [ITEM_TO_MAIL(ITEM_RETRO_MAIL)] = {
-        .palette = gMailPalette_Retro,
-        .tiles = gMailTiles_Retro,
-        .tileMap = gMailTilemap_Retro,
-        .unused = 0x520,
-        .textColor = RGB(10, 10, 10),
-        .textShadow = RGB(25, 25, 25),
+    [ITEM_TO_MAIL(ITEM_RETRO_MAIL)]   = {
+        .pal = gFile_graphics_mail_retro_palette_pal,
+        .tiles = gFile_graphics_mail_retro_tiles_sheet,
+        .map = gFile_graphics_mail_retro_map_tilemap,
+        .size = 0x520,
+        .textpals = { RGB(10, 10, 10), RGB(25, 25, 25) }
     }
 };
 
-static const struct MailLineLayout sLineLayouts_Wide[] = {
-    { .numEasyChatWords = 3, .xOffset = 0, .height = 16 },
-    { .numEasyChatWords = 3, .xOffset = 0, .height = 16 },
-    { .numEasyChatWords = 3, .xOffset = 0, .height = 16 }
+static const struct MailEcWordLayout sLayout_3x3[] = {
+    { .numWordsInLine = 3, .lineXoffset = 0, .lineHeight = 16 },
+    { .numWordsInLine = 3, .lineXoffset = 0, .lineHeight = 16 },
+    { .numWordsInLine = 3, .lineXoffset = 0, .lineHeight = 16 }
 };
 
-static const struct MailLayout sMailLayouts_Wide[] = {
-    [ITEM_TO_MAIL(ITEM_ORANGE_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+static const struct MailAttrStruct sMessageLayouts_3x3[] = {
+    [ITEM_TO_MAIL(ITEM_ORANGE_MAIL)]  = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_HARBOR_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_HARBOR_MAIL)]  = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
     [ITEM_TO_MAIL(ITEM_GLITTER_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_MECH_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_MECH_MAIL)]    = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_WOOD_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_WOOD_MAIL)]    = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_WAVE_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_WAVE_MAIL)]    = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_BEAD_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_BEAD_MAIL)]    = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_SHADOW_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_SHADOW_MAIL)]  = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_TROPIC_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_TROPIC_MAIL)]  = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_DREAM_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_DREAM_MAIL)]   = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_FAB_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 8,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 4,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_FAB_MAIL)]     = {
+    	.numRows = 3,
+    	.nameY = 8,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 4,
+    	.linesLayout = sLayout_3x3
     },
-    [ITEM_TO_MAIL(ITEM_RETRO_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Wide),
-        .signatureYPos = 0,
-        .signatureWidth = 0,
-        .wordsYPos = 2,
-        .wordsXPos = 0,
-        .lines = sLineLayouts_Wide,
+    [ITEM_TO_MAIL(ITEM_RETRO_MAIL)]   = {
+    	.numRows = 3,
+    	.nameY = 0,
+    	.nameX = 0,
+    	.messageTop = 2,
+    	.messageLeft = 0,
+    	.linesLayout = sLayout_3x3
     },
 };
 
-static const struct MailLineLayout sLineLayouts_Tall[] = {
-    { .numEasyChatWords = 2, .xOffset = 0, .height = 16 },
-    { .numEasyChatWords = 2, .xOffset = 0, .height = 16 },
-    { .numEasyChatWords = 2, .xOffset = 0, .height = 16 },
-    { .numEasyChatWords = 2, .xOffset = 0, .height = 16 },
-    { .numEasyChatWords = 1, .xOffset = 0, .height = 16 }
+static const struct MailEcWordLayout sLayout_5x2[] = {
+    { .numWordsInLine = 2, .lineXoffset = 0, .lineHeight = 16 },
+    { .numWordsInLine = 2, .lineXoffset = 0, .lineHeight = 16 },
+    { .numWordsInLine = 2, .lineXoffset = 0, .lineHeight = 16 },
+    { .numWordsInLine = 2, .lineXoffset = 0, .lineHeight = 16 },
+    { .numWordsInLine = 1, .lineXoffset = 0, .lineHeight = 16 }
 };
 
-static const struct MailLayout sMailLayouts_Tall[] = {
-    [ITEM_TO_MAIL(ITEM_ORANGE_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 7,
-        .signatureWidth = 88,
-        .wordsYPos = 11,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+static const struct MailAttrStruct sMessageLayouts_5x2[] = {
+    [ITEM_TO_MAIL(ITEM_ORANGE_MAIL)]  = {
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 8,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_HARBOR_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 10,
-        .signatureWidth = 96,
-        .wordsYPos = 9,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_HARBOR_MAIL)]  = {
+      	.numRows = 5,
+      	.nameY = 3,
+      	.nameX = 14,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
     [ITEM_TO_MAIL(ITEM_GLITTER_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 12,
-        .signatureWidth = 104,
-        .wordsYPos = 5,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 16,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_MECH_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 5,
-        .signatureWidth = 96,
-        .wordsYPos = 8,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_MECH_MAIL)]    = {
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 14,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_WOOD_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 10,
-        .signatureWidth = 96,
-        .wordsYPos = 9,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_WOOD_MAIL)]    = {
+      	.numRows = 5,
+      	.nameY = 3,
+      	.nameX = 12,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_WAVE_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 9,
-        .signatureWidth = 112,
-        .wordsYPos = 5,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_WAVE_MAIL)]    = {
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 18,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_BEAD_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 12,
-        .signatureWidth = 104,
-        .wordsYPos = 9,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_BEAD_MAIL)]    = {
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 20,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_SHADOW_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 13,
-        .signatureWidth = 104,
-        .wordsYPos = 13,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_SHADOW_MAIL)]  = {
+      	.numRows = 5,
+      	.nameY = 6,
+      	.nameX = 20,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_TROPIC_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 9,
-        .signatureWidth = 96,
-        .wordsYPos = 9,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_TROPIC_MAIL)]  = {
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 16,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_DREAM_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 9,
-        .signatureWidth = 96,
-        .wordsYPos = 9,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_DREAM_MAIL)]   = {
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 14,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_FAB_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 17,
-        .signatureWidth = 104,
-        .wordsYPos = 15,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_FAB_MAIL)]     = {
+      	.numRows = 5,
+      	.nameY = 8,
+      	.nameX = 16,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
-    [ITEM_TO_MAIL(ITEM_RETRO_MAIL)] = {
-        .numLines = ARRAY_COUNT(sLineLayouts_Tall),
-        .signatureYPos = 9,
-        .signatureWidth = 96,
-        .wordsYPos = 5,
-        .wordsXPos = 30,
-        .lines = sLineLayouts_Tall,
+    [ITEM_TO_MAIL(ITEM_RETRO_MAIL)]   = {
+      	.numRows = 5,
+      	.nameY = 0,
+      	.nameX = 16,
+      	.messageTop = 3,
+      	.messageLeft = 8,
+      	.linesLayout = sLayout_5x2
     },
 };
 
-void ReadMail(struct Mail *mail, void (*exitCallback)(void), bool8 hasText)
+void ReadMail(struct Mail * mail, void (*savedCallback)(void), bool8 messageExists)
 {
-    u16 buffer[2];
+    u16 sp0;
     u16 species;
-
-    sMailRead = AllocZeroed(sizeof(*sMailRead));
-    sMailRead->language = GAME_LANGUAGE;
-    sMailRead->international = TRUE;
-    sMailRead->parserSingle = CopyEasyChatWord;
-    sMailRead->parserMultiple = ConvertEasyChatWordsToString;
+    sMailViewResources = AllocZeroed(sizeof(struct MailViewResources));
+    sMailViewResources->unused = 2;
+    sMailViewResources->mailArrangementType = 1;
+    sMailViewResources->copyEasyChatWord = CopyEasyChatWord;
+    sMailViewResources->convertEasyChatWordsToString = ConvertEasyChatWordsToString;
     if (IS_ITEM_MAIL(mail->itemId))
     {
-        sMailRead->mailType = ITEM_TO_MAIL(mail->itemId);
+        sMailViewResources->mailType = ITEM_TO_MAIL(mail->itemId);
     }
     else
     {
-        sMailRead->mailType = ITEM_TO_MAIL(FIRST_MAIL_INDEX);
-        hasText = FALSE;
+        sMailViewResources->mailType = ITEM_TO_MAIL(ITEM_ORANGE_MAIL);
+        messageExists = FALSE;
     }
-    switch (sMailRead->international)
+    switch (sMailViewResources->mailArrangementType)
     {
-    case FALSE:
+    case 0:
     default:
-        // Never reached. JP only?
-        sMailRead->layout = &sMailLayouts_Wide[sMailRead->mailType];
+        sMailViewResources->messageLayout = &sMessageLayouts_3x3[sMailViewResources->mailType];
         break;
-    case TRUE:
-        sMailRead->layout = &sMailLayouts_Tall[sMailRead->mailType];
+    case 1:
+        sMailViewResources->messageLayout = &sMessageLayouts_5x2[sMailViewResources->mailType];
         break;
     }
-    species = MailSpeciesToSpecies(mail->species, buffer);
-    if (species > SPECIES_NONE && species < NUM_SPECIES)
+    species = MailSpeciesToSpecies(mail->species, &sp0);
+    if (species != SPECIES_NONE && species < NUM_SPECIES)
     {
-        switch (sMailRead->mailType)
+        switch (sMailViewResources->mailType)
         {
         default:
-            sMailRead->iconType = ICON_TYPE_NONE;
+            sMailViewResources->monIconType = MAIL_ICON_NONE;
             break;
         case ITEM_TO_MAIL(ITEM_BEAD_MAIL):
-            sMailRead->iconType = ICON_TYPE_BEAD;
+            sMailViewResources->monIconType = MAIL_ICON_BEAD;
             break;
         case ITEM_TO_MAIL(ITEM_DREAM_MAIL):
-            sMailRead->iconType = ICON_TYPE_DREAM;
+            sMailViewResources->monIconType = MAIL_ICON_DREAM;
             break;
         }
     }
     else
     {
-        sMailRead->iconType = ICON_TYPE_NONE;
+        sMailViewResources->monIconType = MAIL_ICON_NONE;
     }
-    sMailRead->mail = mail;
-    sMailRead->exitCallback = exitCallback;
-    sMailRead->hasText = hasText;
-    SetMainCallback2(CB2_InitMailRead);
+    sMailViewResources->mail = mail;
+    sMailViewResources->savedCallback = savedCallback;
+    sMailViewResources->messageExists = messageExists;
+    SetMainCallback2(CB2_InitMailView);
 }
 
-static bool8 MailReadBuildGraphics(void)
+static bool8 DoInitMailView(void)
 {
-    u16 icon;
+    u16 iconId;
 
     switch (gMain.state)
     {
-        case 0:
-            SetVBlankCallback(NULL);
-            ScanlineEffect_Stop();
-            SetGpuReg(REG_OFFSET_DISPCNT, 0);
-            break;
-        case 1:
-            CpuFill16(0, (void *)OAM, OAM_SIZE);
-            break;
-        case 2:
-            ResetPaletteFade();
-            break;
-        case 3:
-            ResetTasks();
-            break;
-        case 4:
-            ResetSpriteData();
-            break;
-        case 5:
-            FreeAllSpritePalettes();
-            ResetTempTileDataBuffers();
-            SetGpuReg(REG_OFFSET_BG0HOFS, 0);
-            SetGpuReg(REG_OFFSET_BG0VOFS, 0);
-            SetGpuReg(REG_OFFSET_BG1HOFS, 0);
-            SetGpuReg(REG_OFFSET_BG1VOFS, 0);
-            SetGpuReg(REG_OFFSET_BG2VOFS, 0);
-            SetGpuReg(REG_OFFSET_BG2HOFS, 0);
-            SetGpuReg(REG_OFFSET_BG3HOFS, 0);
-            SetGpuReg(REG_OFFSET_BG3VOFS, 0);
-            SetGpuReg(REG_OFFSET_BLDCNT,  0);
-            SetGpuReg(REG_OFFSET_BLDALPHA, 0);
-            break;
-        case 6:
-            ResetBgsAndClearDma3BusyFlags(0);
-            InitBgsFromTemplates(0, sBgTemplates, ARRAY_COUNT(sBgTemplates));
-            SetBgTilemapBuffer(1, sMailRead->bg1TilemapBuffer);
-            SetBgTilemapBuffer(2, sMailRead->bg2TilemapBuffer);
-            break;
-        case 7:
-            InitWindows(sWindowTemplates);
-            DeactivateAllTextPrinters();
-            break;
-        case 8:
-            DecompressAndCopyTileDataToVram(1, sMailGraphics[sMailRead->mailType].tiles, 0, 0, 0);
-            break;
-        case 9:
-            if (FreeTempTileDataBuffersIfPossible())
-                return FALSE;
-            break;
-        case 10:
-            FillBgTilemapBufferRect_Palette0(0, 0, 0, 0, DISPLAY_TILE_WIDTH, DISPLAY_TILE_HEIGHT);
-            FillBgTilemapBufferRect_Palette0(2, 1, 0, 0, DISPLAY_TILE_WIDTH, DISPLAY_TILE_HEIGHT);
-            CopyToBgTilemapBuffer(1, sMailGraphics[sMailRead->mailType].tileMap, 0, 0);
-            break;
-        case 11:
-            CopyBgTilemapBufferToVram(0);
-            CopyBgTilemapBufferToVram(1);
-            CopyBgTilemapBufferToVram(2);
-            break;
-        case 12:
-            LoadPalette(GetOverworldTextboxPalettePtr(), BG_PLTT_ID(15), PLTT_SIZE_4BPP);
-            gPlttBufferUnfaded[BG_PLTT_ID(15) + 10] = sMailGraphics[sMailRead->mailType].textColor;
-            gPlttBufferFaded[BG_PLTT_ID(15) + 10] = sMailGraphics[sMailRead->mailType].textColor;
-            gPlttBufferUnfaded[BG_PLTT_ID(15) + 11] = sMailGraphics[sMailRead->mailType].textShadow;
-            gPlttBufferFaded[BG_PLTT_ID(15) + 11] = sMailGraphics[sMailRead->mailType].textShadow;
-
-            LoadPalette(sMailGraphics[sMailRead->mailType].palette, BG_PLTT_ID(0), PLTT_SIZE_4BPP);
-            gPlttBufferUnfaded[BG_PLTT_ID(0) + 10] = sBgColors[gSaveBlock2Ptr->playerGender][0];
-            gPlttBufferFaded[BG_PLTT_ID(0) + 10] = sBgColors[gSaveBlock2Ptr->playerGender][0];
-            gPlttBufferUnfaded[BG_PLTT_ID(0) + 11] = sBgColors[gSaveBlock2Ptr->playerGender][1];
-            gPlttBufferFaded[BG_PLTT_ID(0) + 11] = sBgColors[gSaveBlock2Ptr->playerGender][1];
-            break;
-        case 13:
-            if (sMailRead->hasText)
-                BufferMailText();
-            break;
-        case 14:
-            if (sMailRead->hasText)
-            {
-                PrintMailText();
-                RunTextPrinters();
-            }
-            break;
-        case 15:
-            if (Overworld_IsRecvQueueAtMax() == TRUE)
-                return FALSE;
-            break;
-        case 16:
-            SetVBlankCallback(VBlankCB_MailRead);
-            gPaletteFade.bufferTransferDisabled = TRUE;
-            break;
-        case 17:
-            icon = GetIconSpeciesNoPersonality(sMailRead->mail->species);
-            switch (sMailRead->iconType)
-            {
-            case ICON_TYPE_BEAD:
-                LoadMonIconPalette(icon);
-                sMailRead->monIconSpriteId = CreateMonIconNoPersonality(icon, SpriteCallbackDummy, 96, 128, 0);
-                break;
-            case ICON_TYPE_DREAM:
-                LoadMonIconPalette(icon);
-                sMailRead->monIconSpriteId = CreateMonIconNoPersonality(icon, SpriteCallbackDummy, 40, 128, 0);
-                break;
-            }
-            break;
-        case 18:
-            SetGpuReg(REG_OFFSET_DISPCNT, DISPCNT_OBJ_ON | DISPCNT_OBJ_1D_MAP);
-            ShowBg(0);
-            ShowBg(1);
-            ShowBg(2);
-            BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
-            gPaletteFade.bufferTransferDisabled = FALSE;
-            sMailRead->callback = CB2_WaitForPaletteExitOnKeyPress;
-            return TRUE;
-        default:
+    case 0:
+        SetVBlankCallback(NULL);
+        ScanlineEffect_Stop();
+        SetGpuReg(REG_OFFSET_DISPCNT, 0);
+        if (gPlayerPcMenuManager.notInRoom == FALSE)
+            SetHelpContext(HELPCONTEXT_BEDROOM_PC_MAILBOX);
+        else
+            SetHelpContext(HELPCONTEXT_PLAYERS_PC_MAILBOX);
+        break;
+    case 1:
+        CpuFill16(0, (void *)OAM, OAM_SIZE);
+        break;
+    case 2:
+        ResetPaletteFade();
+        break;
+    case 3:
+        ResetTasks();
+        break;
+    case 4:
+        ResetSpriteData();
+        break;
+    case 5:
+        FreeAllSpritePalettes();
+        ResetTempTileDataBuffers();
+        SetGpuReg(REG_OFFSET_BG0HOFS, 0);
+        SetGpuReg(REG_OFFSET_BG0VOFS, 0);
+        SetGpuReg(REG_OFFSET_BG1HOFS, 0);
+        SetGpuReg(REG_OFFSET_BG1VOFS, 0);
+        SetGpuReg(REG_OFFSET_BG2VOFS, 0);
+        SetGpuReg(REG_OFFSET_BG2HOFS, 0);
+        SetGpuReg(REG_OFFSET_BG3HOFS, 0);
+        SetGpuReg(REG_OFFSET_BG3VOFS, 0);
+        SetGpuReg(REG_OFFSET_BLDCNT, 0);
+        SetGpuReg(REG_OFFSET_BLDALPHA, 0);
+        break;
+    case 6:
+        ResetBgsAndClearDma3BusyFlags(FALSE);
+        InitBgsFromTemplates(0, sBgTemplates, NELEMS(sBgTemplates));
+        SetBgTilemapBuffer(1, sMailViewResources->bg1TilemapBuffer);
+        SetBgTilemapBuffer(2, sMailViewResources->bg2TilemapBuffer);
+        break;
+    case 7:
+        InitWindows(sWindowTemplates);
+        DeactivateAllTextPrinters();
+        break;
+    case 8:
+        DecompressAndCopyTileDataToVram(1, sGfxHeaders[sMailViewResources->mailType].tiles, 0, 0x000, 0);
+        break;
+    case 9:
+        if (FreeTempTileDataBuffersIfPossible())
             return FALSE;
+        break;
+    case 10:
+        FillBgTilemapBufferRect_Palette0(0, 0x000, 0, 0, 30, 20);
+        FillBgTilemapBufferRect_Palette0(2, 0x001, 0, 0, 30, 20);
+        CopyToBgTilemapBuffer(1, sGfxHeaders[sMailViewResources->mailType].map, 0, 0x000);
+        break;
+    case 11:
+        CopyBgTilemapBufferToVram(0);
+        CopyBgTilemapBufferToVram(1);
+        CopyBgTilemapBufferToVram(2);
+        break;
+    case 12:
+        LoadPalette(GetTextWindowPalette(0), BG_PLTT_ID(15), PLTT_SIZE_4BPP);
+        gPlttBufferUnfaded[BG_PLTT_ID(15) + 10] = sGfxHeaders[sMailViewResources->mailType].textpals[0];
+        gPlttBufferFaded[BG_PLTT_ID(15) + 10] = sGfxHeaders[sMailViewResources->mailType].textpals[0];
+        gPlttBufferUnfaded[BG_PLTT_ID(15) + 11] = sGfxHeaders[sMailViewResources->mailType].textpals[1];
+        gPlttBufferFaded[BG_PLTT_ID(15) + 11] = sGfxHeaders[sMailViewResources->mailType].textpals[1];
+
+        LoadPalette(sGfxHeaders[sMailViewResources->mailType].pal, BG_PLTT_ID(0), PLTT_SIZE_4BPP);
+        gPlttBufferUnfaded[BG_PLTT_ID(0) + 10] = sGenderPals[gSaveBlock2Ptr->playerGender][0];
+        gPlttBufferFaded[BG_PLTT_ID(0) + 10] = sGenderPals[gSaveBlock2Ptr->playerGender][0];
+        gPlttBufferUnfaded[BG_PLTT_ID(0) + 11] = sGenderPals[gSaveBlock2Ptr->playerGender][1];
+        gPlttBufferFaded[BG_PLTT_ID(0) + 11] = sGenderPals[gSaveBlock2Ptr->playerGender][1];
+        break;
+    case 13:
+        if (sMailViewResources->messageExists)
+            BufferMailMessage();
+        break;
+    case 14:
+        if (sMailViewResources->messageExists)
+        {
+            AddMailMessagePrinters();
+            RunTextPrinters();
+        }
+        break;
+    case 15:
+        if (Overworld_LinkRecvQueueLengthMoreThan2() == TRUE)
+            return FALSE;
+        break;
+    case 16:
+        SetVBlankCallback(VBlankCB_ShowMail);
+        gPaletteFade.bufferTransferDisabled = TRUE;
+        break;
+    case 17:
+        iconId = GetIconSpeciesNoPersonality(sMailViewResources->mail->species);
+        switch (sMailViewResources->monIconType)
+        {
+        case MAIL_ICON_BEAD:
+            LoadMonIconPalette(iconId);
+            sMailViewResources->monIconSpriteId = CreateMonIconNoPersonality(iconId, SpriteCallbackDummy, 0x60, 0x80, 0);
+            break;
+        case MAIL_ICON_DREAM:
+            LoadMonIconPalette(iconId);
+            sMailViewResources->monIconSpriteId = CreateMonIconNoPersonality(iconId, SpriteCallbackDummy, 0x28, 0x80, 0);
+            break;
+        }
+        break;
+    case 18:
+        SetGpuReg(REG_OFFSET_DISPCNT, DISPCNT_MODE_0 | DISPCNT_OBJ_1D_MAP | DISPCNT_OBJ_ON);
+        ShowBg(0);
+        ShowBg(1);
+        ShowBg(2);
+        BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
+        gPaletteFade.bufferTransferDisabled = FALSE;
+        sMailViewResources->showMailCallback = ShowMailCB_WaitFadeIn;
+        return TRUE;
+    default:
+        return FALSE;
     }
     gMain.state++;
     return FALSE;
 }
 
-static void CB2_InitMailRead(void)
+static void CB2_InitMailView(void)
 {
     do
     {
-        if (MailReadBuildGraphics() == TRUE)
+        if (DoInitMailView() == TRUE)
         {
-            SetMainCallback2(CB2_MailRead);
+            SetMainCallback2(CB2_RunShowMailCB);
             break;
         }
     } while (MenuHelpers_IsLinkActive() != TRUE);
 }
 
-static void BufferMailText(void)
+static void BufferMailMessage(void)
 {
     u16 i;
-    u8 numWords;
-    u8 *ptr;
-
-    // Convert the easy chat words to strings line by line and buffer them to message
-    numWords = 0;
-    for (i = 0; i < sMailRead->layout->numLines; i ++)
+    u8 j = 0;
+    for (i = 0; i < sMailViewResources->messageLayout->numRows; i++)
     {
-        ConvertEasyChatWordsToString(sMailRead->message[i], &sMailRead->mail->words[numWords], sMailRead->layout->lines[i].numEasyChatWords, 1);
-        numWords += sMailRead->layout->lines[i].numEasyChatWords;
+        ConvertEasyChatWordsToString(sMailViewResources->messageLinesBuffer[i], &sMailViewResources->mail->words[j], sMailViewResources->messageLayout->linesLayout[i].numWordsInLine, 1);
+        j += sMailViewResources->messageLayout->linesLayout[i].numWordsInLine;
     }
-
-    // Buffer the signature
-    ptr = StringCopy(sMailRead->playerName, sMailRead->mail->playerName);
-    if (!sMailRead->international)
+    if (sMailViewResources->mailArrangementType == 0)
     {
-        // Never reached
-        StringCopy(ptr, gText_FromSpace); // Odd, "From" text is already printed in PrintMailText
-        sMailRead->signatureWidth = sMailRead->layout->signatureWidth - (StringLength(sMailRead->playerName) * 8 - 96);
+        StringCopy(StringCopy(sMailViewResources->authorNameBuffer, sMailViewResources->mail->playerName), gText_From); // ???
+        sMailViewResources->nameX = sMailViewResources->messageLayout->nameX + 0x60 - 8 * StringLength(sMailViewResources->authorNameBuffer);
     }
     else
     {
-        ConvertInternationalPlayerName(sMailRead->playerName);
-        sMailRead->signatureWidth = sMailRead->layout->signatureWidth;
+        StringCopy(sMailViewResources->authorNameBuffer, sMailViewResources->mail->playerName);
+        if (StringLength(sMailViewResources->authorNameBuffer) < 6)
+            ConvertInternationalString(sMailViewResources->authorNameBuffer, LANGUAGE_JAPANESE);
+        sMailViewResources->nameX = sMailViewResources->messageLayout->nameX;
     }
 }
 
-static void PrintMailText(void)
+static void AddMailMessagePrinters(void)
 {
+    u8 y = 0;
     u16 i;
-    u8 signature[32];
-    u8 y;
-    u8 *bufptr;
-    s32 box_x;
-    s32 box_y;
+    u32 width;
 
-    y = 0;
     PutWindowTilemap(0);
     PutWindowTilemap(1);
     FillWindowPixelBuffer(0, PIXEL_FILL(0));
     FillWindowPixelBuffer(1, PIXEL_FILL(0));
-    for (i = 0; i < sMailRead->layout->numLines; i ++)
+    for (i = 0; i < sMailViewResources->messageLayout->numRows; i++)
     {
-        if (sMailRead->message[i][0] == EOS || sMailRead->message[i][0] == CHAR_SPACE)
-            continue;
-
-        AddTextPrinterParameterized3(0, FONT_NORMAL, sMailRead->layout->lines[i].xOffset + sMailRead->layout->wordsXPos, y + sMailRead->layout->wordsYPos, sTextColors, 0, sMailRead->message[i]);
-        y += sMailRead->layout->lines[i].height;
+        if (sMailViewResources->messageLinesBuffer[i][0] != EOS && sMailViewResources->messageLinesBuffer[i][0] != CHAR_SPACE)
+        {
+            AddTextPrinterParameterized3(0, FONT_NORMAL_COPY_1, sMailViewResources->messageLayout->linesLayout[i].lineXoffset + sMailViewResources->messageLayout->messageLeft, y + sMailViewResources->messageLayout->messageTop, sTextColor, 0, sMailViewResources->messageLinesBuffer[i]);
+            y += sMailViewResources->messageLayout->linesLayout[i].lineHeight;
+        }
     }
-    bufptr = StringCopy(signature, gText_FromSpace);
-    StringCopy(bufptr, sMailRead->playerName);
-    box_x = GetStringCenterAlignXOffset(FONT_NORMAL, signature, sMailRead->signatureWidth) + 104;
-    box_y = sMailRead->layout->signatureYPos + 88;
-    AddTextPrinterParameterized3(0, FONT_NORMAL, box_x, box_y, sTextColors, 0, signature);
+    width = GetStringWidth(FONT_NORMAL_COPY_1, gText_From, 0);
+    AddTextPrinterParameterized3(1, FONT_NORMAL_COPY_1, sMailViewResources->nameX, sMailViewResources->messageLayout->nameY, sTextColor, 0, gText_From);
+    AddTextPrinterParameterized3(1, FONT_NORMAL_COPY_1, sMailViewResources->nameX + width, sMailViewResources->messageLayout->nameY, sTextColor, 0, sMailViewResources->authorNameBuffer);
     CopyWindowToVram(0, COPYWIN_FULL);
     CopyWindowToVram(1, COPYWIN_FULL);
 }
 
-static void VBlankCB_MailRead(void)
+static void VBlankCB_ShowMail(void)
 {
     LoadOam();
     ProcessSpriteCopyRequests();
     TransferPlttBuffer();
 }
 
-static void CB2_MailRead(void)
+static void CB2_RunShowMailCB(void)
 {
-    if (sMailRead->iconType != ICON_TYPE_NONE)
+    if (sMailViewResources->monIconType != MAIL_ICON_NONE)
     {
         AnimateSprites();
         BuildOamBuffer();
     }
-    sMailRead->callback();
+    sMailViewResources->showMailCallback();
 }
 
-static void CB2_WaitForPaletteExitOnKeyPress(void)
+static void ShowMailCB_WaitFadeIn(void)
 {
     if (!UpdatePaletteFade())
-    {
-        sMailRead->callback = CB2_ExitOnKeyPress;
-    }
+        sMailViewResources->showMailCallback = ShowMailCB_WaitButton;
 }
 
-static void CB2_ExitOnKeyPress(void)
+static void ShowMailCB_WaitButton(void)
 {
     if (JOY_NEW(A_BUTTON | B_BUTTON))
     {
         BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
-        sMailRead->callback = CB2_ExitMailReadFreeVars;
+        sMailViewResources->showMailCallback = ShowMailCB_Teardown;
     }
 }
 
-static void CB2_ExitMailReadFreeVars(void)
+static void ShowMailCB_Teardown(void)
 {
     if (!UpdatePaletteFade())
     {
-        SetMainCallback2(sMailRead->exitCallback);
-        switch (sMailRead->iconType)
+        SetMainCallback2(sMailViewResources->savedCallback);
+        switch (sMailViewResources->monIconType)
         {
-        case ICON_TYPE_BEAD:
-        case ICON_TYPE_DREAM:
-            FreeMonIconPalette(GetIconSpeciesNoPersonality(sMailRead->mail->species));
-            FreeAndDestroyMonIconSprite(&gSprites[sMailRead->monIconSpriteId]);
+        case MAIL_ICON_BEAD:
+        case MAIL_ICON_DREAM:
+            FreeMonIconPalette(GetIconSpeciesNoPersonality(sMailViewResources->mail->species));
+            FreeAndDestroyMonIconSprite(&gSprites[sMailViewResources->monIconSpriteId]);
+            break;
         }
-        memset(sMailRead, 0, sizeof(*sMailRead));
+        *sMailViewResources = (struct MailViewResources){};
         ResetPaletteFade();
-        UnsetBgTilemapBuffer(0);
-        UnsetBgTilemapBuffer(1);
-        ResetBgsAndClearDma3BusyFlags(0);
         FreeAllWindowBuffers();
-        FREE_AND_SET_NULL(sMailRead);
+        FREE_AND_SET_NULL(sMailViewResources);
     }
 }

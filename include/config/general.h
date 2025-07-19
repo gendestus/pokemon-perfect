@@ -6,16 +6,16 @@
 // still has them in the ROM. This is because the developers forgot
 // to define NDEBUG before release, however this has been changed as
 // Ruby's actual debug build does not use the AGBPrint features.
-#define NDEBUG
+// #define NDEBUG
 
 // To enable printf debugging, comment out "#define NDEBUG". This allows
 // the various AGBPrint functions to be used. (See include/gba/isagbprint.h).
 // See below for enabling different pretty printing versions.
 
 #ifndef NDEBUG
-
-#define PRETTY_PRINT_MINI_PRINTF (0)
-#define PRETTY_PRINT_LIBC (1)
+#define PRETTY_PRINT_OFF (0)
+#define PRETTY_PRINT_MINI_PRINTF (1)
+#define PRETTY_PRINT_LIBC (2)
 
 #define LOG_HANDLER_AGB_PRINT (0)
 #define LOG_HANDLER_NOCASH_PRINT (1)
@@ -37,6 +37,19 @@
 // Uncomment to fix some identified minor bugs
 #define BUGFIX
 
+// Define the game version for use elsewhere
+#if defined(FIRERED)
+#define GAME_VERSION VERSION_FIRE_RED
+#else // Default version seems to be LeafGreen
+#define GAME_VERSION VERSION_LEAF_GREEN
+#endif // GAME_VERSION
+
+#define IS_FRLG (GAME_VERSION == VERSION_FIRE_RED || GAME_VERSION == VERSION_LEAF_GREEN)
+
+// rev1 renamed the source folder for reasons
+#define CODE_ROOT "C:/WORK/POKeFRLG/Src/pm_lgfr_ose/source/"
+#define ABSPATH(x) (CODE_ROOT x)
+
 // Various undefined behavior bugs may or may not prevent compilation with
 // newer compilers. So always fix them when using a modern compiler.
 #if MODERN || defined(BUGFIX)
@@ -44,14 +57,6 @@
 #define UBFIX
 #endif
 #endif
-
-// Compatibility definition for other projects to detect pokeemerald-expansion
-#define RHH_EXPANSION
-
-// Legacy branch-based defines included for backwards compatibility
-#define BATTLE_ENGINE
-#define POKEMON_EXPANSION
-#define ITEM_EXPANSION
 
 // Generation constants used in configs to define behavior.
 #define GEN_1 0
@@ -78,7 +83,7 @@
 #define UNITS_IMPERIAL               0       // Inches, feet, pounds
 #define UNITS_METRIC                 1       // meters, kilograms
 
-#define UNITS                        UNITS_IMPERIAL
+#define UNITS                        UNITS_METRIC
 #define CHAR_DEC_SEPARATOR           CHAR_PERIOD // CHAR_PERIOD is used as a decimal separator only in the UK and the US. The rest of the world uses CHAR_COMMA.
 
 // Naming Screen

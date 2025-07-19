@@ -1,36 +1,31 @@
 #include "global.h"
-#include "digit_obj_util.h"
-#include "malloc.h"
+#include "gflib.h"
 #include "decompress.h"
-#include "main.h"
-#include "battle_main.h"
-#include "sprite.h"
-
-struct DigitPrinter
-{
-    bool8 isActive;
-    u8 firstOamId;
-    u8 strConvMode;
-    u8 oamCount;
-    u8 palTagIndex;
-    u8 size;
-    u8 shape;
-    u8 priority;
-    u8 xDelta;
-    u8 tilesPerImage;
-    u16 tileStart;
-    s16 x;
-    s16 y;
-    u16 tileTag;
-    u16 palTag;
-    u32 pow10;
-    s32 lastPrinted;
-};
+#include "digit_obj_util.h"
 
 struct DigitPrinterAlloc
 {
     u32 count;
-    struct DigitPrinter *array;
+    struct DigitPrinter
+    {
+        bool8 isActive;
+        u8 firstOamId;
+        u8 strConvMode;
+        u8 oamCount;
+        u8 palTagIndex;
+        u8 size;
+        u8 shape;
+        u8 priority;
+        u8 xDelta;
+        u8 tilesPerImage;
+        u16 tileStart;
+        s16 x;
+        s16 y;
+        u16 tileTag;
+        u16 palTag;
+        u32 pow10;
+        s32 lastPrinted;
+    } *array;
 };
 
 // this file's functions
@@ -41,9 +36,37 @@ static void DrawNumObjsMinusInFront(struct DigitPrinter *objWork, s32 num, bool3
 static void DrawNumObjsMinusInBack(struct DigitPrinter *objWork, s32 num, bool32 sign);
 static bool32 SharesTileWithAnyActive(u32 id);
 static bool32 SharesPalWithAnyActive(u32 id);
+static u8 GetTilesPerImage(u32 shape, u32 size);
 
 // ewram
 static EWRAM_DATA struct DigitPrinterAlloc *sOamWork = {0};
+
+// const rom data
+static const u8 sTilesPerImage[4][4] =
+{
+    [ST_OAM_SQUARE]      = {
+        [ST_OAM_SIZE_0] = 0x01, // SPRITE_SIZE_8x8
+        [ST_OAM_SIZE_1] = 0x04, // SPRITE_SIZE_16x16
+        [ST_OAM_SIZE_2] = 0x10, // SPRITE_SIZE_32x32
+        [ST_OAM_SIZE_3] = 0x40  // SPRITE_SIZE_64x64
+    },
+    [ST_OAM_H_RECTANGLE] = {
+        [ST_OAM_SIZE_0] = 0x02, // SPRITE_SIZE_16x8
+        [ST_OAM_SIZE_1] = 0x04, // SPRITE_SIZE_32x8
+        [ST_OAM_SIZE_2] = 0x08, // SPRITE_SIZE_32x16
+        [ST_OAM_SIZE_3] = 0x20  // SPRITE_SIZE_64x32
+    },
+    [ST_OAM_V_RECTANGLE] = {
+        [ST_OAM_SIZE_0] = 0x02, // SPRITE_SIZE_8x16
+        [ST_OAM_SIZE_1] = 0x04, // SPRITE_SIZE_8x32
+        [ST_OAM_SIZE_2] = 0x08, // SPRITE_SIZE_16x32
+        [ST_OAM_SIZE_3] = 0x20  // SPRITE_SIZE_32x64
+    }
+};
+
+const u16 gMinigameDigits_Pal[] = INCBIN_U16("graphics/misc/minigame_digits.gbapal");
+const u32 gMinigameDigits_Gfx[] = INCBIN_U32("graphics/misc/minigame_digits.4bpp.lz");
+static const u32 sUnusedMinigameDigits_Gfx[] = INCBIN_U32("graphics/misc/minigame_digits_unused.4bpp.lz");
 
 // code
 bool32 DigitObjUtil_Init(u32 count)
@@ -105,20 +128,20 @@ bool32 DigitObjUtil_CreatePrinter(u32 id, s32 num, const struct DigitObjUtilTemp
     if (sOamWork->array[id].firstOamId == 0xFF)
         return FALSE;
 
-    sOamWork->array[id].tileStart = GetSpriteTileStartByTag(template->spriteSheet->tag);
+    sOamWork->array[id].tileStart = GetSpriteTileStartByTag(template->spriteSheet.uncompressed->tag);
     if (sOamWork->array[id].tileStart == 0xFFFF)
     {
-        if (template->spriteSheet->size != 0)
+        if (template->spriteSheet.uncompressed->size != 0)
         {
-            sOamWork->array[id].tileStart = LoadSpriteSheet(template->spriteSheet);
+            sOamWork->array[id].tileStart = LoadSpriteSheet(template->spriteSheet.uncompressed);
         }
         else
         {
-            struct CompressedSpriteSheet compSpriteSheet;
+            struct CompressedSpriteSheet compObjectPic;
 
-            compSpriteSheet = *(struct CompressedSpriteSheet *)(template->spriteSheet);
-            compSpriteSheet.size = GetDecompressedDataSize(template->spriteSheet->data);
-            sOamWork->array[id].tileStart = LoadCompressedSpriteSheet(&compSpriteSheet);
+            compObjectPic = *template->spriteSheet.compressed;
+            compObjectPic.size = GetDecompressedDataSize((const void *)template->spriteSheet.compressed->data);
+            sOamWork->array[id].tileStart = LoadCompressedSpriteSheet(&compObjectPic);
         }
 
         if (sOamWork->array[id].tileStart == 0xFFFF)
@@ -138,7 +161,7 @@ bool32 DigitObjUtil_CreatePrinter(u32 id, s32 num, const struct DigitObjUtilTemp
     sOamWork->array[id].priority = template->priority;
     sOamWork->array[id].xDelta = template->xDelta;
     sOamWork->array[id].tilesPerImage = GetTilesPerImage(template->shape, template->size);
-    sOamWork->array[id].tileTag = template->spriteSheet->tag;
+    sOamWork->array[id].tileTag = template->spriteSheet.uncompressed->tag;
     sOamWork->array[id].palTag = template->spritePal->tag;
     sOamWork->array[id].isActive = TRUE;
 
@@ -239,9 +262,9 @@ static void DrawNumObjsLeadingZeros(struct DigitPrinter *objWork, s32 num, bool3
 static void DrawNumObjsMinusInFront(struct DigitPrinter *objWork, s32 num, bool32 sign)
 {
     u32 pow10 = objWork->pow10;
-    int oamId;
-    int curDigit;
-    int firstDigit;
+    static int oamId;
+    static int curDigit;
+    static int firstDigit;
 
     oamId = objWork->firstOamId;
     curDigit = 0;
@@ -285,7 +308,7 @@ static void DrawNumObjsMinusInBack(struct DigitPrinter *objWork, s32 num, bool32
 {
     u32 pow10 = objWork->pow10;
     u32 oamId = objWork->firstOamId;
-    bool32 printingDigits = FALSE;
+    u32 printingDigits = 0;
     s32 nsprites = 0;
 
     while (pow10 != 0)
@@ -294,9 +317,9 @@ static void DrawNumObjsMinusInBack(struct DigitPrinter *objWork, s32 num, bool32
         num -= (digit * pow10);
         pow10 /= 10;
 
-        if (digit != 0 || printingDigits || pow10 == 0)
+        if (digit != 0 || printingDigits != 0 || pow10 == 0)
         {
-            printingDigits = TRUE;
+            printingDigits = 1;
             gMain.oamBuffer[oamId].tileNum = (digit * objWork->tilesPerImage) + objWork->tileStart;
             gMain.oamBuffer[oamId].affineMode = ST_OAM_AFFINE_OFF;
 
@@ -422,7 +445,7 @@ static bool32 SharesPalWithAnyActive(u32 id)
     return FALSE;
 }
 
-u8 GetTilesPerImage(u32 shape, u32 size)
+static u8 GetTilesPerImage(u32 shape, u32 size)
 {
     return 1 << GetSpanPerImage(shape, size);
 }

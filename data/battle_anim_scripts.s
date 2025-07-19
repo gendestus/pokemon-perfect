@@ -2,6 +2,7 @@
 #include "config/battle.h"
 #include "constants/battle.h"
 #include "constants/battle_anim.h"
+#include "constants/battle_string_ids.h"
 #include "constants/rgb.h"
 #include "constants/songs.h"
 #include "constants/sound.h"
@@ -14,6 +15,113 @@
 
 	.section script_data, "aw", %progbits
 
+gBattleAnimGeneral_MonScared::
+	createvisualtask AnimTask_SetAttackerTargetLeftPos, 2, 1
+	waitforvisualfinish
+	loadspritegfx ANIM_TAG_SWEAT_BEAD
+	createsprite gSimplePaletteBlendSpriteTemplate, ANIM_ATTACKER, 0, F_PAL_TARGET, 2, 0, 10, RGB(0, 23, 25)
+	createvisualtask AnimTask_ShakeMon2, 2, ANIM_TARGET, 2, 0, 10, 1
+	delay 20
+	createsprite gSprayWaterDropletSpriteTemplate, ANIM_TARGET, 5, 0, 1
+	playsewithpan SE_M_SKETCH, SOUND_PAN_TARGET
+	createsprite gSprayWaterDropletSpriteTemplate, ANIM_TARGET, 5, 1, 1
+	createvisualtask AnimTask_ShakeMon2, 2, ANIM_TARGET, 4, 0, 5, 1
+	createvisualtask AnimTask_StretchTargetUp, 3
+	waitforvisualfinish
+	createsprite gSimplePaletteBlendSpriteTemplate, ANIM_ATTACKER, 0, F_PAL_TARGET, 2, 10, 0, RGB(0, 23, 25)
+	waitforvisualfinish
+	end
+
+gBattleAnimGeneral_GhostGetOut::
+	createvisualtask AnimTask_SetAttackerTargetLeftPos, 2, 1
+	waitforvisualfinish
+	fadetobg BG_GHOST
+	waitbgfadeout
+	monbg_static ANIM_ATTACKER
+	createvisualtask AnimTask_GhostGetOut, 2
+	waitbgfadein
+	loopsewithpan SE_M_PSYBEAM, SOUND_PAN_TARGET, 20, 3
+	waitforvisualfinish
+	clearmonbg_static ANIM_ATTACKER
+	delay 1
+	loadspritegfx ANIM_TAG_SWEAT_BEAD
+	createsprite gSimplePaletteBlendSpriteTemplate, ANIM_ATTACKER, 0, F_PAL_TARGET, -1, 0, 6, RGB(21, 22, 26)
+	createsprite gSprayWaterDropletSpriteTemplate, ANIM_TARGET, 5, 0, 1
+	createsprite gSprayWaterDropletSpriteTemplate, ANIM_TARGET, 5, 1, 1
+	createvisualtask AnimTask_ShakeMon2, 2, ANIM_TARGET, 4, 0, 5, 1
+	createvisualtask AnimTask_StretchTargetUp, 3
+	waitforvisualfinish
+	createsprite gSimplePaletteBlendSpriteTemplate, ANIM_ATTACKER, 0, F_PAL_TARGET, -1, 6, 0, RGB(21, 22, 26)
+	waitforvisualfinish
+	restorebg
+	waitbgfadein
+	end
+
+gBattleAnimGeneral_SilphScoped::
+	monbg ANIM_ATTACKER
+	playsewithpan SE_M_TELEPORT, SOUND_PAN_ATTACKER
+	waitplaysewithpan SE_M_MINIMIZE, SOUND_PAN_ATTACKER, 48
+	createvisualtask AnimTask_TransformMon, 3, FALSE, FALSE, TRUE
+	waitsound
+	waitforvisualfinish
+	clearmonbg ANIM_ATTACKER
+	end
+
+gBattleAnimGeneral_SafariRockThrow::
+	createvisualtask AnimTask_SetAttackerTargetLeftPos, 2, 0
+	waitforvisualfinish
+	loadspritegfx ANIM_TAG_ROCKS
+	loadspritegfx ANIM_TAG_IMPACT
+	delay 0
+	waitplaysewithpan SE_M_JUMP_KICK, SOUND_PAN_ATTACKER, 22
+	createsprite sSafariRockSpriteTemplate, ANIM_TARGET, 3, -17, 14, 8, 0
+	delay 50
+	monbg ANIM_DEF_PARTNER
+	setalpha 12, 8
+	delay 0
+	playsewithpan SE_M_DOUBLE_SLAP, SOUND_PAN_TARGET
+	createsprite gBasicHitSplatSpriteTemplate, ANIM_TARGET, 2, -4, -20, 1, 2
+	waitforvisualfinish
+	clearmonbg ANIM_DEF_PARTNER
+	blendoff
+	waitforvisualfinish
+	end
+
+gBattleAnimGeneral_SafariReaction::
+	createvisualtask AnimTask_SafariGetReaction, 2
+	waitforvisualfinish
+	jumpreteq B_MSG_MON_WATCHING, SafariReaction_WatchingCarefully
+	jumpreteq B_MSG_MON_ANGRY, SafariReaction_Angry
+	jumpreteq B_MSG_MON_EATING, SafariReaction_Eating
+	end
+
+SafariReaction_WatchingCarefully:
+	playsewithpan SE_M_TAKE_DOWN, SOUND_PAN_TARGET
+	createvisualtask AnimTask_RotateMonToSideAndRestore, 2, 16, 96, 0, 2
+	waitforvisualfinish
+	playsewithpan SE_M_TAKE_DOWN, SOUND_PAN_TARGET
+	createvisualtask AnimTask_RotateMonToSideAndRestore, 2, 16, -96, 0, 2
+	end
+
+SafariReaction_Angry:
+	loadspritegfx ANIM_TAG_ANGER
+	createsprite gAngerMarkSpriteTemplate, ANIM_TARGET, 2, 1, 20, -20
+	playsewithpan SE_M_SWAGGER2, SOUND_PAN_TARGET
+	waitforvisualfinish
+	delay 12
+	createsprite gAngerMarkSpriteTemplate, ANIM_TARGET, 2, 1, -20, -20
+	playsewithpan SE_M_SWAGGER2, SOUND_PAN_TARGET
+	end
+
+SafariReaction_Eating:
+	playsewithpan SE_M_TAKE_DOWN, SOUND_PAN_TARGET
+	createvisualtask AnimTask_RotateMonToSideAndRestore, 2, 8, 136, 0, 2
+	waitforvisualfinish
+	playsewithpan SE_M_TAKE_DOWN, SOUND_PAN_TARGET
+	createvisualtask AnimTask_RotateMonToSideAndRestore, 2, 8, 136, 0, 2
+	end
+
+@ pokeemerald-expansion
 @@@@@@@@@@@@@@@@@@@@@@@ GEN 4 @@@@@@@@@@@@@@@@@@@@@@@
 gBattleAnimMove_Roost::
 	loadspritegfx ANIM_TAG_WHITE_FEATHER
@@ -28240,17 +28348,17 @@ gBattleAnimGeneral_SubstituteAppear::
 	createvisualtask AnimTask_MonToSubstitute, 2
 	end
 
-gBattleAnimGeneral_PokeblockThrow::
+gBattleAnimGeneral_BaitThrow::
 	createvisualtask AnimTask_SetAttackerTargetLeftPos, 2, 0
-	createvisualtask AnimTask_LoadPokeblockGfx, 2
+	createvisualtask AnimTask_LoadBaitGfx, 2
 	delay 0
 	waitplaysewithpan SE_M_JUMP_KICK, SOUND_PAN_ATTACKER, 22
-	createsprite gPokeblockSpriteTemplate, ANIM_TARGET, 3, -18, 12, 0, 32
+	createsprite gSafariBaitSpriteTemplate, ANIM_TARGET, 3, -18, 12, 0, 32
 	delay 50
 	loopsewithpan SE_M_TAIL_WHIP, SOUND_PAN_TARGET, 19, 2
 	createvisualtask AnimTask_SwayMon, 5, 1, 8, 1536, 2, ANIM_TARGET
 	waitforvisualfinish
-	createvisualtask AnimTask_FreePokeblockGfx, 2
+	createvisualtask AnimTask_FreeBaitGfx, 2
 	end
 
 gBattleAnimGeneral_ItemKnockoff::
@@ -29293,6 +29401,14 @@ BallThrowTrainerBlock:
 	blendoff
 	goto BallThrowEnd
 
+BallThrowGhostDodged:
+	delay 16
+	createvisualtask AnimTask_WindUpLunge, 2, ANIM_TARGET, 48, 6, 16, 48, -48, 16
+	playsewithpan SE_M_TAKE_DOWN, SOUND_PAN_TARGET
+	waitplaysewithpan SE_M_TAKE_DOWN, SOUND_PAN_TARGET, 48
+	waitforvisualfinish
+	goto BallThrowEnd
+
 gBattleAnimSpecial_BallThrowWithTrainer::
 	createvisualtask AnimTask_LoadBallGfx, 2
 	delay 0
@@ -29943,7 +30059,7 @@ gBattleAnimMove_SavageSpinOut::
 	call gSavageSpinOutStringBlastSpriteTemplateSHOT
 	call gSavageSpinOutStringBlastSpriteTemplateSHOT
 	call gSavageSpinOutStringBlastSpriteTemplateSHOT
-	createsprite gSpiderWebSpriteTemplate, ANIM_ATTACKER, 2, 0, 0, FALSE	@ spider web
+	createsprite gSpiderWebSpriteTemplate, ANIM_TARGET, 2	@ spider web
 	call gSavageSpinOutStringBlastSpriteTemplateSHOT
 	delay 0xe
 	blendoff
@@ -30013,7 +30129,7 @@ FinishSavageSpinOut:
 	playsewithpan SE_M_EXPLOSION, SOUND_PAN_TARGET
 	createsprite gSavageSpinOutWhiteExplosionSpriteTemplate, ANIM_TARGET, 3, 0x18, 0xffe8, ANIM_TARGET, 0x1
 	delay 0x6
-	createsprite gSpiderWebSpriteTemplate, ANIM_ATTACKER, 2, 0, 0, FALSE	@ spider web
+	createsprite gSpiderWebSpriteTemplate, ANIM_TARGET, 2	@ spider web
 	playsewithpan SE_M_EXPLOSION, SOUND_PAN_TARGET
 	createsprite gSavageSpinOutWhiteExplosionSpriteTemplate, ANIM_TARGET, 3, 0xfff0, 0x10, ANIM_TARGET, 0x1
 	delay 0x6

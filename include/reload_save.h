@@ -1,6 +1,7 @@
-#ifndef GUARD_RELOAD_SAVE_H
-#define GUARD_RELOAD_SAVE_H
+#ifndef GUARD_RESET_SAVE_HEAP_H
+#define GUARD_RESET_SAVE_HEAP_H
 
 void ReloadSave(void);
 
-#endif // GUARD_RELOAD_SAVE_H
+#endif //GUARD_RESET_SAVE_HEAP_H
+

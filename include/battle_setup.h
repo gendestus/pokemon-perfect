@@ -1,17 +1,6 @@
 #ifndef GUARD_BATTLE_SETUP_H
 #define GUARD_BATTLE_SETUP_H
 
-#include "gym_leader_rematch.h"
-
-#define REMATCHES_COUNT 5
-
-struct RematchTrainer
-{
-    u16 trainerIds[REMATCHES_COUNT];
-    u16 mapGroup;
-    u16 mapNum;
-};
-
 /*
 the layout of the first byte can be confusing here
 isDoubleBattle is the least lsb. msb is in the mode.
@@ -37,12 +26,10 @@ typedef union PACKED TrainerBattleParameter
         u8 *battleScriptRetAddrB;
         u8 *victoryText;
         u8 *cannotBattleText;
+        u16 rivalBattleFlags;
     } params;
     u8 data[sizeof(struct _TrainerBattleParameter)];
 } TrainerBattleParameter;
-
-
-extern const struct RematchTrainer gRematchTable[REMATCH_TABLE_ENTRIES];
 
 extern TrainerBattleParameter gTrainerBattleParameter;
 extern u16 gPartnerTrainerId;
@@ -53,7 +40,7 @@ void BattleSetup_StartWildBattle(void);
 void BattleSetup_StartDoubleWildBattle(void);
 void BattleSetup_StartBattlePikeWildBattle(void);
 void BattleSetup_StartRoamerBattle(void);
-void StartWallyTutorialBattle(void);
+void StartOldManTutorialBattle(void);
 void BattleSetup_StartScriptedWildBattle(void);
 void BattleSetup_StartScriptedDoubleWildBattle(void);
 void BattleSetup_StartLatiBattle(void);
@@ -61,6 +48,7 @@ void BattleSetup_StartLegendaryBattle(void);
 void StartGroudonKyogreBattle(void);
 void StartRegiBattle(void);
 u8 BattleSetup_GetEnvironmentId(void);
+u8 BattleSetup_GetBattleTowerBattleTransition(void);
 u8 GetWildBattleTransition(void);
 u8 GetTrainerBattleTransition(void);
 u8 GetSpecialBattleTransition(s32 id);
@@ -106,8 +94,8 @@ void TrainerBattleLoadArgsSecondTrainer(const u8 *data);
 
 void DoStandardWildBattle_Debug(void);
 void BattleSetup_StartTrainerBattle_Debug(void);
-s32 TrainerIdToRematchTableId(const struct RematchTrainer *table, u16 trainerId);
-s32 FirstBattleTrainerIdToRematchTableId(const struct RematchTrainer *table, u16 trainerId);
-u16 GetRematchTrainerIdFromTable(const struct RematchTrainer *table, u16 firstBattleTrainerId);
+
+u16 GetRivalBattleFlags(void);
+void SetBattledTrainerFlag(void);
 
 #endif // GUARD_BATTLE_SETUP_H
